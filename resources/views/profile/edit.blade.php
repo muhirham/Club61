@@ -2,38 +2,38 @@
     <x-slot name="header">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md font-bold text-sm tracking-wider"
-                     style="background: linear-gradient(135deg, #2D210F 0%, #171006 100%); border: 1.5px solid #E5C378; color: #E5C378;">
+                <div class="w-10 h-10 rounded-lg flex items-center justify-center shadow-md font-bold text-sm tracking-wider"
+                     style="background: #662721; color: #F7F0DB;">
                     61
                 </div>
                 <div>
-                    <h2 class="font-serif font-extrabold text-xl text-[#1F170D] tracking-wide">
+                    <h2 class="font-display font-extrabold text-xl text-[#4F2F2A] tracking-wide">
                         Member Profile Settings
                     </h2>
-                    <p class="text-xs text-[#7A643E]">Manage your account profile, password security, and account preferences.</p>
+                    <p class="text-xs text-[#7A5A52]">Manage your account profile, password security, and account preferences.</p>
                 </div>
             </div>
         </div>
     </x-slot>
 
-    <div class="py-8 min-h-screen text-[#1F170D]">
+    <div class="py-8 min-h-screen text-[#4F2F2A]">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
             <div class="p-6 sm:p-8"
-                 style="background: rgba(255, 255, 255, 0.92); border: 1.5px solid #DFC387; border-radius: 24px; box-shadow: 0 10px 30px -10px rgba(160, 120, 30, 0.15); backdrop-filter: blur(16px);">
+                 style="background: #FCF8EE; border: 1px solid #E6DAC0; border-radius: 12px;">
                 <div class="max-w-xl">
                     @include('profile.partials.update-profile-information-form')
                 </div>
             </div>
 
             <div class="p-6 sm:p-8"
-                 style="background: rgba(255, 255, 255, 0.92); border: 1.5px solid #DFC387; border-radius: 24px; box-shadow: 0 10px 30px -10px rgba(160, 120, 30, 0.15); backdrop-filter: blur(16px);">
+                 style="background: #FCF8EE; border: 1px solid #E6DAC0; border-radius: 12px;">
                 <div class="max-w-xl">
                     @include('profile.partials.update-password-form')
                 </div>
             </div>
 
             <div class="p-6 sm:p-8"
-                 style="background: rgba(255, 255, 255, 0.92); border: 1.5px solid #DFC387; border-radius: 24px; box-shadow: 0 10px 30px -10px rgba(160, 120, 30, 0.15); backdrop-filter: blur(16px);">
+                 style="background: #FCF8EE; border: 1px solid #E6DAC0; border-radius: 12px;">
                 <div class="max-w-xl">
                     @include('profile.partials.delete-user-form')
                 </div>

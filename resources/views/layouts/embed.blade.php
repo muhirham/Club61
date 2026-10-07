@@ -8,30 +8,25 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Club 61 Padel Court') }} - Play. Compete. Connect.</title>
-        <link rel="icon" type="image/png" href="{{ asset('images/club61-logo.png') }}">
+        <link rel="icon" type="image/png" href="{{ asset('images/identity/monogram-terracotta.png') }}">
+        <meta name="theme-color" content="#662721">
 
         <!-- Google Fonts: Luxury Serif & Athletic Sans -->
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+        {{-- Brand guideline: padanan Cheltenham Classic (judul) & Acumin Variable Concept (teks) — lihat tailwind.config.js. --}}
+        <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@87.5..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap" rel="stylesheet">
 
         <!-- Scripts & Styles -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="min-h-full font-sans antialiased text-[#1F170D] bg-[#FBF9F5] selection:bg-[#D4AF37] selection:text-[#1E160A] relative overflow-x-hidden flex flex-col"
-          style="background-image: url('{{ asset('images/white-gold-marble.jpg') }}'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;">
-        
-        <!-- Ambient Warm Gold Luxury Lighting -->
-        <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-            <div class="absolute -top-32 left-1/4 w-[850px] h-[550px] bg-gradient-to-b from-amber-300/20 via-yellow-500/10 to-transparent blur-3xl rounded-full"></div>
-            <div class="absolute -bottom-32 right-1/4 w-[700px] h-[500px] bg-[#D4AF37]/15 blur-3xl rounded-full"></div>
-        </div>
+    <body class="min-h-full font-brand antialiased text-[#4F2F2A] bg-[#F7F0DB] selection:bg-[#662721] selection:text-[#F7F0DB] relative overflow-x-hidden flex flex-col">
 
         <div class="min-h-screen flex flex-col relative z-10">
 
             <!-- Page Heading -->
             @isset($header)
-                <header class="bg-white/80 backdrop-blur-xl border-b border-[#D4AF37]/40 shadow-sm">
+                <header class="bg-white/80 border-b border-[#662721]/40 shadow-sm">
                     <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 py-4">
                         {{ $header }}
                     </div>

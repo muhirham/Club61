@@ -1,33 +1,33 @@
 <x-guest-layout theme="terracotta">
-    {{-- Brand guideline Club 61: Terakota #662721, Cokelat #4F2F2A, Mint #C5EAE5, Cream #F7F0DB.
+    {{-- Brand guideline Club 61: Terakota (dominan) #662721, Cokelat #4F2F2A, Cream #F7F0DB — pola sama dengan halaman depan.
          HP: form dulu (tujuan utama halaman ini), panel venue di bawahnya. Layar lebar: panel venue kiri, form kanan. --}}
     <div class="w-full max-w-6xl mx-auto my-auto">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
 
             {{-- ============ PANEL VENUE ============ --}}
-            <div class="order-2 lg:order-1 lg:col-span-7 relative overflow-hidden rounded-xl bg-club-brown text-club-cream min-h-[420px] lg:min-h-[600px] flex flex-col">
+            <div class="order-2 lg:order-1 lg:col-span-7 relative overflow-hidden rounded-xl bg-club-terra-dark text-club-cream min-h-[420px] lg:min-h-[600px] flex flex-col">
                 <img src="{{ asset('images/club-hero.jpg') }}" alt="Club 61 Padel Court" class="absolute inset-0 w-full h-full object-cover">
-                <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(79,47,42,0.72) 0%, rgba(79,47,42,0.55) 40%, rgba(79,47,42,0.95) 100%);"></div>
+                <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(30,18,15,0.62) 0%, rgba(30,18,15,0.35) 40%, rgba(30,18,15,0.9) 100%);"></div>
 
                 <div class="relative z-10 p-6 sm:p-8 flex items-start justify-between gap-4">
-                    <img src="{{ asset('images/identity/logo-mint.png') }}" alt="Club 61 Padel Court" class="h-[90px] sm:h-24 w-auto">
-                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-club-mint/50 bg-club-brown/60 backdrop-blur text-[11px] font-bold uppercase tracking-wider text-club-cream">
-                        <span class="w-2 h-2 rounded-full bg-club-mint motion-safe:animate-pulse"></span>
+                    <img src="{{ asset('images/identity/logo-cream.png') }}" alt="Club 61 Padel Court" class="h-[90px] sm:h-24 w-auto">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-club-cream/30 bg-[rgba(30,18,15,0.55)] text-[11px] font-bold uppercase tracking-wider text-club-cream">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 motion-safe:animate-pulse"></span>
                         Venue live &bull; {{ $companyProfile->court_count }} COURTS OPEN
                     </span>
                 </div>
 
                 <div class="relative z-10 px-6 sm:px-8 mt-auto pb-6">
-                    <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-club-mint mb-3">Exclusive member sanctuary</div>
+                    <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-club-cream/80 mb-3">Exclusive member sanctuary</div>
                     <h2 class="font-display font-semibold text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.1]">
-                        Where competition meets <span class="italic text-club-mint">refined luxury.</span>
+                        Where competition meets <span class="italic text-club-cream/75">refined luxury.</span>
                     </h2>
 
                     {{-- Kartu fasilitas: sumber datanya sama dengan halaman depan (welcome.blade.php), diedit lewat Filament "Konten Website". --}}
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-6">
                         @foreach($companyProfile->localizedFacilityCards() as $card)
-                            <div class="flex items-center gap-2.5 p-2.5 rounded-lg bg-club-brown/60 backdrop-blur border border-club-mint/25">
-                                <span class="w-9 h-9 rounded-md bg-club-mint/15 text-club-mint flex items-center justify-center shrink-0">
+                            <div class="flex items-center gap-2.5 p-2.5 rounded-lg bg-[rgba(30,18,15,0.6)] border border-club-cream/15">
+                                <span class="w-9 h-9 rounded-md bg-club-cream/10 text-club-cream flex items-center justify-center shrink-0">
                                     <x-company-profile.icon :icon-key="$card['icon_key']" class="w-4 h-4" />
                                 </span>
                                 <span class="min-w-0">
@@ -39,12 +39,12 @@
                     </div>
                 </div>
 
-                <div class="relative z-10 border-t border-club-cream/15 bg-club-brown/80 px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 text-xs">
+                <div class="relative z-10 bg-club-terra px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 text-xs">
                     <span class="flex items-center gap-2 text-club-cream/90">
-                        <span class="w-1.5 h-1.5 rounded-full bg-club-mint"></span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-club-cream/70"></span>
                         Gedung Indosat Medan &bull; {{ $companyProfile->localized('operating_hours_text') }}
                     </span>
-                    <span class="font-semibold tracking-wide text-club-mint">{{ $companyProfile->portal_domain_text }}</span>
+                    <span class="font-semibold tracking-wide text-club-cream">{{ $companyProfile->portal_domain_text }}</span>
                 </div>
             </div>
 

@@ -4,39 +4,39 @@
         /* Grid jadwal: lapangan = kolom, jam = baris. Kolom jam & judul lapangan menempel saat digeser. */
         .bk-grid { scroll-snap-type: x proximity; scroll-padding-left: 64px; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
         .bk-grid::-webkit-scrollbar { height: 6px; width: 6px; }
-        .bk-grid::-webkit-scrollbar-thumb { background: #DCC690; border-radius: 999px; }
+        .bk-grid::-webkit-scrollbar-thumb { background: #CDBB9C; border-radius: 999px; }
         .bk-col { scroll-snap-align: start; }
         @media (min-width: 640px) { .bk-grid { scroll-padding-left: 80px; } }
     </style>
 
-    <div x-data="bookingCourtApp()" x-init="init()" class="bk-page text-[#1F170D]">
+    <div x-data="bookingCourtApp()" x-init="init()" class="bk-page text-[#4F2F2A]">
         <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
 
             {{-- Header --}}
             <div class="flex items-center gap-3 min-w-0">
                 <a href="{{ route('dashboard') }}" title="Back to Home"
-                   class="bk-tap hidden sm:flex w-10 h-10 shrink-0 items-center justify-center rounded-2xl bg-white/90 border border-[#EADBB5] text-[#7A5818] hover:bg-[#FAF2DE] transition-colors">
+                   class="bk-tap hidden sm:flex w-10 h-10 shrink-0 items-center justify-center rounded-lg bg-white/90 border border-[#E6DAC0] text-[#662721] hover:bg-[#F7F0DB] transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
                 </a>
                 <div class="min-w-0">
                     <div class="flex items-center gap-2">
-                        <h1 class="font-serif font-black text-xl sm:text-2xl">Book Court</h1>
+                        <h1 class="font-display font-black text-xl sm:text-2xl">Book Court</h1>
                         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse"></span>Live
                         </span>
                     </div>
-                    <p class="hidden sm:block text-xs text-[#7A643E] mt-0.5">Pick a date, then tap the hours you want to play — each box is one hour.</p>
+                    <p class="hidden sm:block text-xs text-[#7A5A52] mt-0.5">Pick a date, then tap the hours you want to play — each box is one hour.</p>
                 </div>
             </div>
 
             <div class="flex flex-col lg:flex-row gap-4 sm:gap-5 items-start">
                 {{-- Jadwal: tanggal + grid lapangan --}}
-                <section class="w-full lg:flex-1 min-w-0 bg-white/95 rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] overflow-hidden">
+                <section class="w-full lg:flex-1 min-w-0 bg-white/95 rounded-xl border border-[#E6DAC0] shadow-[0_12px_36px_rgba(79,47,42,0.10)] overflow-hidden">
 
                     {{-- Tanggal --}}
-                    <div class="flex items-stretch gap-2 p-2.5 sm:p-3 border-b border-[#EADBB5]">
+                    <div class="flex items-stretch gap-2 p-2.5 sm:p-3 border-b border-[#E6DAC0]">
                         <button type="button" @click="openCalendarPicker()" title="Pick any date (up to 2 months ahead)" aria-label="Open calendar"
-                                class="bk-tap relative shrink-0 w-11 sm:w-12 rounded-2xl bg-[#FBF7EE] text-[#8C6418] hover:bg-[#F6EEDB] flex items-center justify-center transition-colors">
+                                class="bk-tap relative shrink-0 w-11 sm:w-12 rounded-lg bg-[#F7F0DB] text-[#662721] hover:bg-[#F7F0DB] flex items-center justify-center transition-colors">
                             <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             <input type="date" x-ref="calendarInput" :min="minDate" :max="maxDate" :value="activeDate" tabindex="-1" aria-hidden="true"
                                    @change="onCalendarSelect($event.target.value)" class="absolute inset-0 opacity-0 pointer-events-none w-full h-full">
@@ -45,9 +45,9 @@
                             <template x-for="tab in dateTabs" :key="tab.date">
                                 <button type="button" :id="'date-tab-' + tab.date" @click="selectDate(tab.date)" :aria-pressed="activeDate === tab.date"
                                         :class="activeDate === tab.date
-                                            ? 'bg-[#183428] text-[#F5E6BE] shadow-[0_6px_16px_rgba(24,52,40,0.28)]'
-                                            : 'text-[#5C4A2E] hover:bg-[#FBF7EE]'"
-                                        class="bk-tap bk-snap shrink-0 w-[60px] sm:w-[66px] py-2 rounded-2xl text-center transition-all duration-200 active:scale-95">
+                                            ? 'bg-[#662721] text-[#F7F0DB] shadow-[0_6px_16px_rgba(79,47,42,0.28)]'
+                                            : 'text-[#7A5A52] hover:bg-[#F7F0DB]'"
+                                        class="bk-tap bk-snap shrink-0 w-[60px] sm:w-[66px] py-2 rounded-lg text-center transition-all duration-200 active:scale-95">
                                     <span class="block text-[10px] font-bold uppercase tracking-wide opacity-80" x-text="tab.day"></span>
                                     <span class="block text-[15px] font-black leading-tight" x-text="tab.dayNum + ' ' + tab.month"></span>
                                 </button>
@@ -56,12 +56,12 @@
                     </div>
 
                     {{-- Legenda --}}
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-[#F3E9D2] text-[11px] text-[#7A643E]">
-                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-white border border-[#DCC690]"></span>Available</span>
-                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#183428]"></span>Selected</span>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-[#E6DAC0] text-[11px] text-[#7A5A52]">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-white border border-[#CDBB9C]"></span>Available</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#662721]"></span>Selected</span>
                         <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-amber-100 border border-amber-300"></span>In checkout</span>
-                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#EFEBE3]"></span>Booked / closed</span>
-                        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>Prime time</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#EEE5D3]"></span>Booked / closed</span>
+                        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#662721] hover:bg-[#511D18]"></span>Prime time</span>
                     </div>
 
                     {{-- Loading --}}
@@ -72,7 +72,7 @@
                     </div>
 
                     {{-- Kosong --}}
-                    <div x-show="!isLoading && courts.length === 0" class="p-8 text-center text-sm text-[#7A643E]">
+                    <div x-show="!isLoading && courts.length === 0" class="p-8 text-center text-sm text-[#7A5A52]">
                         No courts are available for booking right now.
                     </div>
 
@@ -80,28 +80,28 @@
                     <div x-show="!isLoading && courts.length > 0" class="bk-grid overflow-auto max-h-[62vh] sm:max-h-[64vh] lg:max-h-[calc(100vh-260px)] min-h-[320px]">
                         <div :style="'min-width: ' + gridMinWidth + 'px'">
                             {{-- Judul lapangan --}}
-                            <div class="grid sticky top-0 z-20 bg-[#FBF5E6] border-b border-[#EADBB5]" :style="gridColumns">
-                                <div class="sticky left-0 z-10 bg-[#FBF5E6] border-r border-[#EADBB5]"></div>
+                            <div class="grid sticky top-0 z-20 bg-[#F7F0DB] border-b border-[#E6DAC0]" :style="gridColumns">
+                                <div class="sticky left-0 z-10 bg-[#F7F0DB] border-r border-[#E6DAC0]"></div>
                                 <template x-for="court in courts" :key="court.court_id">
-                                    <div class="bk-col relative px-1.5 py-2.5 text-center border-r border-[#F3E9D2] last:border-r-0" x-data="{ info: false }">
+                                    <div class="bk-col relative px-1.5 py-2.5 text-center border-r border-[#E6DAC0] last:border-r-0" x-data="{ info: false }">
                                         <button type="button" @click="info = !info" @click.outside="info = false"
-                                                class="bk-tap inline-flex items-center justify-center gap-1 max-w-full text-xs sm:text-[13px] font-extrabold text-[#1F170D] leading-tight"
+                                                class="bk-tap inline-flex items-center justify-center gap-1 max-w-full text-xs sm:text-[13px] font-extrabold text-[#4F2F2A] leading-tight"
                                                 :aria-label="court.court_name + ' details'">
                                             <span class="line-clamp-2 break-words" x-text="court.court_name"></span>
-                                            <svg class="w-3.5 h-3.5 shrink-0 text-[#A08C66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2" /><path stroke-linecap="round" stroke-width="2" d="M12 11v5m0-8h.01" /></svg>
+                                            <svg class="w-3.5 h-3.5 shrink-0 text-[#A08F86]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2" /><path stroke-linecap="round" stroke-width="2" d="M12 11v5m0-8h.01" /></svg>
                                         </button>
                                         <div class="text-[10px] font-bold" :class="availableCount(court) > 0 ? 'text-emerald-700' : 'text-rose-600'"
                                              x-text="availableCount(court) > 0 ? availableCount(court) + ' open' : 'Full'"></div>
                                         <div x-show="info" x-transition.opacity style="display: none;"
-                                             class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-30 w-52 p-3 rounded-2xl bg-white border border-[#EADBB5] shadow-[0_12px_30px_rgba(90,64,12,0.18)] text-left">
+                                             class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-30 w-52 p-3 rounded-lg bg-white border border-[#E6DAC0] shadow-[0_12px_30px_rgba(79,47,42,0.18)] text-left">
                                             <div class="text-xs font-extrabold" x-text="court.court_name"></div>
-                                            <div class="text-[11px] text-[#7A643E] mt-1 leading-relaxed" x-text="court.description || 'Padel court'"></div>
+                                            <div class="text-[11px] text-[#7A5A52] mt-1 leading-relaxed" x-text="court.description || 'Padel court'"></div>
                                         </div>
                                     </div>
                                 </template>
                             </div>
 
-                            <div x-show="pastNote" class="sticky left-0 flex items-center gap-2 px-4 py-2 bg-[#FFFCF5] border-b border-[#F3E9D2] text-[11px] text-[#7A643E]">
+                            <div x-show="pastNote" class="sticky left-0 flex items-center gap-2 px-4 py-2 bg-[#FCF8EE] border-b border-[#E6DAC0] text-[11px] text-[#7A5A52]">
                                 <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                                 <span x-text="pastNote"></span>
                             </div>
@@ -109,26 +109,26 @@
                             {{-- Jam dikelompokkan: siang 06–17 WIB & malam 17–00 WIB --}}
                             <template x-for="group in rowGroups" :key="activeDate + '-' + group.key">
                                 <div>
-                                    <div class="px-3 sm:px-4 py-1.5 bg-[#FBF7EE] border-b border-[#F3E9D2]">
-                                        <span class="sticky left-3 inline-block text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]" x-text="group.label"></span>
+                                    <div class="px-3 sm:px-4 py-1.5 bg-[#F7F0DB] border-b border-[#E6DAC0]">
+                                        <span class="sticky left-3 inline-block text-[10px] font-extrabold uppercase tracking-wider text-[#662721]" x-text="group.label"></span>
                                     </div>
                                     <template x-for="row in group.rows" :key="activeDate + '-' + row.time">
-                                        <div class="grid border-b border-[#F3E9D2]" :style="gridColumns">
-                                            <div class="sticky left-0 z-10 bg-white border-r border-[#EADBB5] flex items-center justify-center text-xs sm:text-[13px] font-bold tabular-nums text-[#5C4A2E]" x-text="row.time"></div>
+                                        <div class="grid border-b border-[#E6DAC0]" :style="gridColumns">
+                                            <div class="sticky left-0 z-10 bg-white border-r border-[#E6DAC0] flex items-center justify-center text-xs sm:text-[13px] font-bold tabular-nums text-[#7A5A52]" x-text="row.time"></div>
                                             <template x-for="(cell, ci) in row.cells" :key="ci">
-                                                <div class="p-1 border-r border-[#F3E9D2] last:border-r-0">
+                                                <div class="p-1 border-r border-[#E6DAC0] last:border-r-0">
                                                     <template x-if="cell && cell.status === 'AVAILABLE'">
                                                         <button type="button" @click="handleSlotClick(ci, row.index)"
                                                                 :aria-pressed="isSlotSelected(cell.court_id, cell.local_start)"
                                                                 :aria-label="cell.court_name + ' ' + cell.local_start + ' Rp ' + formatNumber(cell.price)"
                                                                 :class="slotButtonClass(cell.court_id, cell.local_start)"
                                                                 class="bk-tap relative w-full h-12 sm:h-[52px] rounded-xl border text-left px-2.5 text-[13px] sm:text-sm font-extrabold tabular-nums transition-all duration-150 active:scale-95">
-                                                            <span x-show="cell.is_prime_time" class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                                                            <span x-show="cell.is_prime_time" class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#662721] hover:bg-[#511D18]"></span>
                                                             <span x-text="formatK(cell.price)"></span>
                                                         </button>
                                                     </template>
                                                     <template x-if="cell && cell.status !== 'AVAILABLE'">
-                                                        <div :class="cell.status === 'LOCKED' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#EFEBE3] border-transparent text-[#9C927F]'"
+                                                        <div :class="cell.status === 'LOCKED' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#EEE5D3] border-transparent text-[#A08F86]'"
                                                              class="w-full h-12 sm:h-[52px] rounded-xl border px-2.5 pt-1.5 text-[11px] font-semibold cursor-not-allowed select-none"
                                                              x-text="statusLabel(cell.status)"></div>
                                                     </template>
@@ -139,55 +139,41 @@
                                     </template>
                                 </div>
                             </template>
-                            <div x-show="rowGroups.length === 0" class="py-8 text-center text-sm text-[#7A643E]">No open hours on this date — pick another date.</div>
+                            <div x-show="rowGroups.length === 0" class="py-8 text-center text-sm text-[#7A5A52]">No open hours on this date — pick another date.</div>
                         </div>
                     </div>
                 </section>
 
-                {{-- Membership (layar lebar) --}}
-                <aside class="hidden lg:block w-[280px] xl:w-[300px] shrink-0 lg:sticky lg:top-24">
-                    <div class="bg-white/95 rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] p-3">
-                        <img src="{{ asset('images/club-hero.jpg') }}" alt="Club 61 padel court" class="w-full h-64 xl:h-80 object-cover rounded-2xl">
-                        <div class="px-1.5 pt-4 pb-1.5 space-y-2">
-                            <h2 class="font-serif font-black text-lg">Membership Program</h2>
-                            <p class="text-xs text-[#7A643E] leading-relaxed">Play more for less — court hour quotas, member discounts and priority benefits.</p>
-                            <a href="{{ route('customer.membership') }}"
-                               class="bk-tap mt-2 flex items-center justify-center h-11 rounded-2xl text-sm font-black uppercase tracking-wider text-[#1E160A] bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] hover:brightness-105 transition">
-                                Unlock Benefits
-                            </a>
-                        </div>
-                    </div>
-                </aside>
             </div>
         </div>
 
         {{-- Ringkasan & lanjut (menempel di atas navigasi bawah) --}}
         <div class="bk-bar fixed inset-x-0 z-30 px-3 sm:px-8 lg:px-12 2xl:px-16 pointer-events-none">
-            <div x-ref="bar" class="w-full pointer-events-auto bg-white/95 backdrop-blur-xl rounded-3xl border border-[#E3CF9C] shadow-[0_18px_44px_rgba(90,64,12,0.22)] p-3 sm:p-4 flex items-center gap-3">
+            <div x-ref="bar" class="w-full pointer-events-auto bg-white/95 rounded-xl border border-[#E6DAC0] shadow-[0_18px_44px_rgba(79,47,42,0.22)] p-3 sm:p-4 flex items-center gap-3">
                 <div class="flex-1 min-w-0">
                     <template x-if="selectedSlots.length === 0">
                         <div>
-                            <div class="text-sm font-bold text-[#1F170D]">Tap the hours you want</div>
-                            <div class="text-[11px] text-[#7A643E] truncate" x-text="dateLabel(activeDate) + ' · 1 box = 1 hour'"></div>
+                            <div class="text-sm font-bold text-[#4F2F2A]">Tap the hours you want</div>
+                            <div class="text-[11px] text-[#7A5A52] truncate" x-text="dateLabel(activeDate) + ' · 1 box = 1 hour'"></div>
                         </div>
                     </template>
                     <template x-if="selectedSlots.length > 0">
                         <div class="bk-fade-up min-w-0">
-                            <div class="text-[11px] font-bold text-[#1F170D] truncate" x-text="selectionHeadline"></div>
-                            <div class="text-[11px] font-semibold text-[#8C6418] truncate" x-text="selectionDetail"></div>
-                            <div class="font-black text-lg sm:text-xl leading-tight tabular-nums text-[#1F170D]" x-text="'Rp ' + formatNumber(totalPrice)"></div>
+                            <div class="text-[11px] font-bold text-[#4F2F2A] truncate" x-text="selectionHeadline"></div>
+                            <div class="text-[11px] font-semibold text-[#662721] truncate" x-text="selectionDetail"></div>
+                            <div class="font-black text-lg sm:text-xl leading-tight tabular-nums text-[#4F2F2A]" x-text="'Rp ' + formatNumber(totalPrice)"></div>
                         </div>
                     </template>
                 </div>
                 <button type="button" x-show="selectedSlots.length > 0" @click="selectedSlots = []" title="Clear selection" aria-label="Clear selection"
-                        class="bk-tap shrink-0 w-10 h-10 rounded-2xl border border-[#EADBB5] text-[#9A3412] hover:bg-rose-50 flex items-center justify-center transition-colors">
+                        class="bk-tap shrink-0 w-10 h-10 rounded-lg border border-[#E6DAC0] text-[#9A3412] hover:bg-rose-50 flex items-center justify-center transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
                 <button type="button" :disabled="selectedSlots.length === 0 || isHolding" @click="openConfirm()"
                         :class="selectedSlots.length > 0
-                            ? 'bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] text-[#1E160A] shadow-[0_8px_20px_rgba(168,125,24,0.35)] hover:brightness-105 active:scale-95'
-                            : 'bg-[#EFEAE0] text-[#A89F8F] cursor-not-allowed'"
-                        class="bk-tap shrink-0 h-12 px-5 sm:px-7 rounded-2xl text-xs sm:text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2">
+                            ? 'bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] shadow-[0_8px_20px_rgba(79,47,42,0.18)]  active:scale-95'
+                            : 'bg-[#EEE5D3] text-[#A08F86] cursor-not-allowed'"
+                        class="bk-tap shrink-0 h-12 px-5 sm:px-7 rounded-lg text-xs sm:text-sm font-black uppercase tracking-wider transition-all flex items-center gap-2">
                     <svg x-show="isHolding" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" class="opacity-25"></circle><path fill="currentColor" class="opacity-75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                     <span x-text="isHolding ? 'Reserving…' : 'Continue'"></span>
                     <svg x-show="!isHolding" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
@@ -202,31 +188,31 @@
             <div x-show="confirmModal.show" role="dialog" aria-modal="true" aria-labelledby="bk-confirm-title"
                  x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full sm:translate-y-4 sm:opacity-0" x-transition:enter-end="translate-y-0 sm:opacity-100"
                  x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 sm:opacity-100" x-transition:leave-end="translate-y-full sm:translate-y-4 sm:opacity-0"
-                 class="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl border-t-2 sm:border-2 border-[#D4AF37] shadow-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4">
-                <div class="sm:hidden mx-auto w-10 h-1.5 rounded-full bg-[#E8DCC0]"></div>
+                 class="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-t-xl sm:rounded-xl border-t-2 sm:border-2 border-[#662721] shadow-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4">
+                <div class="sm:hidden mx-auto w-10 h-1.5 rounded-full bg-[#E6DAC0]"></div>
                 <div>
-                    <h3 id="bk-confirm-title" class="font-serif font-black text-lg">Check your booking</h3>
-                    <p class="text-xs text-[#7A643E] mt-0.5">Make sure the date, court and time are right before you continue.</p>
+                    <h3 id="bk-confirm-title" class="font-display font-black text-lg">Check your booking</h3>
+                    <p class="text-xs text-[#7A5A52] mt-0.5">Make sure the date, court and time are right before you continue.</p>
                 </div>
 
-                <div class="rounded-2xl border border-[#EADBB5] divide-y divide-[#F3E9D2]">
+                <div class="rounded-lg border border-[#E6DAC0] divide-y divide-[#E6DAC0]">
                     <template x-for="s in confirmSessions" :key="s.court_id + s.start_time">
                         <div class="flex items-start justify-between gap-3 px-4 py-3">
                             <div class="min-w-0">
                                 <div class="text-sm font-extrabold truncate" x-text="s.court"></div>
-                                <div class="text-xs text-[#7A643E]" x-text="dateLabel(activeDate) + ' · ' + s.start_time + '–' + s.end_time + ' WIB'"></div>
-                                <div class="text-[11px] text-[#8C6418] font-semibold" x-text="s.duration_hours + (s.duration_hours === 1 ? ' hour' : ' hours')"></div>
+                                <div class="text-xs text-[#7A5A52]" x-text="dateLabel(activeDate) + ' · ' + s.start_time + '–' + s.end_time + ' WIB'"></div>
+                                <div class="text-[11px] text-[#662721] font-semibold" x-text="s.duration_hours + (s.duration_hours === 1 ? ' hour' : ' hours')"></div>
                             </div>
                             <div class="text-sm font-black tabular-nums shrink-0" x-text="'Rp ' + formatNumber(s.price)"></div>
                         </div>
                     </template>
-                    <div class="flex items-center justify-between px-4 py-3 bg-[#FBF7EE] rounded-b-2xl">
-                        <span class="text-xs font-bold text-[#5C4A2E]">Court total <span class="font-normal text-[#7A643E]">(tax &amp; fees at checkout)</span></span>
+                    <div class="flex items-center justify-between px-4 py-3 bg-[#F7F0DB] rounded-b-2xl">
+                        <span class="text-xs font-bold text-[#7A5A52]">Court total <span class="font-normal text-[#7A5A52]">(tax &amp; fees at checkout)</span></span>
                         <span class="text-base font-black tabular-nums" x-text="'Rp ' + formatNumber(totalPrice)"></span>
                     </div>
                 </div>
 
-                <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4 space-y-2 text-xs text-amber-900">
+                <div class="rounded-lg bg-amber-50 border border-amber-200 p-4 space-y-2 text-xs text-amber-900">
                     <div class="font-extrabold uppercase tracking-wider text-[11px]">Booking policy</div>
                     <ul class="space-y-1.5 list-disc pl-4 leading-relaxed">
                         <li>Rescheduling is only possible up to <strong>H-3</strong> (3 days before your play time).</li>
@@ -236,16 +222,16 @@
                 </div>
 
                 <label class="flex items-start gap-3 cursor-pointer select-none">
-                    <input type="checkbox" x-model="confirmModal.agreed" class="mt-0.5 w-5 h-5 rounded border-[#C9B27A] text-[#183428] focus:ring-[#D4AF37]">
-                    <span class="text-sm text-[#1F170D]">I have checked my booking and agree to the booking policy.</span>
+                    <input type="checkbox" x-model="confirmModal.agreed" class="mt-0.5 w-5 h-5 rounded border-[#CDBB9C] text-[#662721] focus:ring-[#662721]">
+                    <span class="text-sm text-[#4F2F2A]">I have checked my booking and agree to the booking policy.</span>
                 </label>
 
                 <div class="flex gap-2.5">
                     <button type="button" @click="confirmModal.show = false"
-                            class="bk-tap flex-1 h-12 rounded-2xl border border-[#EADBB5] text-sm font-bold text-[#5C4A2E] hover:bg-[#FBF7EE] transition-colors">Check again</button>
+                            class="bk-tap flex-1 h-12 rounded-lg border border-[#E6DAC0] text-sm font-bold text-[#7A5A52] hover:bg-[#F7F0DB] transition-colors">Check again</button>
                     <button type="button" :disabled="!confirmModal.agreed || isHolding" @click="confirmModal.show = false; proceedToHoldAndCart()"
-                            :class="confirmModal.agreed ? 'bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] text-[#1E160A] hover:brightness-105 active:scale-[0.98]' : 'bg-[#EFEAE0] text-[#A89F8F] cursor-not-allowed'"
-                            class="bk-tap flex-[1.4] h-12 rounded-2xl text-sm font-black uppercase tracking-wider transition-all">Yes, continue</button>
+                            :class="confirmModal.agreed ? 'bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB]  active:scale-[0.98]' : 'bg-[#EEE5D3] text-[#A08F86] cursor-not-allowed'"
+                            class="bk-tap flex-[1.4] h-12 rounded-lg text-sm font-black uppercase tracking-wider transition-all">Yes, continue</button>
                 </div>
             </div>
         </div>
@@ -256,11 +242,11 @@
             <div x-show="noticeModal.show"
                  x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full sm:translate-y-4 sm:opacity-0" x-transition:enter-end="translate-y-0 sm:opacity-100"
                  x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 sm:opacity-100" x-transition:leave-end="translate-y-full sm:translate-y-4 sm:opacity-0"
-                 class="relative w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-3xl border-t-2 sm:border-2 border-[#D4AF37] shadow-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 text-center space-y-4">
-                <div class="sm:hidden mx-auto w-10 h-1.5 rounded-full bg-[#E8DCC0]"></div>
-                <div class="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto"
+                 class="relative w-full sm:max-w-md bg-white rounded-t-xl sm:rounded-xl border-t-2 sm:border-2 border-[#662721] shadow-2xl p-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] sm:pb-6 text-center space-y-4">
+                <div class="sm:hidden mx-auto w-10 h-1.5 rounded-full bg-[#E6DAC0]"></div>
+                <div class="w-14 h-14 rounded-lg flex items-center justify-center mx-auto"
                      :class="{
-                         'bg-[#FAF2DE] text-[#8C6418]': noticeModal.type === 'info' || noticeModal.type === 'gold',
+                         'bg-[#F7F0DB] text-[#662721]': noticeModal.type === 'info' || noticeModal.type === 'gold',
                          'bg-rose-50 text-rose-600': noticeModal.type === 'error' || noticeModal.type === 'danger',
                          'bg-emerald-50 text-emerald-600': noticeModal.type === 'success'
                      }">
@@ -269,11 +255,11 @@
                     <svg x-show="noticeModal.type === 'info' || noticeModal.type === 'gold'" class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                 </div>
                 <div class="space-y-1.5">
-                    <h3 class="font-serif font-black text-lg" x-text="noticeModal.title"></h3>
-                    <p class="text-sm text-[#7A643E] leading-relaxed" x-text="noticeModal.message"></p>
+                    <h3 class="font-display font-black text-lg" x-text="noticeModal.title"></h3>
+                    <p class="text-sm text-[#7A5A52] leading-relaxed" x-text="noticeModal.message"></p>
                 </div>
                 <button type="button" @click="handleNoticeClose()" x-text="noticeModal.buttonText"
-                        class="bk-tap w-full h-12 rounded-2xl text-sm font-black uppercase tracking-wider text-[#1E160A] bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] active:scale-[0.98] transition-transform"></button>
+                        class="bk-tap w-full h-12 rounded-lg text-sm font-black uppercase tracking-wider text-[#F7F0DB] bg-[#662721] hover:bg-[#511D18] active:scale-[0.98] transition-transform"></button>
             </div>
         </div>
     </div>
@@ -364,9 +350,9 @@
 
                 slotButtonClass(courtId, startTime) {
                     if (this.isSlotSelected(courtId, startTime)) {
-                        return 'bk-pop bg-[#183428] border-[#183428] text-[#F5E6BE] shadow-[0_6px_16px_rgba(24,52,40,0.32)]';
+                        return 'bk-pop bg-[#662721] border-[#662721] text-[#F7F0DB] shadow-[0_6px_16px_rgba(79,47,42,0.32)]';
                     }
-                    return 'bg-white border-[#EDE3CB] text-[#1F170D] hover:border-[#D4AF37] hover:bg-[#FFFBF0]';
+                    return 'bg-white border-[#E6DAC0] text-[#4F2F2A] hover:border-[#662721] hover:bg-[#FCF8EE]';
                 },
 
                 generateDateTabs() {

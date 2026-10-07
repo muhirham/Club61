@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <title>{{ config('app.name', 'Club 61 Padel Court') }} - Play. Compete. Connect.</title>
-        <link rel="icon" type="image/png" href="{{ asset('images/club61-logo.png') }}">
+        <link rel="icon" type="image/png" href="{{ asset('images/identity/monogram-terracotta.png') }}">
 
         <!-- Google Fonts: Luxury Serif, Clean Athletic Sans, Script Accent -->
         <link rel="preconnect" href="https://fonts.googleapis.com">

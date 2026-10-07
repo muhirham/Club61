@@ -1,50 +1,50 @@
 <x-dynamic-component :component="! empty($previewMode) ? 'embed-layout' : 'app-layout'">
-    <div class="py-6 sm:py-8 text-[#1F170D]">
+    <div class="py-6 sm:py-8 text-[#4F2F2A]">
         <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 space-y-6">
 
             <!-- Top Header -->
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 backdrop-blur-xl p-5 rounded-3xl border border-[#DFC387] shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/95 p-5 rounded-xl border border-[#E6DAC0] shadow-sm">
                 <div class="flex items-center gap-3.5">
                     @if(empty($previewMode))
-                    <a href="{{ route('dashboard') }}" class="p-2.5 rounded-2xl bg-[#FAF2DE] hover:bg-[#F3DFAD] border border-[#DFC387] text-[#7A5818] transition-colors" title="Back to Home">
+                    <a href="{{ route('dashboard') }}" class="p-2.5 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] transition-colors" title="Back to Home">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
                         </svg>
                     </a>
                     @endif
                     <div>
-                        <h1 class="font-serif font-black text-xl sm:text-2xl text-[#1F170D]">Manage Corporate Sponsor Team</h1>
-                        <p class="text-xs text-[#7A643E] mt-0.5">Manage your team's employee roster &amp; play-hour vouchers at Club 61</p>
+                        <h1 class="font-display font-black text-xl sm:text-2xl text-[#4F2F2A]">Manage Corporate Sponsor Team</h1>
+                        <p class="text-xs text-[#7A5A52] mt-0.5">Manage your team's employee roster &amp; play-hour vouchers at Club 61</p>
                     </div>
                 </div>
             </div>
 
             @if(! empty($previewMode) && $organization)
-                <div class="p-4 rounded-2xl border-2 border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div class="p-4 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 text-xs font-bold flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <span>MODE PRATINJAU STAF — Anda melihat dashboard PIC <strong>{{ $organization->sponsorAdmin?->name ?? '-' }}</strong> ({{ $organization->name }}). Semua aksi dinonaktifkan.</span>
                 </div>
             @endif
 
             @if(! $organization)
-                <div class="p-8 rounded-3xl bg-white/95 border border-[#DFC387] shadow-sm text-center">
-                    <p class="text-sm font-bold text-[#1F170D]">You are not registered as the PIC of any corporate account.</p>
-                    <p class="text-xs text-[#7A643E] mt-1.5">Contact Club 61 Concierge if your company already subscribes to a corporate package but this menu hasn't appeared yet.</p>
+                <div class="p-8 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm text-center">
+                    <p class="text-sm font-bold text-[#4F2F2A]">You are not registered as the PIC of any corporate account.</p>
+                    <p class="text-xs text-[#7A5A52] mt-1.5">Contact Club 61 Concierge if your company already subscribes to a corporate package but this menu hasn't appeared yet.</p>
                 </div>
             @else
                 <div @if(! empty($previewMode)) inert @endif class="space-y-6">
-                <div id="corporate-alert" class="hidden p-4 rounded-2xl text-xs font-bold"></div>
+                <div id="corporate-alert" class="hidden p-4 rounded-lg text-xs font-bold"></div>
 
                 <!-- Contract Summary -->
-                <div class="relative overflow-hidden rounded-3xl p-6 sm:p-8 border-2 border-[#D4AF37] shadow-[0_15px_35px_rgba(212,175,55,0.2)]"
-                     style="background: linear-gradient(135deg, #FAF5E8 0%, #FFFFFF 100%);">
+                <div class="relative overflow-hidden rounded-xl p-6 sm:p-8 border-2 border-[#662721] shadow-[0_15px_35px_rgba(102,39,33,0.2)]"
+                     style="background: linear-gradient(135deg, #F7F0DB 0%, #FFFFFF 100%);">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                         <div>
-                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-[#FAF2DE] text-[#7A5818] border border-[#DFC387]">
+                            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-[#F7F0DB] text-[#662721] border border-[#E6DAC0]">
                                 <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
                                 <span>Active Corporate Account</span>
                             </div>
-                            <div class="font-serif font-black text-2xl sm:text-3xl text-[#1F170D] mt-2">{{ $organization->name }}</div>
-                            <div class="text-xs text-[#7A643E] mt-1">
+                            <div class="font-display font-black text-2xl sm:text-3xl text-[#4F2F2A] mt-2">{{ $organization->name }}</div>
+                            <div class="text-xs text-[#7A5A52] mt-1">
                                 Plan: <strong>{{ $organization->userMembership->plan->name ?? '-' }}</strong>
                                 @if($organization->userMembership && $organization->userMembership->end_date)
                                     &bull; Contract until <strong>{{ \Carbon\Carbon::parse($organization->userMembership->end_date)->format('d M Y') }}</strong>
@@ -52,33 +52,33 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 min-w-[240px] sm:min-w-[380px]">
-                            <div class="p-4 rounded-2xl bg-white border border-[#DFC387] shadow-sm text-center">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]">Active Members</div>
-                                <div class="font-serif font-black text-xl text-[#1F170D] mt-1">{{ $activeMemberCount }}</div>
+                            <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">Active Members</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ $activeMemberCount }}</div>
                             </div>
-                            <div class="p-4 rounded-2xl bg-white border border-[#DFC387] shadow-sm text-center">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]">Contract Quota</div>
-                                <div class="font-serif font-black text-xl text-[#1F170D] mt-1">
+                            <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">Contract Quota</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">
                                     {{ $totalQuota !== null ? number_format($totalQuota, 1) : 'Unlimited' }}
                                 </div>
                             </div>
-                            <div class="p-4 rounded-2xl bg-white border border-[#DFC387] shadow-sm text-center">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]">Quota Remaining</div>
-                                <div class="font-serif font-black text-xl text-[#1F170D] mt-1">
+                            <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">Quota Remaining</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">
                                     {{ $quotaRemaining !== null ? number_format($quotaRemaining, 1) : 'Unlimited' }}
                                 </div>
                             </div>
-                            <div class="p-4 rounded-2xl bg-white border border-[#DFC387] shadow-sm text-center">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]">Hours Released</div>
-                                <div class="font-serif font-black text-xl text-[#1F170D] mt-1">{{ number_format($totalHoursReleased, 1) }}</div>
+                            <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">Hours Released</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ number_format($totalHoursReleased, 1) }}</div>
                             </div>
-                            <div class="p-4 rounded-2xl bg-white border border-[#DFC387] shadow-sm text-center">
-                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]">Hours Used</div>
-                                <div class="font-serif font-black text-xl text-[#1F170D] mt-1">{{ number_format($totalHoursUsed, 1) }}</div>
+                            <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">Hours Used</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ number_format($totalHoursUsed, 1) }}</div>
                             </div>
                         </div>
                     </div>
-                    <p class="text-[10px] text-[#8C7A58] mt-4 italic">
+                    <p class="text-[10px] text-[#7A5A52] mt-4 italic">
                         @if($totalQuota !== null)
                             Contract quota of {{ number_format($totalQuota, 1) }} hrs &mdash; {{ number_format($totalHoursReleased, 1) }} hrs already released to {{ $activeMemberCount }} active member(s), {{ number_format($quotaRemaining, 1) }} hrs still available to release. {{ number_format($totalHoursUsed, 1) }} hrs actually used so far.
                         @else
@@ -88,17 +88,17 @@
                 </div>
 
                 <!-- Access Schedule (Read-Only, set by venue staff) -->
-                <div class="p-6 rounded-3xl bg-white/95 border border-[#DFC387] shadow-sm">
-                    <h3 class="font-serif font-extrabold text-base text-[#1F170D]">Team Play Access Schedule</h3>
-                    <p class="text-xs text-[#7A643E] mt-0.5 mb-4">Allowed hours &amp; days are set by Club 61 (to balance court availability with other sponsors). Contact Concierge for adjustments.</p>
+                <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
+                    <h3 class="font-display font-extrabold text-base text-[#4F2F2A]">Team Play Access Schedule</h3>
+                    <p class="text-xs text-[#7A5A52] mt-0.5 mb-4">Allowed hours &amp; days are set by Club 61 (to balance court availability with other sponsors). Contact Concierge for adjustments.</p>
                     @if($organization->accessSchedules->isEmpty())
-                        <p class="text-xs text-[#8C7A58] italic">No access schedule has been set for your team yet.</p>
+                        <p class="text-xs text-[#7A5A52] italic">No access schedule has been set for your team yet.</p>
                     @else
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             @foreach($organization->accessSchedules as $sch)
-                                <div class="p-4 rounded-2xl bg-[#FAF8F2] border border-[#DFC387]/60 text-xs">
-                                    <div class="font-bold text-[#1F170D]">{{ \Carbon\Carbon::parse($sch->valid_from)->format('d M Y') }} &ndash; {{ \Carbon\Carbon::parse($sch->valid_until)->format('d M Y') }}</div>
-                                    <div class="text-[#7A643E] mt-1">
+                                <div class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0]/60 text-xs">
+                                    <div class="font-bold text-[#4F2F2A]">{{ \Carbon\Carbon::parse($sch->valid_from)->format('d M Y') }} &ndash; {{ \Carbon\Carbon::parse($sch->valid_until)->format('d M Y') }}</div>
+                                    <div class="text-[#7A5A52] mt-1">
                                         Hours: <strong>{{ $sch->time_start }} - {{ $sch->time_end }}</strong>
                                         @if($sch->days_of_week)
                                             &bull; Days: {{ collect($sch->days_of_week)->map(fn($d) => [1=>'Mon',2=>'Tue',3=>'Wed',4=>'Thu',5=>'Fri',6=>'Sat',7=>'Sun'][$d] ?? $d)->implode(', ') }}
@@ -107,7 +107,7 @@
                                         @endif
                                     </div>
                                     @if($sch->max_concurrent_courts)
-                                        <div class="text-[#8C7A58] mt-1">Max {{ $sch->max_concurrent_courts }} court(s) at once</div>
+                                        <div class="text-[#7A5A52] mt-1">Max {{ $sch->max_concurrent_courts }} court(s) at once</div>
                                     @endif
                                 </div>
                             @endforeach
@@ -117,50 +117,50 @@
 
                 <!-- Add Member & CSV Import -->
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="p-6 rounded-3xl bg-white/95 border border-[#DFC387] shadow-sm">
-                        <h3 class="font-serif font-extrabold text-base text-[#1F170D] mb-1">Add One Member</h3>
-                        <p class="text-[11px] text-[#7A643E] mb-4">Adding just one employee? Fill this in. Adding many at once? Use CSV import on the right instead.</p>
+                    <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
+                        <h3 class="font-display font-extrabold text-base text-[#4F2F2A] mb-1">Add One Member</h3>
+                        <p class="text-[11px] text-[#7A5A52] mb-4">Adding just one employee? Fill this in. Adding many at once? Use CSV import on the right instead.</p>
                         <form id="add-member-form" class="space-y-3">
                             <input type="text" name="name" placeholder="Employee Name" required
-                                   class="w-full px-4 py-2.5 rounded-xl border border-[#DFC387] text-sm focus:outline-none focus:border-[#D4AF37]">
+                                   class="w-full px-4 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                             <input type="text" name="phone" placeholder="Phone Number (e.g. 081234567890)" required
-                                   class="w-full px-4 py-2.5 rounded-xl border border-[#DFC387] text-sm focus:outline-none focus:border-[#D4AF37]">
+                                   class="w-full px-4 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                             <div>
-                                <label class="text-[11px] font-bold text-[#7A643E] mb-1 block">Starting play hours (optional)</label>
+                                <label class="text-[11px] font-bold text-[#7A5A52] mb-1 block">Starting play hours (optional)</label>
                                 <div class="flex items-center gap-2">
                                     <button type="button" onclick="stepValue('initial_hours_input', -0.5, 0)"
-                                            class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">&minus;</button>
+                                            class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
                                     <input type="number" step="0.5" min="0" name="initial_hours" id="initial_hours_input" placeholder="0"
-                                           class="w-full text-center px-2 py-2.5 rounded-xl border border-[#DFC387] text-sm focus:outline-none focus:border-[#D4AF37]">
+                                           class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                                     <button type="button" onclick="stepValue('initial_hours_input', 0.5, 0)"
-                                            class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">+</button>
-                                    <span class="text-xs font-bold text-[#7A643E] shrink-0 w-8">hrs</span>
+                                            class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
+                                    <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">hrs</span>
                                 </div>
                             </div>
                             <button type="submit"
-                                    class="w-full py-2.5 rounded-xl bg-gradient-to-b from-[#F5DE9B] to-[#D4AF37] text-[#1E160A] text-xs font-black uppercase tracking-wider shadow-md hover:brightness-105 active:scale-95 transition-all">
+                                    class="w-full py-2.5 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-xs font-black uppercase tracking-wider shadow-md  active:scale-95 transition-all">
                                 Add Member
                             </button>
                         </form>
                     </div>
 
-                    <div class="p-6 rounded-3xl bg-white/95 border border-[#DFC387] shadow-sm">
+                    <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
                         <div class="flex items-center justify-between mb-2">
-                            <h3 class="font-serif font-extrabold text-base text-[#1F170D]">Import Roster + Voucher (CSV)</h3>
+                            <h3 class="font-display font-extrabold text-base text-[#4F2F2A]">Import Roster + Voucher (CSV)</h3>
                             <a href="{{ route('customer.corporate.sample-csv') }}"
-                               class="text-[10px] font-bold text-[#8C6418] hover:text-[#5C4310] underline underline-offset-2 shrink-0">
+                               class="text-[10px] font-bold text-[#662721] hover:text-[#4F2F2A] underline underline-offset-2 shrink-0">
                                 Download Sample CSV
                             </a>
                         </div>
-                        <p class="text-xs text-[#7A643E] mb-2">Column format: <code class="bg-[#FAF2DE] px-1 rounded">name, phone, hours</code>. Re-upload every month to release new voucher hours to your team.</p>
-                        <pre class="text-[10px] bg-[#FAF8F2] border border-[#DFC387]/60 rounded-xl p-3 mb-3 overflow-x-auto text-[#5C4310]">name,phone,hours
+                        <p class="text-xs text-[#7A5A52] mb-2">Column format: <code class="bg-[#F7F0DB] px-1 rounded">name, phone, hours</code>. Re-upload every month to release new voucher hours to your team.</p>
+                        <pre class="text-[10px] bg-[#FCF8EE] border border-[#E6DAC0]/60 rounded-xl p-3 mb-3 overflow-x-auto text-[#4F2F2A]">name,phone,hours
 Budi Santoso,081234567890,10
 Siti Rahma,081399887766,5</pre>
                         <form id="csv-import-form" class="space-y-3">
                             <input type="file" name="file" accept=".csv,.txt" required
-                                   class="w-full text-xs text-[#6B5738] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#FAF2DE] file:text-[#7A5818] hover:file:bg-[#F3DFAD]">
+                                   class="w-full text-xs text-[#7A5A52] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#F7F0DB] file:text-[#662721] hover:file:bg-[#F7F0DB]">
                             <button type="submit"
-                                    class="w-full py-2.5 rounded-xl bg-gradient-to-b from-[#F5DE9B] to-[#D4AF37] text-[#1E160A] text-xs font-black uppercase tracking-wider shadow-md hover:brightness-105 active:scale-95 transition-all">
+                                    class="w-full py-2.5 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-xs font-black uppercase tracking-wider shadow-md  active:scale-95 transition-all">
                                 Upload &amp; Process CSV
                             </button>
                         </form>
@@ -168,47 +168,47 @@ Siti Rahma,081399887766,5</pre>
                 </div>
 
                 <!-- Team Roster -->
-                <div class="p-6 rounded-3xl bg-white/95 border border-[#DFC387] shadow-sm">
+                <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
                     <div class="flex items-start justify-between gap-3 flex-wrap mb-1">
-                        <h3 class="font-serif font-extrabold text-base text-[#1F170D]">Team Member Roster</h3>
+                        <h3 class="font-display font-extrabold text-base text-[#4F2F2A]">Team Member Roster</h3>
                         <button type="button" onclick="openBulkModal()"
-                                class="px-3.5 py-2 rounded-xl bg-[#1E3327] hover:bg-[#15241B] text-[#FAF5E6] text-[11px] font-bold shrink-0">
+                                class="px-3.5 py-2 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[11px] font-bold shrink-0">
                             🎟️ Give Hours to Multiple Members
                         </button>
                     </div>
-                    <p class="text-[11px] text-[#7A643E] mb-4">
+                    <p class="text-[11px] text-[#7A5A52] mb-4">
                         Members log in at <a href="{{ route('login') }}" class="underline font-bold">/login</a> using their <strong>Phone Number</strong> (not their name) &bull; default password is the <strong>last 6 digits of their phone number</strong>.
                     </p>
 
                     <!-- Search: filters the roster below by name or phone number -->
                     <form method="GET" action="{{ route('customer.corporate') }}" class="flex items-center gap-2 mb-4">
                         <div class="relative flex-1 max-w-sm">
-                            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#B89860]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#A08F86]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
                             </svg>
                             <input type="text" name="search" value="{{ $search }}" placeholder="Search by name or phone number..."
-                                   class="w-full pl-9 pr-3 py-2 rounded-xl border border-[#DFC387] text-xs focus:outline-none focus:border-[#D4AF37]">
+                                   class="w-full pl-9 pr-3 py-2 rounded-xl border border-[#E6DAC0] text-xs focus:outline-none focus:border-[#662721]">
                         </div>
                         <button type="submit"
-                                class="px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#7A5818] text-[11px] font-bold shrink-0">
+                                class="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[11px] font-bold shrink-0">
                             Search
                         </button>
                         @if($search !== '')
                             <a href="{{ route('customer.corporate') }}"
-                               class="px-3.5 py-2 rounded-xl bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#6B5738] text-[11px] font-bold shrink-0">
+                               class="px-3.5 py-2 rounded-xl bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#7A5A52] text-[11px] font-bold shrink-0">
                                 Clear
                             </a>
                         @endif
                     </form>
                     @if($search !== '')
-                        <p class="text-[11px] text-[#7A643E] mb-3">Showing results for <strong>&ldquo;{{ $search }}&rdquo;</strong> &bull; {{ $members->total() }} member(s) found.</p>
+                        <p class="text-[11px] text-[#7A5A52] mb-3">Showing results for <strong>&ldquo;{{ $search }}&rdquo;</strong> &bull; {{ $members->total() }} member(s) found.</p>
                     @endif
 
                     <!-- Table view: tablet & desktop only (mobile uses the card list below instead of side-scrolling) -->
                     <div class="hidden md:block overflow-x-auto">
                     <table class="w-full text-xs">
                         <thead>
-                            <tr class="text-left text-[10px] uppercase font-extrabold text-[#8C6418] border-b border-[#DFC387]">
+                            <tr class="text-left text-[10px] uppercase font-extrabold text-[#662721] border-b border-[#E6DAC0]">
                                 <th class="py-2 pr-3">Name</th>
                                 <th class="py-2 pr-3">Phone</th>
                                 <th class="py-2 pr-3">Status</th>
@@ -225,24 +225,24 @@ Siti Rahma,081399887766,5</pre>
                                         ->sortByDesc('issued_at')
                                         ->first();
                                 @endphp
-                                <tr class="border-b border-[#FAF2DE]" data-member-id="{{ $m->id }}"
+                                <tr class="border-b border-[#F7F0DB]" data-member-id="{{ $m->id }}"
                                     data-recent-release="{{ $recentRelease ? number_format((float) $recentRelease->hours_granted, 1).' hrs at '.$recentRelease->issued_at->format('H:i') : '' }}">
-                                    <td class="py-2.5 pr-3 font-bold text-[#1F170D]">{{ $m->user->name ?? '-' }}</td>
-                                    <td class="py-2.5 pr-3 text-[#6B5738]">{{ $m->user->phone ?? '-' }}</td>
+                                    <td class="py-2.5 pr-3 font-bold text-[#4F2F2A]">{{ $m->user->name ?? '-' }}</td>
+                                    <td class="py-2.5 pr-3 text-[#7A5A52]">{{ $m->user->phone ?? '-' }}</td>
                                     <td class="py-2.5 pr-3">
                                         <span class="px-2 py-0.5 rounded-full text-[10px] font-bold {{ $m->status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
                                             {{ $m->status }}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 pr-3 font-bold text-[#1F170D]">{{ number_format($m->totalRemainingHours(), 1) }} hrs</td>
+                                    <td class="py-2.5 pr-3 font-bold text-[#4F2F2A]">{{ number_format($m->totalRemainingHours(), 1) }} hrs</td>
                                     <td class="py-2.5 pr-3">
                                         <div class="flex items-center gap-1.5 flex-wrap">
                                             <button type="button" onclick="toggleVouchers('{{ $m->id }}')"
-                                                    class="px-2.5 py-1 rounded-lg bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#7A5818] text-[10px] font-bold">
+                                                    class="px-2.5 py-1 rounded-lg bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                                 Vouchers ({{ $m->vouchers->count() }})
                                             </button>
                                             <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="Give this member extra play hours right now"
-                                                    class="px-2.5 py-1 rounded-lg bg-[#FAF2DE] hover:bg-[#F3DFAD] border border-[#DFC387] text-[#7A5818] text-[10px] font-bold">
+                                                    class="px-2.5 py-1 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                                 🎟️ Give Hours
                                             </button>
                                             @if($m->status === 'ACTIVE')
@@ -259,14 +259,14 @@ Siti Rahma,081399887766,5</pre>
                                         </div>
                                     </td>
                                 </tr>
-                                <tr id="vouchers-row-{{ $m->id }}" class="hidden border-b border-[#FAF2DE] bg-[#FAF8F2]">
+                                <tr id="vouchers-row-{{ $m->id }}" class="hidden border-b border-[#F7F0DB] bg-[#FCF8EE]">
                                     <td colspan="5" class="py-3 px-3">
                                         @if($m->vouchers->isEmpty())
-                                            <p class="text-[11px] text-[#8C7A58] italic">No vouchers issued for this member yet.</p>
+                                            <p class="text-[11px] text-[#7A5A52] italic">No vouchers issued for this member yet.</p>
                                         @else
                                             <table class="w-full text-[11px]">
                                                 <thead>
-                                                    <tr class="text-left text-[9px] uppercase font-extrabold text-[#8C6418]">
+                                                    <tr class="text-left text-[9px] uppercase font-extrabold text-[#662721]">
                                                         <th class="py-1 pr-3">Hours Granted</th>
                                                         <th class="py-1 pr-3">Used</th>
                                                         <th class="py-1 pr-3">Remaining</th>
@@ -281,11 +281,11 @@ Siti Rahma,081399887766,5</pre>
                                                             <td class="py-1.5 pr-3">
                                                                 <div class="flex items-center gap-1">
                                                                     <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', -0.5, 0.5)"
-                                                                            class="w-6 h-6 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">&minus;</button>
+                                                                            class="w-6 h-6 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
                                                                     <input type="number" step="0.5" min="0.01" value="{{ (float) $v->hours_granted }}"
-                                                                           class="w-14 text-center px-1 py-1 rounded-lg border border-[#DFC387] text-[11px]" id="voucher-hours-{{ $v->id }}">
+                                                                           class="w-14 text-center px-1 py-1 rounded-lg border border-[#E6DAC0] text-[11px]" id="voucher-hours-{{ $v->id }}">
                                                                     <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', 0.5, 0.5)"
-                                                                            class="w-6 h-6 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">+</button>
+                                                                            class="w-6 h-6 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                                                 </div>
                                                             </td>
                                                             <td class="py-1.5 pr-3">{{ number_format($v->hours_used, 1) }}</td>
@@ -295,7 +295,7 @@ Siti Rahma,081399887766,5</pre>
                                                             <td class="py-1.5 pr-3">
                                                                 <div class="flex items-center gap-1">
                                                                     <button type="button" onclick="saveVoucher('{{ $v->id }}')"
-                                                                            class="px-2 py-1 rounded-lg bg-[#D4AF37] text-[#1E160A] text-[10px] font-bold">Save</button>
+                                                                            class="px-2 py-1 rounded-lg bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[10px] font-bold">Save</button>
                                                                     @if((float) $v->hours_used == 0)
                                                                         <button type="button" onclick="deleteVoucher('{{ $v->id }}')"
                                                                                 class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-[10px] font-bold">Delete</button>
@@ -310,7 +310,7 @@ Siti Rahma,081399887766,5</pre>
                                     </td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="py-6 text-center text-[#8C7A58] italic">No members registered yet.</td></tr>
+                                <tr><td colspan="5" class="py-6 text-center text-[#7A5A52] italic">No members registered yet.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -326,30 +326,30 @@ Siti Rahma,081399887766,5</pre>
                                     ->sortByDesc('issued_at')
                                     ->first();
                             @endphp
-                            <div class="rounded-2xl border border-[#DFC387] bg-[#FAF8F2] p-4" data-member-id-mobile="{{ $m->id }}"
+                            <div class="rounded-lg border border-[#E6DAC0] bg-[#FCF8EE] p-4" data-member-id-mobile="{{ $m->id }}"
                                  data-recent-release="{{ $recentReleaseMobile ? number_format((float) $recentReleaseMobile->hours_granted, 1).' hrs at '.$recentReleaseMobile->issued_at->format('H:i') : '' }}">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
-                                        <div class="font-bold text-sm text-[#1F170D] truncate">{{ $m->user->name ?? '-' }}</div>
-                                        <div class="text-[11px] text-[#6B5738]">{{ $m->user->phone ?? '-' }}</div>
+                                        <div class="font-bold text-sm text-[#4F2F2A] truncate">{{ $m->user->name ?? '-' }}</div>
+                                        <div class="text-[11px] text-[#7A5A52]">{{ $m->user->phone ?? '-' }}</div>
                                     </div>
                                     <span class="px-2 py-0.5 rounded-full text-[10px] font-bold shrink-0 {{ $m->status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200' }}">
                                         {{ $m->status }}
                                     </span>
                                 </div>
 
-                                <div class="mt-3 pt-3 border-t border-[#DFC387]/50">
-                                    <div class="text-[9px] font-extrabold uppercase tracking-wider text-[#8C6418]">Active Hours</div>
-                                    <div class="font-bold text-sm text-[#1F170D]">{{ number_format($m->totalRemainingHours(), 1) }} hrs</div>
+                                <div class="mt-3 pt-3 border-t border-[#E6DAC0]/50">
+                                    <div class="text-[9px] font-extrabold uppercase tracking-wider text-[#662721]">Active Hours</div>
+                                    <div class="font-bold text-sm text-[#4F2F2A]">{{ number_format($m->totalRemainingHours(), 1) }} hrs</div>
                                 </div>
 
                                 <div class="flex items-center gap-1.5 flex-wrap mt-3">
                                     <button type="button" onclick="toggleVouchers('{{ $m->id }}')"
-                                            class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#7A5818] text-[10px] font-bold">
+                                            class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                         Vouchers ({{ $m->vouchers->count() }})
                                     </button>
                                     <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="Give this member extra play hours right now"
-                                            class="px-2.5 py-1.5 rounded-lg bg-[#FAF2DE] hover:bg-[#F3DFAD] border border-[#DFC387] text-[#7A5818] text-[10px] font-bold">
+                                            class="px-2.5 py-1.5 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                         🎟️ Give Hours
                                     </button>
                                     @if($m->status === 'ACTIVE')
@@ -365,32 +365,32 @@ Siti Rahma,081399887766,5</pre>
                                     @endif
                                 </div>
 
-                                <div id="vouchers-mobile-{{ $m->id }}" class="hidden mt-3 pt-3 border-t border-[#DFC387]/50 space-y-2">
+                                <div id="vouchers-mobile-{{ $m->id }}" class="hidden mt-3 pt-3 border-t border-[#E6DAC0]/50 space-y-2">
                                     @if($m->vouchers->isEmpty())
-                                        <p class="text-[11px] text-[#8C7A58] italic">No vouchers issued for this member yet.</p>
+                                        <p class="text-[11px] text-[#7A5A52] italic">No vouchers issued for this member yet.</p>
                                     @else
                                         @foreach($m->vouchers->sortByDesc('issued_at') as $v)
-                                            <div class="rounded-xl bg-white border border-[#DFC387]/60 p-3 {{ $v->isExpired() ? 'opacity-50' : '' }}">
+                                            <div class="rounded-xl bg-white border border-[#E6DAC0]/60 p-3 {{ $v->isExpired() ? 'opacity-50' : '' }}">
                                                 <div class="grid grid-cols-2 gap-2 text-[11px] mb-2">
                                                     <div>
-                                                        <div class="text-[9px] uppercase font-extrabold text-[#8C6418]">Used / Remaining</div>
-                                                        <div class="font-bold text-[#1F170D]">{{ number_format($v->hours_used, 1) }} / {{ number_format($v->remainingHours(), 1) }} hrs</div>
+                                                        <div class="text-[9px] uppercase font-extrabold text-[#662721]">Used / Remaining</div>
+                                                        <div class="font-bold text-[#4F2F2A]">{{ number_format($v->hours_used, 1) }} / {{ number_format($v->remainingHours(), 1) }} hrs</div>
                                                     </div>
                                                     <div>
-                                                        <div class="text-[9px] uppercase font-extrabold text-[#8C6418]">Expires</div>
-                                                        <div class="font-bold text-[#1F170D]">{{ \Carbon\Carbon::parse($v->expires_at)->format('d M Y') }} {{ $v->isExpired() ? '(expired)' : '' }}</div>
+                                                        <div class="text-[9px] uppercase font-extrabold text-[#662721]">Expires</div>
+                                                        <div class="font-bold text-[#4F2F2A]">{{ \Carbon\Carbon::parse($v->expires_at)->format('d M Y') }} {{ $v->isExpired() ? '(expired)' : '' }}</div>
                                                     </div>
                                                 </div>
-                                                <div class="text-[10px] text-[#8C7A58] mb-2">Source: {{ $v->source }}</div>
+                                                <div class="text-[10px] text-[#7A5A52] mb-2">Source: {{ $v->source }}</div>
                                                 <div class="flex items-center gap-1.5">
                                                     <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', -0.5, 0.5)"
-                                                            class="w-7 h-7 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">&minus;</button>
+                                                            class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
                                                     <input type="number" step="0.5" min="0.01" value="{{ (float) $v->hours_granted }}"
-                                                           class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#DFC387] text-[11px]" id="voucher-hours-m-{{ $v->id }}">
+                                                           class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#E6DAC0] text-[11px]" id="voucher-hours-m-{{ $v->id }}">
                                                     <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', 0.5, 0.5)"
-                                                            class="w-7 h-7 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">+</button>
+                                                            class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                                     <button type="button" onclick="saveVoucher('{{ $v->id }}', 'voucher-hours-m-{{ $v->id }}')"
-                                                            class="px-2.5 py-1.5 rounded-lg bg-[#D4AF37] text-[#1E160A] text-[10px] font-bold ml-auto">Save</button>
+                                                            class="px-2.5 py-1.5 rounded-lg bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[10px] font-bold ml-auto">Save</button>
                                                     @if((float) $v->hours_used == 0)
                                                         <button type="button" onclick="deleteVoucher('{{ $v->id }}')"
                                                                 class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-[10px] font-bold">Delete</button>
@@ -402,27 +402,27 @@ Siti Rahma,081399887766,5</pre>
                                 </div>
                             </div>
                         @empty
-                            <p class="py-6 text-center text-[#8C7A58] italic text-xs">No members registered yet.</p>
+                            <p class="py-6 text-center text-[#7A5A52] italic text-xs">No members registered yet.</p>
                         @endforelse
                     </div>
 
                     <!-- Pagination: shared by both the table and card views above -->
                     @if($members->hasPages())
-                        <div class="flex items-center justify-between gap-3 flex-wrap mt-5 pt-4 border-t border-[#DFC387]/50">
-                            <p class="text-[11px] text-[#7A643E]">
+                        <div class="flex items-center justify-between gap-3 flex-wrap mt-5 pt-4 border-t border-[#E6DAC0]/50">
+                            <p class="text-[11px] text-[#7A5A52]">
                                 Showing {{ $members->firstItem() }}&ndash;{{ $members->lastItem() }} of {{ $members->total() }} member(s)
                             </p>
                             <div class="flex items-center gap-1.5">
                                 @if($members->onFirstPage())
-                                    <span class="px-3 py-1.5 rounded-lg border border-[#DFC387]/50 text-[#B8A578] text-[11px] font-bold">&laquo; Prev</span>
+                                    <span class="px-3 py-1.5 rounded-lg border border-[#E6DAC0]/50 text-[#A08F86] text-[11px] font-bold">&laquo; Prev</span>
                                 @else
-                                    <a href="{{ $members->previousPageUrl() }}" class="px-3 py-1.5 rounded-lg border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] text-[11px] font-bold">&laquo; Prev</a>
+                                    <a href="{{ $members->previousPageUrl() }}" class="px-3 py-1.5 rounded-lg border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] text-[11px] font-bold">&laquo; Prev</a>
                                 @endif
-                                <span class="px-3 py-1.5 text-[11px] font-bold text-[#1F170D]">Page {{ $members->currentPage() }} of {{ $members->lastPage() }}</span>
+                                <span class="px-3 py-1.5 text-[11px] font-bold text-[#4F2F2A]">Page {{ $members->currentPage() }} of {{ $members->lastPage() }}</span>
                                 @if($members->hasMorePages())
-                                    <a href="{{ $members->nextPageUrl() }}" class="px-3 py-1.5 rounded-lg border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] text-[11px] font-bold">Next &raquo;</a>
+                                    <a href="{{ $members->nextPageUrl() }}" class="px-3 py-1.5 rounded-lg border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] text-[11px] font-bold">Next &raquo;</a>
                                 @else
-                                    <span class="px-3 py-1.5 rounded-lg border border-[#DFC387]/50 text-[#B8A578] text-[11px] font-bold">Next &raquo;</span>
+                                    <span class="px-3 py-1.5 rounded-lg border border-[#E6DAC0]/50 text-[#A08F86] text-[11px] font-bold">Next &raquo;</span>
                                 @endif
                             </div>
                         </div>
@@ -430,25 +430,25 @@ Siti Rahma,081399887766,5</pre>
                 </div>
                 <!-- Custom Modal (replaces native browser prompt()/confirm()) -->
                 <div id="app-modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(20,15,5,0.55);">
-                    <div class="w-full max-w-sm rounded-3xl bg-white border-2 border-[#D4AF37] shadow-2xl p-6" style="background: linear-gradient(135deg, #FFFFFF 0%, #FAF5E8 100%);">
-                        <h3 id="app-modal-title" class="font-serif font-black text-base text-[#1F170D] mb-2">Confirm</h3>
-                        <p id="app-modal-message" class="text-xs text-[#7A643E] mb-4"></p>
+                    <div class="w-full max-w-sm rounded-xl bg-white border-2 border-[#662721] shadow-2xl p-6" style="background: linear-gradient(135deg, #FFFFFF 0%, #F7F0DB 100%);">
+                        <h3 id="app-modal-title" class="font-display font-black text-base text-[#4F2F2A] mb-2">Confirm</h3>
+                        <p id="app-modal-message" class="text-xs text-[#7A5A52] mb-4"></p>
                         <div id="app-modal-input-wrapper" class="hidden flex items-center gap-2 mb-4">
                             <button type="button" onclick="stepValue('app-modal-input', -0.5, 0)"
-                                    class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">&minus;</button>
+                                    class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
                             <input type="number" id="app-modal-input" placeholder="0"
-                                   class="w-full text-center px-2 py-2.5 rounded-xl border border-[#DFC387] text-sm focus:outline-none focus:border-[#D4AF37]">
+                                   class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                             <button type="button" onclick="stepValue('app-modal-input', 0.5, 0)"
-                                    class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">+</button>
-                            <span class="text-xs font-bold text-[#7A643E] shrink-0 w-8">hrs</span>
+                                    class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
+                            <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">hrs</span>
                         </div>
                         <div class="flex items-center gap-2 justify-end">
                             <button type="button" onclick="closeAppModal()"
-                                    class="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#6B5738] text-xs font-bold">
+                                    class="px-4 py-2 rounded-xl bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#7A5A52] text-xs font-bold">
                                 Cancel
                             </button>
                             <button type="button" id="app-modal-confirm-btn"
-                                    class="px-4 py-2 rounded-xl bg-gradient-to-b from-[#F5DE9B] to-[#D4AF37] text-[#1E160A] text-xs font-black uppercase tracking-wider shadow-md hover:brightness-105 active:scale-95 transition-all">
+                                    class="px-4 py-2 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-xs font-black uppercase tracking-wider shadow-md  active:scale-95 transition-all">
                                 Confirm
                             </button>
                         </div>
@@ -457,13 +457,13 @@ Siti Rahma,081399887766,5</pre>
 
                 <!-- Bulk Release Voucher Modal -->
                 <div id="bulk-modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" style="background: rgba(20,15,5,0.55);">
-                    <div class="w-full max-w-lg rounded-3xl bg-white border-2 border-[#D4AF37] shadow-2xl p-6" style="background: linear-gradient(135deg, #FFFFFF 0%, #FAF5E8 100%);">
-                        <h3 class="font-serif font-black text-base text-[#1F170D] mb-1">🎟️ Give Hours to Multiple Members</h3>
-                        <p class="text-xs text-[#7A643E] mb-1">Release play-hour vouchers to your active team members in one go &mdash; give everyone the same amount, or set a different amount for each person.</p>
+                    <div class="w-full max-w-lg rounded-xl bg-white border-2 border-[#662721] shadow-2xl p-6" style="background: linear-gradient(135deg, #FFFFFF 0%, #F7F0DB 100%);">
+                        <h3 class="font-display font-black text-base text-[#4F2F2A] mb-1">🎟️ Give Hours to Multiple Members</h3>
+                        <p class="text-xs text-[#7A5A52] mb-1">Release play-hour vouchers to your active team members in one go &mdash; give everyone the same amount, or set a different amount for each person.</p>
                         @if($quotaRemaining !== null)
-                            <p class="text-[11px] font-bold text-[#8C6418] mb-4">Quota remaining: {{ number_format($quotaRemaining, 1) }} hrs out of your {{ number_format($totalQuota, 1) }} hrs contract.</p>
+                            <p class="text-[11px] font-bold text-[#662721] mb-4">Quota remaining: {{ number_format($quotaRemaining, 1) }} hrs out of your {{ number_format($totalQuota, 1) }} hrs contract.</p>
                         @else
-                            <p class="text-[11px] text-[#8C7A58] mb-4">&nbsp;</p>
+                            <p class="text-[11px] text-[#7A5A52] mb-4">&nbsp;</p>
                         @endif
 
                         <div class="flex items-center gap-2 mb-4">
@@ -478,31 +478,31 @@ Siti Rahma,081399887766,5</pre>
                         </div>
 
                         <div id="bulk-uniform-panel">
-                            <label class="text-[11px] font-bold text-[#7A643E] mb-1 block">
+                            <label class="text-[11px] font-bold text-[#7A5A52] mb-1 block">
                                 Hours per member &bull; applies to all {{ $activeMembersForBulk->count() }} active member(s)
                             </label>
                             <div class="flex items-center gap-2">
                                 <button type="button" onclick="stepValue('bulk-uniform-hours', -0.5, 0)"
-                                        class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">&minus;</button>
+                                        class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
                                 <input type="number" step="0.5" min="0" id="bulk-uniform-hours" placeholder="0"
-                                       class="w-full text-center px-2 py-2.5 rounded-xl border border-[#DFC387] text-sm focus:outline-none focus:border-[#D4AF37]">
+                                       class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                                 <button type="button" onclick="stepValue('bulk-uniform-hours', 0.5, 0)"
-                                        class="w-10 h-10 rounded-xl border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-base shrink-0">+</button>
-                                <span class="text-xs font-bold text-[#7A643E] shrink-0 w-8">hrs</span>
+                                        class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
+                                <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">hrs</span>
                             </div>
                         </div>
 
                         <div id="bulk-per-member-panel" class="hidden max-h-[40vh] overflow-y-auto space-y-2 pr-1">
                             @foreach($activeMembersForBulk as $m)
-                                <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/70 border border-[#DFC387]/50">
-                                    <span class="text-xs font-bold text-[#1F170D] truncate">{{ $m->user->name ?? '-' }}</span>
+                                <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/70 border border-[#E6DAC0]/50">
+                                    <span class="text-xs font-bold text-[#4F2F2A] truncate">{{ $m->user->name ?? '-' }}</span>
                                     <div class="flex items-center gap-1 shrink-0">
                                         <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', -0.5, 0)"
-                                                class="w-7 h-7 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">&minus;</button>
+                                                class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
                                         <input type="number" step="0.5" min="0" placeholder="0" data-member-id="{{ $m->id }}" id="bulk-hours-{{ $m->id }}"
-                                               class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#DFC387] text-xs">
+                                               class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#E6DAC0] text-xs">
                                         <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', 0.5, 0)"
-                                                class="w-7 h-7 rounded-md border border-[#DFC387] bg-white hover:bg-[#FAF2DE] text-[#7A5818] font-black text-xs shrink-0">+</button>
+                                                class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                     </div>
                                 </div>
                             @endforeach
@@ -510,11 +510,11 @@ Siti Rahma,081399887766,5</pre>
 
                         <div class="flex items-center gap-2 justify-end mt-5">
                             <button type="button" onclick="closeBulkModal()"
-                                    class="px-4 py-2 rounded-xl bg-white hover:bg-[#FAF2DE] border border-[#DFC387] text-[#6B5738] text-xs font-bold">
+                                    class="px-4 py-2 rounded-xl bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#7A5A52] text-xs font-bold">
                                 Cancel
                             </button>
                             <button type="button" onclick="submitBulkRelease()"
-                                    class="px-4 py-2 rounded-xl bg-gradient-to-b from-[#F5DE9B] to-[#D4AF37] text-[#1E160A] text-xs font-black uppercase tracking-wider shadow-md hover:brightness-105 active:scale-95 transition-all">
+                                    class="px-4 py-2 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-xs font-black uppercase tracking-wider shadow-md  active:scale-95 transition-all">
                                 Release Vouchers
                             </button>
                         </div>
@@ -533,7 +533,7 @@ Siti Rahma,081399887766,5</pre>
             function showAlert(message, isError) {
                 const el = document.getElementById('corporate-alert');
                 el.textContent = message;
-                el.className = 'p-4 rounded-2xl text-xs font-bold ' + (isError
+                el.className = 'p-4 rounded-lg text-xs font-bold ' + (isError
                     ? 'bg-rose-50 text-rose-700 border border-rose-200'
                     : 'bg-emerald-50 text-emerald-700 border border-emerald-200');
                 el.classList.remove('hidden');
@@ -752,8 +752,8 @@ Siti Rahma,081399887766,5</pre>
                 bulkMode = mode;
                 const uniformBtn = document.getElementById('bulk-mode-uniform-btn');
                 const perMemberBtn = document.getElementById('bulk-mode-per-member-btn');
-                const activeClasses = ['bg-[#1E3327]', 'text-[#FAF5E6]', 'border-[#1E3327]'];
-                const inactiveClasses = ['bg-white', 'text-[#6B5738]', 'border-[#DFC387]'];
+                const activeClasses = ['bg-[#4F2F2A]', 'text-[#F7F0DB]', 'border-[#4F2F2A]'];
+                const inactiveClasses = ['bg-white', 'text-[#7A5A52]', 'border-[#E6DAC0]'];
 
                 uniformBtn.classList.remove(...activeClasses, ...inactiveClasses);
                 perMemberBtn.classList.remove(...activeClasses, ...inactiveClasses);

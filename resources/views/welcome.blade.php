@@ -30,29 +30,29 @@
 <body class="min-h-full font-brand antialiased text-club-brown bg-club-cream selection:bg-club-terra selection:text-club-cream overflow-x-hidden">
 
     {{-- ============ NAVIGASI ============ --}}
-    <header class="sticky top-0 z-50 bg-club-cream/95 backdrop-blur-sm border-b border-club-line">
+    <header class="sticky top-0 z-50 bg-club-terra border-b border-club-terra-dark">
         <div class="{{ $wrap }} h-16 lg:h-[76px] flex items-center justify-between gap-4">
             <a href="#top" class="flex items-center gap-3 shrink-0" aria-label="Club 61 Padel Court">
-                <img src="{{ asset('images/identity/monogram-terracotta.png') }}" alt="" class="h-10 lg:h-12 w-auto">
+                <img src="{{ asset('images/identity/monogram-cream.png') }}" alt="" class="h-10 lg:h-12 w-auto">
                 <span class="hidden min-[440px]:block leading-none whitespace-nowrap">
-                    <span class="block font-bold text-[17px] lg:text-xl tracking-[0.18em] text-club-terra" style="font-stretch: 125%;">CLUB 61</span>
-                    <span class="block text-[9px] lg:text-[10px] font-semibold tracking-[0.34em] text-club-terra/80 mt-1">PADEL COURT</span>
+                    <span class="block font-bold text-[17px] lg:text-xl tracking-[0.18em] text-club-cream" style="font-stretch: 125%;">CLUB 61</span>
+                    <span class="block text-[9px] lg:text-[10px] font-semibold tracking-[0.34em] text-club-cream/70 mt-1">PADEL COURT</span>
                 </span>
             </a>
 
-            <nav class="hidden lg:flex items-center gap-8 xl:gap-10 text-[13px] font-semibold uppercase tracking-[0.12em] text-club-brown/75">
-                <a href="#how-to-book" class="py-2 hover:text-club-terra transition-colors">{{ __('site.nav_how_to_book') }}</a>
-                <a href="#facilities" class="py-2 hover:text-club-terra transition-colors">{{ __('site.nav_facilities') }}</a>
-                <a href="#membership" class="py-2 hover:text-club-terra transition-colors">{{ __('site.nav_membership') }}</a>
-                <a href="#location" class="py-2 hover:text-club-terra transition-colors">{{ __('site.nav_location') }}</a>
+            <nav class="hidden lg:flex items-center gap-8 xl:gap-10 text-[13px] font-semibold uppercase tracking-[0.12em] text-club-cream/80">
+                <a href="#how-to-book" class="py-2 hover:text-white transition-colors">{{ __('site.nav_how_to_book') }}</a>
+                <a href="#facilities" class="py-2 hover:text-white transition-colors">{{ __('site.nav_facilities') }}</a>
+                <a href="#membership" class="py-2 hover:text-white transition-colors">{{ __('site.nav_membership') }}</a>
+                <a href="#location" class="py-2 hover:text-white transition-colors">{{ __('site.nav_location') }}</a>
             </nav>
 
             <div class="flex items-center gap-2 sm:gap-3">
                 <!-- Toggle Bahasa ID/EN — disimpan di session (SetLocale middleware & route "lang.switch"),
                      redirect balik ke halaman yang sama. -->
-                <div class="flex items-center rounded-full border border-club-line bg-club-paper p-0.5 text-[11px] font-bold">
-                    <a href="{{ route('lang.switch', 'id') }}" class="px-2.5 py-1.5 rounded-full transition-colors {{ app()->getLocale() === 'id' ? 'bg-club-terra text-club-cream' : 'text-club-muted hover:text-club-terra' }}">ID</a>
-                    <a href="{{ route('lang.switch', 'en') }}" class="px-2.5 py-1.5 rounded-full transition-colors {{ app()->getLocale() === 'en' ? 'bg-club-terra text-club-cream' : 'text-club-muted hover:text-club-terra' }}">EN</a>
+                <div class="flex items-center rounded-full border border-club-cream/20 bg-club-terra-dark p-0.5 text-[11px] font-bold">
+                    <a href="{{ route('lang.switch', 'id') }}" class="px-2.5 py-1.5 rounded-full transition-colors {{ app()->getLocale() === 'id' ? 'bg-club-cream text-club-terra' : 'text-club-cream/70 hover:text-club-cream' }}">ID</a>
+                    <a href="{{ route('lang.switch', 'en') }}" class="px-2.5 py-1.5 rounded-full transition-colors {{ app()->getLocale() === 'en' ? 'bg-club-cream text-club-terra' : 'text-club-cream/70 hover:text-club-cream' }}">EN</a>
                 </div>
 
                 @auth
@@ -67,17 +67,17 @@
                         };
                     @endphp
                     <a href="{{ url($homeRoute) }}"
-                       class="inline-flex items-center gap-2 h-11 px-4 sm:px-5 rounded-md bg-club-terra text-club-cream text-[13px] font-bold whitespace-nowrap hover:bg-club-terra-dark transition-colors">
+                       class="inline-flex items-center gap-2 h-11 px-4 sm:px-5 rounded-md bg-club-cream text-club-terra text-[13px] font-bold whitespace-nowrap hover:bg-white transition-colors">
                         <span>{{ $buttonLabel }}</span>
                         <svg class="hidden sm:block w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                     </a>
                 @else
                     <a href="{{ route('register') }}"
-                       class="hidden md:inline-flex items-center h-11 px-5 rounded-md border border-club-terra/35 text-club-terra text-[13px] font-bold whitespace-nowrap hover:border-club-terra hover:bg-club-paper transition-colors">
+                       class="hidden md:inline-flex items-center h-11 px-5 rounded-md border border-club-cream/40 text-club-cream text-[13px] font-bold whitespace-nowrap hover:border-club-cream hover:bg-club-cream/10 transition-colors">
                         {{ __('site.btn_register') }}
                     </a>
                     <a href="{{ route('login') }}"
-                       class="inline-flex items-center h-11 px-4 sm:px-5 rounded-md bg-club-terra text-club-cream text-[13px] font-bold whitespace-nowrap hover:bg-club-terra-dark transition-colors">
+                       class="inline-flex items-center h-11 px-4 sm:px-5 rounded-md bg-club-cream text-club-terra text-[13px] font-bold whitespace-nowrap hover:bg-white transition-colors">
                         {{ __('site.btn_login') }}
                     </a>
                 @endauth
@@ -91,17 +91,17 @@
         $cardPhotos = $companyFacilities->mapWithKeys(fn ($f) => [mb_strtolower($f->title) => $f->photoUrl()]);
     @endphp
     <section id="top" class="relative text-club-cream lg:min-h-[calc(100svh-76px)] flex flex-col"
-             style="background-image: linear-gradient(100deg, rgba(79,47,42,0.96) 0%, rgba(79,47,42,0.86) 38%, rgba(79,47,42,0.45) 70%, rgba(79,47,42,0.3) 100%), url('{{ asset('images/club-hero.jpg') }}'); background-size: cover; background-position: center;">
+             style="background-image: linear-gradient(100deg, rgba(30,18,15,0.9) 0%, rgba(30,18,15,0.72) 40%, rgba(30,18,15,0.3) 75%, rgba(30,18,15,0.15) 100%), url('{{ asset('images/club-hero.jpg') }}'); background-size: cover; background-position: center;">
         <div class="{{ $wrap }} flex-1 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-end pt-14 pb-12 sm:pt-20 lg:pt-24 lg:pb-16">
             <div class="lg:col-span-7 xl:col-span-7 space-y-7">
-                <div class="inline-flex items-center gap-3 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-club-mint">
-                    <span class="w-8 h-px bg-club-mint shrink-0"></span>
+                <div class="inline-flex items-center gap-3 text-[11px] sm:text-xs font-bold uppercase tracking-[0.2em] text-club-cream/80">
+                    <span class="w-8 h-px bg-club-cream/60 shrink-0"></span>
                     <span>{{ $companyProfile->localized('hero_badge_text') }}</span>
                 </div>
 
                 <h1 class="font-display font-semibold text-[2.6rem] leading-[1.04] sm:text-6xl xl:text-7xl 2xl:text-[5.25rem] tracking-tight max-w-[15ch]">
                     {{ $companyProfile->localized('hero_headline_line1') }}
-                    <span class="italic text-club-mint">{{ $companyProfile->localized('hero_headline_highlight') }}</span>
+                    <span class="italic text-club-cream/75">{{ $companyProfile->localized('hero_headline_highlight') }}</span>
                     {{ $companyProfile->localized('hero_headline_line2') }}
                 </h1>
 
@@ -112,7 +112,7 @@
                 <div class="flex flex-col sm:flex-row gap-3 pt-1">
                     @auth
                         <a href="{{ route('customer.booking') }}"
-                           class="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-mint text-club-brown font-bold text-[15px] hover:bg-white transition-colors">
+                           class="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-terra text-club-cream font-bold text-[15px] hover:bg-club-terra-dark transition-colors">
                             {{ __('site.btn_book_court') }}
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         </a>
@@ -128,7 +128,7 @@
                         </form>
                     @else
                         <a href="{{ route('login') }}"
-                           class="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-mint text-club-brown font-bold text-[15px] hover:bg-white transition-colors">
+                           class="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-terra text-club-cream font-bold text-[15px] hover:bg-club-terra-dark transition-colors">
                             {{ __('site.btn_book_court') }}
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                         </a>
@@ -145,11 +145,11 @@
             <ul class="lg:col-span-5 xl:col-span-4 xl:col-start-9 grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-1 gap-2.5">
                 @foreach($companyProfile->localizedFacilityCards() as $rawIndex => $card)
                     @php $cardPhoto = $cardPhotos[mb_strtolower($companyProfile->facility_cards[$rawIndex]['title'] ?? '')] ?? null; @endphp
-                    <li class="flex items-center gap-4 p-3 pr-5 rounded-lg bg-club-brown/85 border border-club-cream/10">
+                    <li class="flex items-center gap-4 p-3 pr-5 rounded-lg bg-[rgba(30,18,15,0.6)] border border-club-cream/15">
                         @if($cardPhoto)
                             <img src="{{ $cardPhoto }}" alt="{{ $card['title'] }}" class="w-14 h-14 rounded-md object-cover shrink-0">
                         @else
-                            <span class="w-14 h-14 rounded-md bg-club-mint/10 border border-club-mint/20 text-club-mint flex items-center justify-center shrink-0">
+                            <span class="w-14 h-14 rounded-md bg-club-cream/10 border border-club-cream/20 text-club-cream flex items-center justify-center shrink-0">
                                 <x-company-profile.icon :icon-key="$card['icon_key']" class="w-5 h-5" />
                             </span>
                         @endif
@@ -165,7 +165,7 @@
         </div>
 
         <!-- Angka nyata dari database. -->
-        <div class="border-t border-club-cream/15 bg-club-brown/90">
+        <div class="bg-club-terra">
             <dl class="{{ $wrap }} grid grid-cols-2 lg:grid-cols-4">
                 @foreach([
                     [__('site.stats_courts'), $companyProfile->court_count],
@@ -174,7 +174,7 @@
                     [__('site.stats_open_daily'), $companyProfile->localized('operating_hours_text')],
                 ] as $i => [$label, $value])
                     <div class="py-5 lg:py-6 {{ $i % 2 ? 'pl-5 border-l' : '' }} {{ $i >= 2 ? 'border-t lg:border-t-0' : '' }} {{ $i === 2 ? 'lg:pl-5 lg:border-l' : '' }} border-club-cream/10">
-                        <dt class="text-[11px] font-bold uppercase tracking-[0.16em] text-club-mint">{{ $label }}</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-[0.16em] text-club-cream/65">{{ $label }}</dt>
                         <dd class="font-display font-semibold text-2xl lg:text-3xl mt-1.5">{{ $value }}</dd>
                     </div>
                 @endforeach
@@ -198,15 +198,15 @@
             </div>
             <ol class="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
                 @foreach([1, 2, 3] as $step)
-                    <li class="relative rounded-lg bg-club-cream/70 border border-club-line p-6 lg:p-8">
+                    <li class="relative rounded-lg bg-club-terra text-club-cream p-6 lg:p-8">
                         <div class="flex items-baseline justify-between">
-                            <span class="font-display font-semibold text-5xl lg:text-6xl text-club-terra leading-none">0{{ $step }}</span>
+                            <span class="font-display font-semibold text-5xl lg:text-6xl text-club-cream/50 leading-none">0{{ $step }}</span>
                             @if($step < 3)
-                                <svg class="hidden md:block w-6 h-6 text-club-terra/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                                <svg class="hidden md:block w-6 h-6 text-club-cream/40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
                             @endif
                         </div>
                         <h3 class="text-xl font-bold mt-6">{{ __('site.howto_'.$step.'_title') }}</h3>
-                        <p class="text-[15px] leading-relaxed text-club-muted mt-2">{{ __('site.howto_'.$step.'_text') }}</p>
+                        <p class="text-[15px] leading-relaxed text-club-cream/75 mt-2">{{ __('site.howto_'.$step.'_text') }}</p>
                     </li>
                 @endforeach
             </ol>
@@ -230,11 +230,11 @@
                             <img src="{{ $facility->photoUrl() }}" alt="{{ $facility->localizedTitle() }}"
                                  class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.03]">
                         @else
-                            <img src="{{ asset('images/identity/monogram-mint.png') }}" alt="" class="absolute right-8 top-8 h-40 lg:h-56 w-auto opacity-[0.08]">
+                            <img src="{{ asset('images/identity/monogram-cream.png') }}" alt="" class="absolute right-8 top-8 h-40 lg:h-56 w-auto opacity-[0.08]">
                         @endif
                         <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(79,47,42,0) 0%, rgba(79,47,42,0.35) 45%, rgba(79,47,42,0.94) 100%);"></div>
 
-                        <div class="absolute top-6 left-7 text-xs font-bold tracking-[0.2em] text-club-mint">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</div>
+                        <div class="absolute top-6 left-7 text-xs font-bold tracking-[0.2em] text-club-cream/80">{{ str_pad($index + 1, 2, '0', STR_PAD_LEFT) }}</div>
 
                         <div class="absolute inset-x-0 bottom-0 p-7 lg:p-9 text-club-cream">
                             <h3 class="font-display font-semibold {{ $index === 0 ? 'text-3xl lg:text-[2.6rem]' : 'text-2xl lg:text-3xl' }} mb-2.5">{{ $facility->localizedTitle() }}</h3>
@@ -258,34 +258,34 @@
 
     @if($companyValueProps->isNotEmpty())
     {{-- ============ KENAPA CLUB 61 ============ --}}
-    <section id="why-us" class="bg-club-paper border-y border-club-line scroll-mt-20">
+    <section id="why-us" class="bg-club-terra text-club-cream scroll-mt-20">
         <div class="{{ $wrap }} py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
             <div class="lg:col-span-5 xl:col-span-4 flex flex-col gap-8">
                 <div>
-                    <div class="text-xs font-bold uppercase tracking-[0.2em] text-club-terra mb-3">{{ __('site.why_us_eyebrow') }}</div>
+                    <div class="text-xs font-bold uppercase tracking-[0.2em] text-club-cream/65 mb-3">{{ __('site.why_us_eyebrow') }}</div>
                     <h2 class="font-display font-semibold text-[2rem] sm:text-5xl leading-tight">{{ __('site.why_us_headline') }}</h2>
                 </div>
                 <div class="relative rounded-lg overflow-hidden min-h-[18rem] flex-1">
                     <img src="{{ asset('images/club61-reception.jpg') }}" alt="Resepsionis Club61 Padel Court" class="absolute inset-0 w-full h-full object-cover">
                     <div class="absolute inset-0" style="background: linear-gradient(0deg, rgba(79,47,42,0.9) 0%, rgba(79,47,42,0.08) 60%, transparent 100%);"></div>
                     <div class="absolute left-6 right-6 bottom-6 text-club-cream">
-                        <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-club-mint mb-1.5">{{ __('site.why_us_photo_eyebrow') }}</div>
+                        <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-club-cream/80 mb-1.5">{{ __('site.why_us_photo_eyebrow') }}</div>
                         <div class="font-display font-semibold text-xl leading-snug">{{ __('site.why_us_photo_caption') }}</div>
                     </div>
                 </div>
             </div>
 
             {{-- Daftar bergaris (bukan grid kartu): jumlah poin berapa pun tidak menyisakan slot kosong. --}}
-            <ul class="lg:col-span-7 xl:col-span-7 xl:col-start-6 self-center border-t border-club-line">
+            <ul class="lg:col-span-7 xl:col-span-7 xl:col-start-6 self-center border-t border-club-cream/20">
                 @foreach($companyValueProps as $prop)
-                    <li class="flex gap-5 py-6 border-b border-club-line">
-                        <span class="inline-flex items-center justify-center w-12 h-12 rounded-md bg-club-terra text-club-cream shrink-0">
+                    <li class="flex gap-5 py-6 border-b border-club-cream/20">
+                        <span class="inline-flex items-center justify-center w-12 h-12 rounded-md bg-club-cream text-club-terra shrink-0">
                             <x-company-profile.icon :icon-key="$prop->icon_key" class="w-5 h-5" />
                         </span>
                         <div>
-                            <div class="font-display font-semibold text-xl text-club-brown">{{ $prop->localizedTitle() }}</div>
+                            <div class="font-display font-semibold text-xl text-club-cream">{{ $prop->localizedTitle() }}</div>
                             @if($prop->description)
-                                <div class="text-[15px] text-club-muted leading-relaxed mt-1">{{ $prop->localizedDescription() }}</div>
+                                <div class="text-[15px] text-club-cream/75 leading-relaxed mt-1">{{ $prop->localizedDescription() }}</div>
                             @endif
                         </div>
                     </li>
@@ -332,7 +332,7 @@
                         </ul>
 
                         <a href="{{ route('register') }}"
-                           class="mt-7 inline-flex items-center justify-center h-12 rounded-md border border-club-terra text-club-terra font-bold text-sm transition-colors group-hover:bg-club-terra group-hover:text-club-cream hover:bg-club-terra hover:text-club-cream">
+                           class="mt-7 inline-flex items-center justify-center h-12 rounded-md bg-club-terra text-club-cream font-bold text-sm transition-colors hover:bg-club-terra-dark">
                             {{ __('site.membership_cta') }}
                         </a>
                     </article>
@@ -345,16 +345,16 @@
     @if($companyProfile->whatsapp_number)
     {{-- ============ SPONSOR KORPORAT ============ --}}
     <section class="bg-club-brown text-club-cream relative overflow-hidden">
-        <img src="{{ asset('images/identity/monogram-mint.png') }}" alt="" class="absolute right-[6%] -bottom-16 h-72 w-auto opacity-[0.07] pointer-events-none">
+        <img src="{{ asset('images/identity/monogram-cream.png') }}" alt="" class="absolute right-[6%] -bottom-16 h-72 w-auto opacity-[0.07] pointer-events-none">
         <div class="{{ $wrap }} relative py-14 sm:py-20 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div class="max-w-2xl">
-                <div class="text-xs font-bold uppercase tracking-[0.2em] text-club-mint mb-3">{{ __('site.sponsor_eyebrow') }}</div>
+                <div class="text-xs font-bold uppercase tracking-[0.2em] text-club-cream/65 mb-3">{{ __('site.sponsor_eyebrow') }}</div>
                 <h3 class="font-display font-semibold text-3xl sm:text-4xl mb-3">{{ __('site.sponsor_headline') }}</h3>
                 <p class="text-base leading-relaxed text-club-cream/80">{{ __('site.sponsor_description') }}</p>
             </div>
             <a href="https://wa.me/{{ preg_replace('/\D/', '', $companyProfile->whatsapp_number) }}?text={{ urlencode(__('site.sponsor_whatsapp_message')) }}"
                target="_blank" rel="noopener"
-               class="shrink-0 self-start md:self-auto inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-mint text-club-brown font-bold text-[15px] hover:bg-white transition-colors">
+               class="shrink-0 self-start md:self-auto inline-flex items-center justify-center gap-2 h-14 px-8 rounded-md bg-club-terra text-club-cream font-bold text-[15px] hover:bg-club-terra-dark transition-colors">
                 {{ __('site.sponsor_cta') }}
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </a>
@@ -406,10 +406,10 @@
     </section>
 
     {{-- ============ FOOTER ============ --}}
-    <footer class="bg-club-brown text-club-cream/75 border-t border-club-cream/10">
+    <footer class="bg-club-terra-dark text-club-cream/75">
         <div class="{{ $wrap }} py-12 lg:py-14 flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div class="flex items-center gap-6">
-                <img src="{{ asset('images/identity/logo-mint.png') }}" alt="Club 61 Padel Court" class="h-24 w-auto shrink-0">
+                <img src="{{ asset('images/identity/logo-cream.png') }}" alt="Club 61 Padel Court" class="h-24 w-auto shrink-0">
                 @if($companyProfile->footer_tagline)
                     <p class="text-sm leading-relaxed max-w-sm">{{ $companyProfile->localized('footer_tagline') }}</p>
                 @endif
@@ -418,7 +418,7 @@
             @if(!empty($social))
                 <div class="flex flex-wrap items-center gap-6">
                     @foreach($social as $platform => $url)
-                        <a href="{{ $url }}" target="_blank" rel="noopener" class="text-sm font-semibold uppercase tracking-wider text-club-mint hover:text-club-cream transition-colors">{{ $platform }}</a>
+                        <a href="{{ $url }}" target="_blank" rel="noopener" class="text-sm font-semibold uppercase tracking-wider text-club-cream/80 hover:text-white transition-colors">{{ $platform }}</a>
                     @endforeach
                 </div>
             @endif
