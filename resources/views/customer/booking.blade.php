@@ -1,222 +1,164 @@
 <x-app-layout>
     @include('customer.partials.bk-style')
+    <style>
+        /* Grid jadwal: lapangan = kolom, jam = baris. Kolom jam & judul lapangan menempel saat digeser. */
+        .bk-grid { scroll-snap-type: x proximity; scroll-padding-left: 64px; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+        .bk-grid::-webkit-scrollbar { height: 6px; width: 6px; }
+        .bk-grid::-webkit-scrollbar-thumb { background: #DCC690; border-radius: 999px; }
+        .bk-col { scroll-snap-align: start; }
+        @media (min-width: 640px) { .bk-grid { scroll-padding-left: 80px; } }
+    </style>
 
     <div x-data="bookingCourtApp()" x-init="init()" class="bk-page text-[#1F170D]">
         <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
 
             {{-- Header --}}
-            <div class="flex items-center justify-between gap-3">
-                <div class="flex items-center gap-3 min-w-0">
-                    <a href="{{ route('dashboard') }}" title="Back to Home"
-                       class="bk-tap hidden sm:flex w-10 h-10 shrink-0 items-center justify-center rounded-2xl bg-white/90 border border-[#EADBB5] text-[#7A5818] hover:bg-[#FAF2DE] transition-colors">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
-                    </a>
-                    <div class="min-w-0">
-                        <div class="flex items-center gap-2">
-                            <h1 class="font-serif font-black text-xl sm:text-2xl">Book Court</h1>
-                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse"></span>Live
-                            </span>
-                        </div>
-                        <p class="hidden sm:block text-xs text-[#7A643E] mt-0.5">Pick a date, duration and start time — consecutive hours are reserved automatically.</p>
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="{{ route('dashboard') }}" title="Back to Home"
+                   class="bk-tap hidden sm:flex w-10 h-10 shrink-0 items-center justify-center rounded-2xl bg-white/90 border border-[#EADBB5] text-[#7A5818] hover:bg-[#FAF2DE] transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
+                </a>
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-serif font-black text-xl sm:text-2xl">Book Court</h1>
+                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse"></span>Live
+                        </span>
                     </div>
+                    <p class="hidden sm:block text-xs text-[#7A643E] mt-0.5">Pick a date, then tap the hours you want to play — each box is one hour.</p>
                 </div>
             </div>
 
-            {{-- Tanggal & durasi: bersebelahan di layar lebar supaya tombol durasi tidak melar selebar layar --}}
-            <div class="flex flex-col lg:flex-row gap-4 sm:gap-5">
-            {{-- 1. Tanggal --}}
-            <section class="lg:flex-1 min-w-0 bg-white/90 backdrop-blur-xl rounded-3xl border border-[#EADBB5] shadow-[0_8px_30px_rgba(160,120,30,0.08)] p-3 sm:p-4">
-                <div class="flex items-center justify-between px-1 mb-2.5">
-                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-[#8C6418]">Date</div>
-                    <button type="button" @click="openCalendarPicker()" title="Pick any date (up to 2 months ahead)"
-                            class="bk-tap relative flex items-center gap-1.5 text-xs font-bold text-[#7A5818] px-2.5 py-1.5 rounded-xl hover:bg-[#FAF2DE] transition-colors">
-                        <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                        <span class="pointer-events-none">Calendar</span>
-                        <input type="date" x-ref="calendarInput" :min="minDate" :max="maxDate" :value="activeDate"
-                               @change="onCalendarSelect($event.target.value)" class="absolute inset-0 opacity-0 pointer-events-none w-full h-full">
-                    </button>
-                </div>
-                <div id="date-tabs-slider" class="bk-scroll flex gap-2 overflow-x-auto pb-0.5">
-                    <template x-for="tab in dateTabs" :key="tab.date">
-                        <button type="button" :id="'date-tab-' + tab.date" @click="selectDate(tab.date)"
-                                :class="activeDate === tab.date
-                                    ? 'bg-[#183428] text-[#F5E6BE] border-[#183428] shadow-[0_6px_16px_rgba(24,52,40,0.28)]'
-                                    : 'bg-[#FBF7EE] text-[#5C4A2E] border-transparent hover:bg-[#F6EEDB]'"
-                                class="bk-tap bk-snap shrink-0 w-[62px] sm:w-[70px] py-2 rounded-2xl border text-center transition-all duration-200 active:scale-95">
-                            <span class="block text-[10px] font-bold uppercase tracking-wide opacity-80" x-text="tab.day"></span>
-                            <span class="block text-lg font-black leading-tight" x-text="tab.dayNum"></span>
-                            <span class="block text-[10px] font-semibold opacity-70" x-text="tab.month"></span>
-                        </button>
-                    </template>
-                </div>
-            </section>
+            <div class="flex flex-col lg:flex-row gap-4 sm:gap-5 items-start">
+                {{-- Jadwal: tanggal + grid lapangan --}}
+                <section class="w-full lg:flex-1 min-w-0 bg-white/95 rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] overflow-hidden">
 
-            {{-- 2. Durasi --}}
-            <section class="lg:w-[400px] lg:shrink-0 flex flex-col justify-between bg-white/90 backdrop-blur-xl rounded-3xl border border-[#EADBB5] shadow-[0_8px_30px_rgba(160,120,30,0.08)] p-3 sm:p-4">
-                <div class="flex items-center justify-between px-1 mb-2.5">
-                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-[#8C6418]">Duration</div>
-                    <div class="hidden sm:block text-[11px] text-[#7A643E]">Tap a start time — the next hours follow</div>
-                </div>
-                <div class="grid grid-cols-4 gap-1.5 p-1 rounded-2xl bg-[#FBF7EE]">
-                    <template x-for="d in [1, 2, 3, 4]" :key="d">
-                        <button type="button" @click="setDuration(d)"
-                                :class="selectedDuration === d ? 'bg-white text-[#183428] shadow-[0_4px_12px_rgba(160,120,30,0.18)] font-black' : 'text-[#7A643E] font-bold hover:text-[#1F170D]'"
-                                class="bk-tap relative py-2.5 rounded-xl text-sm transition-all duration-200 active:scale-95">
-                            <span x-text="d + (d === 1 ? ' hr' : ' hrs')"></span>
-                            <span x-show="d === 2" class="absolute -top-1.5 right-1 px-1.5 rounded-full text-[8px] font-black uppercase bg-[#D4AF37] text-[#1E160A]">Popular</span>
+                    {{-- Tanggal --}}
+                    <div class="flex items-stretch gap-2 p-2.5 sm:p-3 border-b border-[#EADBB5]">
+                        <button type="button" @click="openCalendarPicker()" title="Pick any date (up to 2 months ahead)" aria-label="Open calendar"
+                                class="bk-tap relative shrink-0 w-11 sm:w-12 rounded-2xl bg-[#FBF7EE] text-[#8C6418] hover:bg-[#F6EEDB] flex items-center justify-center transition-colors">
+                            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <input type="date" x-ref="calendarInput" :min="minDate" :max="maxDate" :value="activeDate" tabindex="-1" aria-hidden="true"
+                                   @change="onCalendarSelect($event.target.value)" class="absolute inset-0 opacity-0 pointer-events-none w-full h-full">
                         </button>
-                    </template>
-                </div>
-            </section>
-            </div>
-
-            {{-- 3. Lapangan + tampilan --}}
-            <section class="space-y-3">
-                <div class="flex items-center justify-between px-1">
-                    <div class="text-[11px] font-extrabold uppercase tracking-wider text-[#8C6418]">Court</div>
-                    <div class="hidden md:flex p-1 rounded-xl bg-white/90 border border-[#EADBB5] text-xs font-bold">
-                        <button type="button" @click="viewMode = 'grid'" :class="viewMode === 'grid' ? 'bg-[#183428] text-[#F5E6BE]' : 'text-[#7A643E] hover:text-[#1F170D]'" class="bk-tap px-3 py-1.5 rounded-lg transition-colors">All courts</button>
-                        <button type="button" @click="viewMode = 'court'" :class="viewMode === 'court' ? 'bg-[#183428] text-[#F5E6BE]' : 'text-[#7A643E] hover:text-[#1F170D]'" class="bk-tap px-3 py-1.5 rounded-lg transition-colors">One court</button>
+                        <div id="date-tabs-slider" class="bk-scroll flex-1 min-w-0 flex gap-1.5 overflow-x-auto">
+                            <template x-for="tab in dateTabs" :key="tab.date">
+                                <button type="button" :id="'date-tab-' + tab.date" @click="selectDate(tab.date)" :aria-pressed="activeDate === tab.date"
+                                        :class="activeDate === tab.date
+                                            ? 'bg-[#183428] text-[#F5E6BE] shadow-[0_6px_16px_rgba(24,52,40,0.28)]'
+                                            : 'text-[#5C4A2E] hover:bg-[#FBF7EE]'"
+                                        class="bk-tap bk-snap shrink-0 w-[60px] sm:w-[66px] py-2 rounded-2xl text-center transition-all duration-200 active:scale-95">
+                                    <span class="block text-[10px] font-bold uppercase tracking-wide opacity-80" x-text="tab.day"></span>
+                                    <span class="block text-[15px] font-black leading-tight" x-text="tab.dayNum + ' ' + tab.month"></span>
+                                </button>
+                            </template>
+                        </div>
                     </div>
-                </div>
 
-                {{-- Kartu lapangan (tampilan satu lapangan) --}}
-                <div x-show="viewMode === 'court'" class="bk-scroll flex gap-2.5 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-1">
-                    <template x-if="isLoading && courts.length === 0">
-                        <div class="flex gap-2.5">
-                            <template x-for="i in 3" :key="i"><div class="bk-skeleton shrink-0 w-[168px] h-[74px] rounded-2xl"></div></template>
+                    {{-- Legenda --}}
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-[#F3E9D2] text-[11px] text-[#7A643E]">
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-white border border-[#DCC690]"></span>Available</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#183428]"></span>Selected</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-amber-100 border border-amber-300"></span>In checkout</span>
+                        <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#EFEBE3]"></span>Booked / closed</span>
+                        <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>Prime time</span>
+                    </div>
+
+                    {{-- Loading --}}
+                    <div x-show="isLoading" class="p-4">
+                        <div class="grid grid-cols-4 gap-2">
+                            <template x-for="i in 16" :key="i"><div class="bk-skeleton h-[52px] rounded-xl"></div></template>
                         </div>
-                    </template>
-                    <template x-for="(court, ci) in courts" :key="court.court_id">
-                        <button type="button" @click="activeCourtIndex = ci"
-                                :class="activeCourtIndex === ci
-                                    ? 'bg-[#183428] border-[#183428] text-[#F5E6BE] shadow-[0_8px_20px_rgba(24,52,40,0.28)]'
-                                    : 'bg-white/90 border-[#EADBB5] text-[#1F170D] hover:border-[#D4AF37]'"
-                                class="bk-tap bk-snap shrink-0 w-[188px] sm:w-[220px] text-left p-3 rounded-2xl border transition-all duration-200 active:scale-[0.97]">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="font-extrabold text-sm truncate" x-text="court.court_name"></span>
-                                <span x-show="selectedCountForCourt(court.court_id) > 0" class="w-5 h-5 rounded-full bg-[#D4AF37] text-[#1E160A] text-[10px] font-black flex items-center justify-center shrink-0" x-text="selectedCountForCourt(court.court_id)"></span>
-                            </div>
-                            <div class="text-[11px] mt-0.5 truncate" :class="activeCourtIndex === ci ? 'text-[#D9C99A]' : 'text-[#7A643E]'" x-text="court.description"></div>
-                            <div class="mt-1.5 text-[11px] font-bold" :class="availableCount(court) > 0 ? (activeCourtIndex === ci ? 'text-emerald-300' : 'text-emerald-700') : (activeCourtIndex === ci ? 'text-rose-300' : 'text-rose-600')"
-                                 x-text="availableCount(court) > 0 ? availableCount(court) + ' slots open' : 'Fully booked'"></div>
-                        </button>
-                    </template>
-                </div>
-            </section>
+                    </div>
 
-            {{-- Legenda --}}
-            <div class="hidden sm:flex flex-wrap items-center gap-x-4 gap-y-1.5 px-1 text-[11px] text-[#7A643E]">
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-white border border-[#DCC690]"></span>Available</span>
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#183428]"></span>Selected</span>
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-amber-100 border border-amber-300"></span>In checkout</span>
-                <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded-md bg-[#E9E3D6] border border-[#D9CFBC]"></span>Booked / closed</span>
-                <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>Prime time</span>
-            </div>
+                    {{-- Kosong --}}
+                    <div x-show="!isLoading && courts.length === 0" class="p-8 text-center text-sm text-[#7A643E]">
+                        No courts are available for booking right now.
+                    </div>
 
-            {{-- Loading --}}
-            <div x-show="isLoading" class="bg-white/90 rounded-3xl border border-[#EADBB5] p-4">
-                <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8 gap-2">
-                    <template x-for="i in 12" :key="i"><div class="bk-skeleton h-[58px] rounded-2xl"></div></template>
-                </div>
-            </div>
-
-            {{-- Kosong --}}
-            <div x-show="!isLoading && courts.length === 0" class="bg-white/90 rounded-3xl border border-[#EADBB5] p-8 text-center text-sm text-[#7A643E]">
-                No courts are available for booking right now.
-            </div>
-
-            {{-- Tampilan satu lapangan: jam dikelompokkan pagi / siang / malam --}}
-            <section x-show="!isLoading && viewMode === 'court' && activeCourt" class="bg-white/90 backdrop-blur-xl rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] p-3 sm:p-5 space-y-4">
-                <div x-show="pastNote" class="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#FBF7EE] text-[11px] text-[#7A643E]">
-                    <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                    <span x-text="pastNote"></span>
-                </div>
-                <template x-for="group in activeCourtGroups" :key="activeCourtIndex + '-' + activeDate + '-' + group.label">
-                    <div class="bk-fade-up">
-                        <div class="flex items-center gap-2 px-1 mb-2">
-                            <span class="text-xs font-extrabold text-[#1F170D]" x-text="group.label"></span>
-                            <span class="text-[11px] text-[#A08C66]" x-text="group.range"></span>
-                            <span class="flex-1 h-px bg-[#F0E4C8]"></span>
-                        </div>
-                        <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-8 gap-2">
-                            <template x-for="item in group.items" :key="item.slot.local_start">
-                                <div>
-                                    <template x-if="item.slot.status === 'AVAILABLE'">
-                                        <button type="button"
-                                                @click="handleSlotClick(activeCourtIndex, item.index)"
-                                                @mouseenter="previewSlots(activeCourtIndex, item.index)" @mouseleave="clearPreview()"
-                                                :class="slotButtonClass(activeCourt.court_id, item.slot.local_start)"
-                                                class="bk-tap relative w-full h-[58px] rounded-2xl border transition-all duration-150 active:scale-95 flex flex-col items-center justify-center">
-                                            <span x-show="item.slot.is_prime_time" class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                                            <span class="text-sm font-extrabold tabular-nums" x-text="item.slot.local_start"></span>
-                                            <span class="text-[10px] font-semibold tabular-nums"
-                                                  :class="isSlotSelected(activeCourt.court_id, item.slot.local_start) ? 'text-[#D9C99A]' : 'text-[#8C6418]'"
-                                                  x-text="'Rp ' + formatNumber(item.slot.price)"></span>
+                    {{-- Grid lapangan x jam --}}
+                    <div x-show="!isLoading && courts.length > 0" class="bk-grid overflow-auto max-h-[62vh] sm:max-h-[64vh] lg:max-h-[calc(100vh-260px)] min-h-[320px]">
+                        <div :style="'min-width: ' + gridMinWidth + 'px'">
+                            {{-- Judul lapangan --}}
+                            <div class="grid sticky top-0 z-20 bg-[#FBF5E6] border-b border-[#EADBB5]" :style="gridColumns">
+                                <div class="sticky left-0 z-10 bg-[#FBF5E6] border-r border-[#EADBB5]"></div>
+                                <template x-for="court in courts" :key="court.court_id">
+                                    <div class="bk-col relative px-1.5 py-2.5 text-center border-r border-[#F3E9D2] last:border-r-0" x-data="{ info: false }">
+                                        <button type="button" @click="info = !info" @click.outside="info = false"
+                                                class="bk-tap inline-flex items-center justify-center gap-1 max-w-full text-xs sm:text-[13px] font-extrabold text-[#1F170D] leading-tight"
+                                                :aria-label="court.court_name + ' details'">
+                                            <span class="line-clamp-2 break-words" x-text="court.court_name"></span>
+                                            <svg class="w-3.5 h-3.5 shrink-0 text-[#A08C66]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2" /><path stroke-linecap="round" stroke-width="2" d="M12 11v5m0-8h.01" /></svg>
                                         </button>
-                                    </template>
-                                    <template x-if="item.slot.status !== 'AVAILABLE'">
-                                        <div :class="item.slot.status === 'LOCKED' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#F4F1EA] border-transparent text-[#B3A78F]'"
-                                             class="w-full h-[58px] rounded-2xl border flex flex-col items-center justify-center cursor-not-allowed select-none">
-                                            <span class="text-sm font-bold tabular-nums" :class="item.slot.status === 'LOCKED' ? '' : 'line-through decoration-1'" x-text="item.slot.local_start"></span>
-                                            <span class="text-[10px] font-semibold" x-text="statusLabel(item.slot.status)"></span>
+                                        <div class="text-[10px] font-bold" :class="availableCount(court) > 0 ? 'text-emerald-700' : 'text-rose-600'"
+                                             x-text="availableCount(court) > 0 ? availableCount(court) + ' open' : 'Full'"></div>
+                                        <div x-show="info" x-transition.opacity style="display: none;"
+                                             class="absolute left-1/2 -translate-x-1/2 top-full mt-1 z-30 w-52 p-3 rounded-2xl bg-white border border-[#EADBB5] shadow-[0_12px_30px_rgba(90,64,12,0.18)] text-left">
+                                            <div class="text-xs font-extrabold" x-text="court.court_name"></div>
+                                            <div class="text-[11px] text-[#7A643E] mt-1 leading-relaxed" x-text="court.description || 'Padel court'"></div>
                                         </div>
-                                    </template>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-                </template>
-                <div x-show="activeCourtGroups.length === 0" class="py-6 text-center text-sm text-[#7A643E]">This court has no open hours on this date.</div>
-            </section>
+                                    </div>
+                                </template>
+                            </div>
 
-            {{-- Tampilan semua lapangan (tablet & desktop) --}}
-            <section x-show="!isLoading && viewMode === 'grid' && courts.length > 0" class="bg-white/90 backdrop-blur-xl rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] overflow-hidden">
-                <div class="overflow-x-auto bk-scroll" style="scroll-snap-type: none;">
-                    <div :style="'min-width: ' + (72 + courts.length * 132) + 'px'">
-                        <div class="grid gap-2 px-3 py-3 bg-[#FBF5E6] border-b border-[#EADBB5] sticky top-0 z-10" :style="gridColumns">
-                            <div class="sticky left-0 z-10 bg-[#FBF5E6] text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418] flex items-center justify-center">Time</div>
-                            <template x-for="court in courts" :key="court.court_id">
-                                <div class="text-center min-w-0 px-1">
-                                    <div class="text-xs font-extrabold truncate" x-text="court.court_name" :title="court.court_name"></div>
-                                    <div class="text-[10px] font-bold" :class="availableCount(court) > 0 ? 'text-emerald-700' : 'text-rose-600'" x-text="availableCount(court) > 0 ? availableCount(court) + ' open' : 'Full'"></div>
-                                </div>
-                            </template>
-                        </div>
-                        <div x-show="pastNote" class="flex items-center gap-2 px-4 py-2 bg-[#FFFCF5] border-b border-[#F3E9D2] text-[11px] text-[#7A643E]">
-                            <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span x-text="pastNote"></span>
-                        </div>
-                        <div class="divide-y divide-[#F3E9D2]">
-                            <template x-for="row in visibleMatrixRows" :key="activeDate + '-' + row.time">
-                                <div class="grid gap-2 px-3 py-1.5 items-center hover:bg-[#FFFCF5] transition-colors" :style="gridColumns">
-                                    <div class="sticky left-0 z-[1] bg-white/95 text-center text-xs font-bold tabular-nums text-[#5C4A2E] py-2" x-text="row.time"></div>
-                                    <template x-for="(cell, ci) in row.cells" :key="ci">
-                                        <div>
-                                            <template x-if="cell && cell.status === 'AVAILABLE'">
-                                                <button type="button"
-                                                        @click="handleSlotClick(ci, row.index)"
-                                                        @mouseenter="previewSlots(ci, row.index)" @mouseleave="clearPreview()"
-                                                        :class="slotButtonClass(cell.court_id, cell.local_start)"
-                                                        class="bk-tap relative w-full h-10 rounded-xl border text-xs font-bold tabular-nums transition-all duration-150 active:scale-95">
-                                                    <span x-show="cell.is_prime_time" class="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
-                                                    <span x-text="'Rp ' + formatNumber(cell.price)"></span>
-                                                </button>
-                                            </template>
-                                            <template x-if="cell && cell.status !== 'AVAILABLE'">
-                                                <div :class="cell.status === 'LOCKED' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#F4F1EA] border-transparent text-[#B3A78F]'"
-                                                     class="w-full h-10 rounded-xl border text-[11px] font-semibold flex items-center justify-center cursor-not-allowed select-none"
-                                                     x-text="statusLabel(cell.status)"></div>
+                            <div x-show="pastNote" class="sticky left-0 flex items-center gap-2 px-4 py-2 bg-[#FFFCF5] border-b border-[#F3E9D2] text-[11px] text-[#7A643E]">
+                                <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                <span x-text="pastNote"></span>
+                            </div>
+
+                            {{-- Jam dikelompokkan: siang 06–17 WIB & malam 17–00 WIB --}}
+                            <template x-for="group in rowGroups" :key="activeDate + '-' + group.key">
+                                <div>
+                                    <div class="px-3 sm:px-4 py-1.5 bg-[#FBF7EE] border-b border-[#F3E9D2]">
+                                        <span class="sticky left-3 inline-block text-[10px] font-extrabold uppercase tracking-wider text-[#8C6418]" x-text="group.label"></span>
+                                    </div>
+                                    <template x-for="row in group.rows" :key="activeDate + '-' + row.time">
+                                        <div class="grid border-b border-[#F3E9D2]" :style="gridColumns">
+                                            <div class="sticky left-0 z-10 bg-white border-r border-[#EADBB5] flex items-center justify-center text-xs sm:text-[13px] font-bold tabular-nums text-[#5C4A2E]" x-text="row.time"></div>
+                                            <template x-for="(cell, ci) in row.cells" :key="ci">
+                                                <div class="p-1 border-r border-[#F3E9D2] last:border-r-0">
+                                                    <template x-if="cell && cell.status === 'AVAILABLE'">
+                                                        <button type="button" @click="handleSlotClick(ci, row.index)"
+                                                                :aria-pressed="isSlotSelected(cell.court_id, cell.local_start)"
+                                                                :aria-label="cell.court_name + ' ' + cell.local_start + ' Rp ' + formatNumber(cell.price)"
+                                                                :class="slotButtonClass(cell.court_id, cell.local_start)"
+                                                                class="bk-tap relative w-full h-12 sm:h-[52px] rounded-xl border text-left px-2.5 text-[13px] sm:text-sm font-extrabold tabular-nums transition-all duration-150 active:scale-95">
+                                                            <span x-show="cell.is_prime_time" class="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-[#D4AF37]"></span>
+                                                            <span x-text="formatK(cell.price)"></span>
+                                                        </button>
+                                                    </template>
+                                                    <template x-if="cell && cell.status !== 'AVAILABLE'">
+                                                        <div :class="cell.status === 'LOCKED' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-[#EFEBE3] border-transparent text-[#9C927F]'"
+                                                             class="w-full h-12 sm:h-[52px] rounded-xl border px-2.5 pt-1.5 text-[11px] font-semibold cursor-not-allowed select-none"
+                                                             x-text="statusLabel(cell.status)"></div>
+                                                    </template>
+                                                    <template x-if="!cell"><div class="w-full h-12 sm:h-[52px]"></div></template>
+                                                </div>
                                             </template>
                                         </div>
                                     </template>
                                 </div>
                             </template>
+                            <div x-show="rowGroups.length === 0" class="py-8 text-center text-sm text-[#7A643E]">No open hours on this date — pick another date.</div>
                         </div>
                     </div>
-                </div>
-            </section>
+                </section>
+
+                {{-- Membership (layar lebar) --}}
+                <aside class="hidden lg:block w-[280px] xl:w-[300px] shrink-0 lg:sticky lg:top-24">
+                    <div class="bg-white/95 rounded-3xl border border-[#EADBB5] shadow-[0_12px_36px_rgba(160,120,30,0.10)] p-3">
+                        <img src="{{ asset('images/club-hero.jpg') }}" alt="Club 61 padel court" class="w-full h-64 xl:h-80 object-cover rounded-2xl">
+                        <div class="px-1.5 pt-4 pb-1.5 space-y-2">
+                            <h2 class="font-serif font-black text-lg">Membership Program</h2>
+                            <p class="text-xs text-[#7A643E] leading-relaxed">Play more for less — court hour quotas, member discounts and priority benefits.</p>
+                            <a href="{{ route('customer.membership') }}"
+                               class="bk-tap mt-2 flex items-center justify-center h-11 rounded-2xl text-sm font-black uppercase tracking-wider text-[#1E160A] bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] hover:brightness-105 transition">
+                                Unlock Benefits
+                            </a>
+                        </div>
+                    </div>
+                </aside>
+            </div>
         </div>
 
         {{-- Ringkasan & lanjut (menempel di atas navigasi bawah) --}}
@@ -225,8 +167,8 @@
                 <div class="flex-1 min-w-0">
                     <template x-if="selectedSlots.length === 0">
                         <div>
-                            <div class="text-sm font-bold text-[#1F170D]">Choose a start time</div>
-                            <div class="text-[11px] text-[#7A643E] truncate" x-text="dateLabel(activeDate) + ' · ' + selectedDuration + (selectedDuration === 1 ? ' hour' : ' hours')"></div>
+                            <div class="text-sm font-bold text-[#1F170D]">Tap the hours you want</div>
+                            <div class="text-[11px] text-[#7A643E] truncate" x-text="dateLabel(activeDate) + ' · 1 box = 1 hour'"></div>
                         </div>
                     </template>
                     <template x-if="selectedSlots.length > 0">
@@ -237,11 +179,11 @@
                         </div>
                     </template>
                 </div>
-                <button type="button" x-show="selectedSlots.length > 0" @click="selectedSlots = []" title="Clear selection"
+                <button type="button" x-show="selectedSlots.length > 0" @click="selectedSlots = []" title="Clear selection" aria-label="Clear selection"
                         class="bk-tap shrink-0 w-10 h-10 rounded-2xl border border-[#EADBB5] text-[#9A3412] hover:bg-rose-50 flex items-center justify-center transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
-                <button type="button" :disabled="selectedSlots.length === 0 || isHolding" @click="proceedToHoldAndCart()"
+                <button type="button" :disabled="selectedSlots.length === 0 || isHolding" @click="openConfirm()"
                         :class="selectedSlots.length > 0
                             ? 'bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] text-[#1E160A] shadow-[0_8px_20px_rgba(168,125,24,0.35)] hover:brightness-105 active:scale-95'
                             : 'bg-[#EFEAE0] text-[#A89F8F] cursor-not-allowed'"
@@ -250,6 +192,61 @@
                     <span x-text="isHolding ? 'Reserving…' : 'Continue'"></span>
                     <svg x-show="!isHolding" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
                 </button>
+            </div>
+        </div>
+
+        {{-- Cek kembali pesanan + ketentuan (bottom sheet di HP, dialog di layar lebar) --}}
+        <div x-show="confirmModal.show" style="display: none; z-index: 99998 !important;" class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4"
+             @keydown.escape.window="confirmModal.show = false">
+            <div x-show="confirmModal.show" x-transition.opacity.duration.200ms @click="confirmModal.show = false" class="absolute inset-0 bg-black/60 backdrop-blur-sm"></div>
+            <div x-show="confirmModal.show" role="dialog" aria-modal="true" aria-labelledby="bk-confirm-title"
+                 x-transition:enter="transition ease-out duration-300" x-transition:enter-start="translate-y-full sm:translate-y-4 sm:opacity-0" x-transition:enter-end="translate-y-0 sm:opacity-100"
+                 x-transition:leave="transition ease-in duration-150" x-transition:leave-start="translate-y-0 sm:opacity-100" x-transition:leave-end="translate-y-full sm:translate-y-4 sm:opacity-0"
+                 class="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-white rounded-t-3xl sm:rounded-3xl border-t-2 sm:border-2 border-[#D4AF37] shadow-2xl p-5 sm:p-6 pb-[calc(1.25rem+env(safe-area-inset-bottom,0px))] sm:pb-6 space-y-4">
+                <div class="sm:hidden mx-auto w-10 h-1.5 rounded-full bg-[#E8DCC0]"></div>
+                <div>
+                    <h3 id="bk-confirm-title" class="font-serif font-black text-lg">Check your booking</h3>
+                    <p class="text-xs text-[#7A643E] mt-0.5">Make sure the date, court and time are right before you continue.</p>
+                </div>
+
+                <div class="rounded-2xl border border-[#EADBB5] divide-y divide-[#F3E9D2]">
+                    <template x-for="s in confirmSessions" :key="s.court_id + s.start_time">
+                        <div class="flex items-start justify-between gap-3 px-4 py-3">
+                            <div class="min-w-0">
+                                <div class="text-sm font-extrabold truncate" x-text="s.court"></div>
+                                <div class="text-xs text-[#7A643E]" x-text="dateLabel(activeDate) + ' · ' + s.start_time + '–' + s.end_time + ' WIB'"></div>
+                                <div class="text-[11px] text-[#8C6418] font-semibold" x-text="s.duration_hours + (s.duration_hours === 1 ? ' hour' : ' hours')"></div>
+                            </div>
+                            <div class="text-sm font-black tabular-nums shrink-0" x-text="'Rp ' + formatNumber(s.price)"></div>
+                        </div>
+                    </template>
+                    <div class="flex items-center justify-between px-4 py-3 bg-[#FBF7EE] rounded-b-2xl">
+                        <span class="text-xs font-bold text-[#5C4A2E]">Court total <span class="font-normal text-[#7A643E]">(tax &amp; fees at checkout)</span></span>
+                        <span class="text-base font-black tabular-nums" x-text="'Rp ' + formatNumber(totalPrice)"></span>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4 space-y-2 text-xs text-amber-900">
+                    <div class="font-extrabold uppercase tracking-wider text-[11px]">Booking policy</div>
+                    <ul class="space-y-1.5 list-disc pl-4 leading-relaxed">
+                        <li>Rescheduling is only possible up to <strong>H-3</strong> (3 days before your play time).</li>
+                        <li><strong>No refunds</strong> once the booking is paid.</li>
+                        <li>Mistakes in the chosen date, court or time are the <strong>booker's responsibility</strong>.</li>
+                    </ul>
+                </div>
+
+                <label class="flex items-start gap-3 cursor-pointer select-none">
+                    <input type="checkbox" x-model="confirmModal.agreed" class="mt-0.5 w-5 h-5 rounded border-[#C9B27A] text-[#183428] focus:ring-[#D4AF37]">
+                    <span class="text-sm text-[#1F170D]">I have checked my booking and agree to the booking policy.</span>
+                </label>
+
+                <div class="flex gap-2.5">
+                    <button type="button" @click="confirmModal.show = false"
+                            class="bk-tap flex-1 h-12 rounded-2xl border border-[#EADBB5] text-sm font-bold text-[#5C4A2E] hover:bg-[#FBF7EE] transition-colors">Check again</button>
+                    <button type="button" :disabled="!confirmModal.agreed || isHolding" @click="confirmModal.show = false; proceedToHoldAndCart()"
+                            :class="confirmModal.agreed ? 'bg-gradient-to-b from-[#F5DE9B] via-[#D4AF37] to-[#A87D18] text-[#1E160A] hover:brightness-105 active:scale-[0.98]' : 'bg-[#EFEAE0] text-[#A89F8F] cursor-not-allowed'"
+                            class="bk-tap flex-[1.4] h-12 rounded-2xl text-sm font-black uppercase tracking-wider transition-all">Yes, continue</button>
+                </div>
             </div>
         </div>
 
@@ -289,17 +286,16 @@
                 activeDate: '{{ now()->format("Y-m-d") }}',
                 minDate: '{{ now()->format("Y-m-d") }}',
                 maxDate: '{{ now()->addDays(59)->format("Y-m-d") }}',
-                selectedDuration: 1, // Durasi: 1, 2, 3, atau 4 jam
+                // Tiap kotak = 1 jam; jam berurutan di lapangan yang sama digabung jadi satu sesi saat lanjut.
                 selectedSlots: [],
-                hoveredSlots: [],
                 matrixRows: [],
                 isLoading: true,
                 isHolding: false,
-                // HP: satu lapangan (kartu + kotak jam); tablet & desktop: grid semua lapangan (bisa diganti).
-                viewMode: window.matchMedia('(min-width: 768px)').matches ? 'grid' : 'court',
-                activeCourtIndex: 0,
+                // HP: kolom lebih sempit supaya 3 lapangan kelihatan sekaligus; ikut berubah saat layar diputar.
+                narrow: !window.matchMedia('(min-width: 640px)').matches,
 
                 noticeModal: { show: false, title: '', message: '', type: 'info', buttonText: 'Got It', onClose: null },
+                confirmModal: { show: false, agreed: false },
 
                 showNotice(title, message, type = 'info', buttonText = 'Got It', onClose = null) {
                     this.noticeModal = { show: true, title, message, type, buttonText, onClose };
@@ -317,8 +313,7 @@
                 init() {
                     this.generateDateTabs();
                     this.fetchSchedule();
-                    // Layar HP selalu tampilan satu lapangan (grid semua lapangan terlalu sempit).
-                    window.matchMedia('(min-width: 768px)').addEventListener('change', (e) => { if (!e.matches) this.viewMode = 'court'; });
+                    window.matchMedia('(min-width: 640px)').addEventListener('change', (e) => { this.narrow = !e.matches; });
                     // Bar ringkasan berubah tinggi (1 → 3 baris saat ada pilihan); ruang bawah halaman ikut tingginya.
                     if (window.ResizeObserver && this.$refs.bar) {
                         new ResizeObserver(() => {
@@ -327,34 +322,30 @@
                     }
                 },
 
-                get activeCourt() {
-                    return this.courts[this.activeCourtIndex] || null;
-                },
-
+                /** Kolom jam + satu kolom per lapangan (semua lapangan aktif, berapa pun jumlahnya). */
                 get gridColumns() {
-                    return `grid-template-columns: 64px repeat(${Math.max(1, this.courts.length)}, minmax(120px, 1fr));`;
+                    const narrow = this.narrow;
+                    return `grid-template-columns: ${narrow ? 64 : 80}px repeat(${Math.max(1, this.courts.length)}, minmax(${narrow ? 92 : 112}px, 1fr));`;
                 },
 
-                /** Jam lapangan aktif dikelompokkan Pagi / Siang / Malam (jam di luar jam buka lapangan disembunyikan). */
-                get activeCourtGroups() {
-                    const court = this.activeCourt;
-                    if (!court) return [];
-                    const groups = [
-                        { label: 'Morning', range: 'before 12:00', items: [] },
-                        { label: 'Afternoon', range: '12:00 – 17:00', items: [] },
-                        { label: 'Evening', range: 'from 17:00', items: [] },
-                    ];
-                    court.slots.forEach((slot, index) => {
-                        if (slot.status === 'CLOSED' || slot.status === 'PAST') return;
-                        const hour = parseInt(slot.local_start, 10);
-                        groups[hour < 12 ? 0 : (hour < 17 ? 1 : 2)].items.push({ slot, index });
-                    });
-                    return groups.filter(g => g.items.length > 0);
+                get gridMinWidth() {
+                    const narrow = this.narrow;
+                    return (narrow ? 64 : 80) + this.courts.length * (narrow ? 92 : 112);
                 },
 
                 /** Baris grid yang semua lapangannya sudah lewat jam disembunyikan (diganti satu catatan). */
                 get visibleMatrixRows() {
                     return this.matrixRows.filter(row => row.cells.some(cell => cell && cell.status !== 'PAST'));
+                },
+
+                /** Jam dikelompokkan 06–17 WIB dan 17–00 WIB. */
+                get rowGroups() {
+                    const groups = [
+                        { key: 'day', label: '06:00 – 17:00 WIB', rows: [] },
+                        { key: 'night', label: '17:00 – 00:00 WIB', rows: [] },
+                    ];
+                    this.visibleMatrixRows.forEach(row => groups[parseInt(row.time, 10) < 17 ? 0 : 1].rows.push(row));
+                    return groups.filter(g => g.rows.length > 0);
                 },
 
                 get pastNote() {
@@ -367,10 +358,6 @@
                     return court && court.slots ? court.slots.filter(s => s.status === 'AVAILABLE').length : 0;
                 },
 
-                selectedCountForCourt(courtId) {
-                    return this.selectedSlots.filter(s => s.court_id === courtId).length;
-                },
-
                 statusLabel(status) {
                     return { BOOKED: 'Booked', LOCKED: 'In checkout', CLOSED: 'Closed', PAST: 'Passed' }[status] || status;
                 },
@@ -379,16 +366,7 @@
                     if (this.isSlotSelected(courtId, startTime)) {
                         return 'bk-pop bg-[#183428] border-[#183428] text-[#F5E6BE] shadow-[0_6px_16px_rgba(24,52,40,0.32)]';
                     }
-                    if (this.isSlotHovered(courtId, startTime)) {
-                        return 'bg-[#FAF2DE] border-[#D4AF37] text-[#1F170D]';
-                    }
-                    return 'bg-white border-[#E8D9B2] text-[#1F170D] hover:border-[#D4AF37] hover:bg-[#FFFBF0]';
-                },
-
-                setDuration(hours) {
-                    this.selectedDuration = hours;
-                    this.selectedSlots = [];
-                    this.hoveredSlots = [];
+                    return 'bg-white border-[#EDE3CB] text-[#1F170D] hover:border-[#D4AF37] hover:bg-[#FFFBF0]';
                 },
 
                 generateDateTabs() {
@@ -437,7 +415,6 @@
                 selectDate(dateStr) {
                     this.activeDate = dateStr;
                     this.selectedSlots = [];
-                    this.hoveredSlots = [];
                     this.fetchSchedule();
                     this.$nextTick(() => {
                         const el = document.getElementById('date-tab-' + dateStr);
@@ -453,7 +430,6 @@
                         if (json.success) {
                             this.courts = json.data.courts || [];
                             this.buildMatrixRows(this.courts);
-                            if (this.activeCourtIndex >= this.courts.length) this.activeCourtIndex = 0;
                         }
                     } catch (e) {
                         console.error('Failed to fetch court schedule:', e);
@@ -462,7 +438,7 @@
                     }
                 },
 
-                /** Baris grid = jam; kolom = semua lapangan aktif (tidak lagi terbatas 3 lapangan). */
+                /** Baris grid = jam; kolom = semua lapangan aktif. */
                 buildMatrixRows(courts) {
                     const slotCount = courts.length ? Math.max(...courts.map(c => c.slots.length)) : 0;
                     this.matrixRows = [];
@@ -480,76 +456,18 @@
                     return this.selectedSlots.some(s => s.court_id === courtId && startTime >= s.start_time && startTime < s.end_time);
                 },
 
-                isSlotHovered(courtId, startTime) {
-                    return this.hoveredSlots.some(s => s.court_id === courtId && s.start_time === startTime);
-                },
-
-                previewSlots(courtIndex, slotIndex) {
-                    if (this.selectedDuration <= 1) return;
-                    const court = this.courts[courtIndex];
-                    if (!court) return;
-                    this.hoveredSlots = [];
-                    for (let i = 0; i < this.selectedDuration; i++) {
-                        const slot = court.slots[slotIndex + i];
-                        if (slot) this.hoveredSlots.push({ court_id: court.court_id, start_time: slot.local_start });
-                    }
-                },
-
-                clearPreview() {
-                    this.hoveredSlots = [];
-                },
-
-                /** Durasi > 1 jam: pilih blok jam berurutan di lapangan yang sama (dicek dari daftar slot lapangan itu sendiri). */
                 handleSlotClick(courtIndex, slotIndex) {
                     const court = this.courts[courtIndex];
                     const slot = court ? court.slots[slotIndex] : null;
-                    if (!slot) return;
+                    if (!slot || slot.status !== 'AVAILABLE') return;
                     if (navigator.vibrate) { try { navigator.vibrate(8); } catch (e) {} }
-
-                    if (this.selectedDuration === 1) {
-                        this.toggleSlot(court.court_id, court.court_name, slot.local_start, slot.local_end, slot.price);
-                        return;
-                    }
-
-                    const needed = this.selectedDuration;
-                    let totalBlockPrice = 0;
-                    for (let i = 0; i < needed; i++) {
-                        const target = court.slots[slotIndex + i];
-                        if (!target) {
-                            this.showNotice('Operating Hours Exceeded', `Not enough remaining operating hours for a ${needed}-hour booking block.`, 'error', 'Choose Another Time');
-                            return;
-                        }
-                        if (target.status !== 'AVAILABLE') {
-                            this.showNotice('Slot Unavailable', `Cannot reserve ${needed} consecutive hours starting at ${slot.local_start} because the ${target.local_start} slot is ${this.statusLabel(target.status).toLowerCase()}. Please select another start time.`, 'error', 'Choose Another Time');
-                            return;
-                        }
-                        totalBlockPrice += target.price;
-                    }
-
-                    const endHour = court.slots[slotIndex + needed - 1].local_end;
-                    this.selectedSlots = [{
-                        court_id: court.court_id,
-                        court: court.court_name,
-                        booking_date: this.activeDate,
-                        start_time: slot.local_start,
-                        end_time: endHour,
-                        duration_hours: needed,
-                        time: `${slot.local_start} - ${endHour} (${needed} Hours)`,
-                        price: totalBlockPrice,
-                    }];
-                    this.hoveredSlots = [];
+                    this.toggleSlot(court.court_id, court.court_name, slot.local_start, slot.local_end, slot.price);
                 },
 
                 toggleSlot(courtId, courtName, startTime, endTime, price) {
                     const idx = this.selectedSlots.findIndex(s => s.court_id === courtId && s.start_time === startTime && s.end_time === endTime);
                     if (idx >= 0) {
                         this.selectedSlots.splice(idx, 1);
-                        return;
-                    }
-                    // Jam yang menimpa pilihan sebelumnya di lapangan yang sama: lepas pilihan itu.
-                    const overlapIdx = this.selectedSlots.findIndex(s => s.court_id === courtId && startTime >= s.start_time && startTime < s.end_time);
-                    if (overlapIdx >= 0) {
-                        this.selectedSlots.splice(overlapIdx, 1);
                         return;
                     }
                     this.selectedSlots.push({
@@ -597,15 +515,10 @@
                     return consolidated;
                 },
 
-                get selectedSlotsSummary() {
-                    if (this.selectedSlots.length === 0) return '0 Slots Selected';
-                    const consolidated = this.consolidateContiguousSlots(this.selectedSlots);
-                    if (consolidated.length === 1) {
-                        const first = consolidated[0];
-                        return `${first.court} · ${this.dateLabel(this.activeDate)} · ${first.start_time}–${first.end_time}`;
-                    }
-                    const totalHours = consolidated.reduce((sum, s) => sum + s.duration_hours, 0);
-                    return `${consolidated.length} sessions · ${totalHours} hours · ${this.dateLabel(this.activeDate)}`;
+                /** Isi popup cek ulang: per sesi, urut lapangan lalu jam. */
+                get confirmSessions() {
+                    return this.consolidateContiguousSlots(this.selectedSlots)
+                        .sort((a, b) => a.court.localeCompare(b.court) || a.start_time.localeCompare(b.start_time));
                 },
 
                 /** Ringkasan di bar bawah: baris 1 lapangan (atau jumlah sesi), baris 2 tanggal + jam. */
@@ -632,6 +545,18 @@
                 formatNumber(val) {
                     if (!val) return '0';
                     return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+                },
+
+                /** Harga ringkas di kotak jam: 380000 → "380k", 382500 → "382.5k". */
+                formatK(val) {
+                    const k = Math.round((Number(val) || 0) / 100) / 10;
+                    return (Number.isInteger(k) ? k : k.toFixed(1)) + 'k';
+                },
+
+                /** Cek ulang pesanan + ketentuan sebelum slot ditahan. */
+                openConfirm() {
+                    if (this.selectedSlots.length === 0 || this.isHolding) return;
+                    this.confirmModal = { show: true, agreed: false };
                 },
 
                 async proceedToHoldAndCart() {

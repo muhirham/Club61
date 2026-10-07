@@ -48,4 +48,20 @@ return [
     'location_eyebrow' => 'Lokasi & Kontak',
     'location_headline' => 'Datang Langsung ke Venue Kami',
     'location_whatsapp_cta' => 'Chat via WhatsApp',
+
+    // Redesign 2026 (brand guideline): navigasi & ajakan booking, langkah booking, detail lokasi.
+    'nav_how_to_book' => 'Cara Booking',
+    'btn_book_court' => 'Booking Lapangan',
+    'btn_view_membership' => 'Lihat Membership',
+    'howto_eyebrow' => 'Cara Booking',
+    'howto_headline' => '3 Langkah, Langsung Main',
+    'howto_1_title' => 'Pilih jadwal',
+    'howto_1_text' => 'Pilih tanggal, lapangan, dan jam main langsung dari jadwal real-time.',
+    'howto_2_title' => 'Bayar online',
+    'howto_2_text' => 'Selesaikan pembayaran online, booking langsung terkonfirmasi.',
+    'howto_3_title' => 'Tunjukkan e-ticket',
+    'howto_3_text' => 'Scan QR e-ticket di front desk, lalu mulai main.',
+    'location_address' => 'Alamat',
+    'location_hours' => 'Jam buka',
+    'location_whatsapp' => 'WhatsApp',
 ];

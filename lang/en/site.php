@@ -48,4 +48,20 @@ return [
     'location_eyebrow' => 'Location & Contact',
     'location_headline' => 'Come Visit Our Venue',
     'location_whatsapp_cta' => 'Chat via WhatsApp',
+
+    // Redesign 2026 (brand guideline): navigation & booking call-to-action, booking steps, location details.
+    'nav_how_to_book' => 'How to Book',
+    'btn_book_court' => 'Book a Court',
+    'btn_view_membership' => 'View Membership',
+    'howto_eyebrow' => 'How to Book',
+    'howto_headline' => '3 Steps to the Court',
+    'howto_1_title' => 'Pick your slot',
+    'howto_1_text' => 'Choose the date, court and time straight from the live schedule.',
+    'howto_2_title' => 'Pay online',
+    'howto_2_text' => 'Complete the payment online and your booking is confirmed instantly.',
+    'howto_3_title' => 'Show your e-ticket',
+    'howto_3_text' => 'Scan your e-ticket QR at the front desk and start playing.',
+    'location_address' => 'Address',
+    'location_hours' => 'Opening hours',
+    'location_whatsapp' => 'WhatsApp',
 ];

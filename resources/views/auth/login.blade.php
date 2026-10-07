@@ -1,307 +1,181 @@
-<x-guest-layout>
-    <div class="w-full max-w-7xl mx-auto my-auto">
-        <!-- Main Responsive Split Screen Grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-stretch">
-            
-            <!-- LEFT COLUMN: Brand Showcase & Architectural Padel Arena (7 Cols on Desktop) -->
-            <div class="lg:col-span-7 flex flex-col justify-between overflow-hidden relative h-full min-h-[520px] lg:min-h-[580px] bg-[#120E07] text-white"
-                 style="border: 2px solid #C59B46; border-radius: 28px; box-shadow: 0 25px 60px -15px rgba(160, 120, 40, 0.35), 0 0 20px rgba(212, 175, 55, 0.25); color: #FFFFFF;">
-                <!-- Background Cinematic Imagery with Warm Golden Architectural Overlay -->
-                <div class="absolute inset-0 z-0">
-                    <img src="{{ asset('images/club-hero.jpg') }}" 
-                         alt="Club 61 Padel Court" 
-                         class="w-full h-full object-cover object-center scale-105 transition-transform duration-1000 hover:scale-100" />
-                    <!-- Rich Warm Espresso / Bronze Charcoal Gradient Overlay for Ultimate Readability -->
-                    <div class="absolute inset-0 bg-gradient-to-t from-[#0E0A04]/98 via-[#181105]/85 to-[#0E0A04]/75"></div>
-                    <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(212,175,55,0.3)_0%,transparent_65%)]"></div>
+<x-guest-layout theme="terracotta">
+    {{-- Brand guideline Club 61: Terakota #662721, Cokelat #4F2F2A, Mint #C5EAE5, Cream #F7F0DB.
+         HP: form dulu (tujuan utama halaman ini), panel venue di bawahnya. Layar lebar: panel venue kiri, form kanan. --}}
+    <div class="w-full max-w-6xl mx-auto my-auto">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 lg:gap-6 items-stretch">
+
+            {{-- ============ PANEL VENUE ============ --}}
+            <div class="order-2 lg:order-1 lg:col-span-7 relative overflow-hidden rounded-xl bg-club-brown text-club-cream min-h-[420px] lg:min-h-[600px] flex flex-col">
+                <img src="{{ asset('images/club-hero.jpg') }}" alt="Club 61 Padel Court" class="absolute inset-0 w-full h-full object-cover">
+                <div class="absolute inset-0" style="background: linear-gradient(180deg, rgba(79,47,42,0.72) 0%, rgba(79,47,42,0.55) 40%, rgba(79,47,42,0.95) 100%);"></div>
+
+                <div class="relative z-10 p-6 sm:p-8 flex items-start justify-between gap-4">
+                    <img src="{{ asset('images/identity/logo-mint.png') }}" alt="Club 61 Padel Court" class="h-[90px] sm:h-24 w-auto">
+                    <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-club-mint/50 bg-club-brown/60 backdrop-blur text-[11px] font-bold uppercase tracking-wider text-club-cream">
+                        <span class="w-2 h-2 rounded-full bg-club-mint motion-safe:animate-pulse"></span>
+                        Venue live &bull; {{ $companyProfile->court_count }} COURTS OPEN
+                    </span>
                 </div>
 
-                <!-- Top Header: Crest & Live Status Badge -->
-                <div class="relative z-10 p-6 sm:p-7 flex items-center justify-between">
-                    <div class="flex items-center gap-3.5">
-                        <img src="{{ asset('images/club61-logo.png') }}" alt="Club 61 Padel Court" class="w-12 h-12 object-contain rounded-2xl shadow-lg border border-[#E5C378] bg-white p-0.5">
-                        <div>
-                            <div class="font-serif text-2xl font-black tracking-[0.25em] uppercase drop-shadow-md"
-                                 style="color: #FFFFFF !important; text-shadow: 0 2px 10px rgba(0,0,0,0.9);">
-                                CLUB 61
-                            </div>
-                            <div class="text-[10px] tracking-[0.38em] font-bold uppercase -mt-0.5"
-                                 style="color: #F5E2B5 !important; text-shadow: 0 1px 6px rgba(0,0,0,0.9);">
-                                PADEL COURT
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Live Venue Status Pill with Gold Accent -->
-                    <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full shadow-md backdrop-blur-md"
-                         style="color: #FFFFFF !important; background: rgba(0,0,0,0.75); border: 1.5px solid #D4AF37;">
-                        <span class="w-2 h-2 rounded-full animate-pulse" style="background-color: #D4AF37; box-shadow: 0 0 8px #D4AF37;"></span>
-                        <span class="font-bold tracking-wider text-[11px] uppercase" style="color: #FFFFFF !important;">&bull; VENUE LIVE &bull; {{ $companyProfile->court_count }} COURTS OPEN</span>
-                    </div>
-                </div>
-
-                <!-- Center Content: Editorial Typography & Luxury Value Proposition -->
-                <div class="relative z-10 px-6 sm:px-8 py-8 sm:py-10 my-auto">
-                    <div class="inline-block px-3.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-3 shadow-sm"
-                         style="color: #FFFFFF !important; background: rgba(212, 175, 55, 0.25); border: 1.5px solid #E5C378;">
-                        EXCLUSIVE MEMBER SANCTUARY
-                    </div>
-
-                    <h2 class="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-[1.2] drop-shadow-lg"
-                        style="color: #FFFFFF !important; text-shadow: 0 2px 12px rgba(0,0,0,0.9);">
-                        Where Competition Meets <br class="hidden sm:inline" />
-                        <span class="italic font-serif font-normal"
-                              style="color: #F7E7B4; text-shadow: 0 0 20px rgba(212,175,55,0.7);">Refined Luxury.</span>
+                <div class="relative z-10 px-6 sm:px-8 mt-auto pb-6">
+                    <div class="text-[11px] font-bold uppercase tracking-[0.18em] text-club-mint mb-3">Exclusive member sanctuary</div>
+                    <h2 class="font-display font-semibold text-3xl sm:text-4xl lg:text-[2.75rem] leading-[1.1]">
+                        Where competition meets <span class="italic text-club-mint">refined luxury.</span>
                     </h2>
 
-                    <!-- Kartu fasilitas: sumber datanya sama dengan halaman depan (welcome.blade.php),
-                         diedit lewat Filament menu "Konten Website" -->
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mt-4">
+                    {{-- Kartu fasilitas: sumber datanya sama dengan halaman depan (welcome.blade.php), diedit lewat Filament "Konten Website". --}}
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mt-6">
                         @foreach($companyProfile->localizedFacilityCards() as $card)
-                            <div class="p-2.5 rounded-2xl backdrop-blur-md transition-all group shadow-md hover:-translate-y-0.5 cursor-pointer"
-                                 style="background: linear-gradient(135deg, rgba(235, 205, 130, 0.45) 0%, rgba(184, 134, 11, 0.35) 50%, rgba(120, 85, 20, 0.45) 100%); border: 1.5px solid rgba(245, 222, 145, 0.6); box-shadow: 0 4px 15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.4);">
-                                <div class="mb-1 group-hover:scale-110 transition-transform" style="color: #FFFFFF !important;">
-                                    <x-company-profile.icon :icon-key="$card['icon_key']" class="w-4 h-4" style="stroke: #FFFFFF;" />
-                                </div>
-                                <div class="font-extrabold text-[11px]" style="color: #FFFFFF !important; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">{{ $card['title'] }}</div>
-                                <div class="text-[9px] font-semibold" style="color: #FFF2D1 !important; text-shadow: 0 1px 3px rgba(0,0,0,0.8);">{{ $card['subtitle'] }}</div>
+                            <div class="flex items-center gap-2.5 p-2.5 rounded-lg bg-club-brown/60 backdrop-blur border border-club-mint/25">
+                                <span class="w-9 h-9 rounded-md bg-club-mint/15 text-club-mint flex items-center justify-center shrink-0">
+                                    <x-company-profile.icon :icon-key="$card['icon_key']" class="w-4 h-4" />
+                                </span>
+                                <span class="min-w-0">
+                                    <span class="block text-[13px] font-bold leading-tight">{{ $card['title'] }}</span>
+                                    <span class="block text-[11px] text-club-cream/70 mt-0.5 truncate">{{ $card['subtitle'] }}</span>
+                                </span>
                             </div>
                         @endforeach
                     </div>
                 </div>
 
-                <!-- Bottom Footer Strip of Left Card -->
-                <div class="relative z-10 p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-2 rounded-b-[26px] backdrop-blur-md"
-                     style="background: rgba(10, 7, 3, 0.85); border-top: 1.5px solid #C59B46; color: #FFFFFF !important;">
-                    <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full" style="background-color: #D4AF37; box-shadow: 0 0 8px #D4AF37;"></span>
-                        <span style="color: #FFFFFF !important; font-weight: 500; font-size: 12px;">Gedung Indosat Medan &bull; {{ $companyProfile->localized('operating_hours_text') }}</span>
-                    </div>
-                    <div class="font-mono text-[11px]" style="color: #F5E2B5 !important; font-weight: 700; letter-spacing: 0.05em;">
-                        {{ $companyProfile->portal_domain_text }}
-                    </div>
+                <div class="relative z-10 border-t border-club-cream/15 bg-club-brown/80 px-6 sm:px-8 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 text-xs">
+                    <span class="flex items-center gap-2 text-club-cream/90">
+                        <span class="w-1.5 h-1.5 rounded-full bg-club-mint"></span>
+                        Gedung Indosat Medan &bull; {{ $companyProfile->localized('operating_hours_text') }}
+                    </span>
+                    <span class="font-semibold tracking-wide text-club-mint">{{ $companyProfile->portal_domain_text }}</span>
                 </div>
             </div>
 
-            <!-- RIGHT COLUMN: Luxury White Gold Authentication Portal (5 Cols on Desktop) -->
-            <div class="lg:col-span-5 flex flex-col h-full">
-                <div class="h-full flex flex-col justify-between p-6 sm:p-8 lg:p-9 relative overflow-hidden"
-                     style="border: 3px solid #D4AF37; border-radius: 28px; box-shadow: 0 20px 50px -10px rgba(160, 120, 30, 0.35), 0 0 25px rgba(212, 175, 55, 0.3), inset 0 1px 2px rgba(255, 255, 255, 0.95); background-image: url('{{ asset('images/white-gold-marble.jpg') }}'); background-size: cover; background-position: center;">
-                    
-                    <!-- Pearlescent Soft White Glass Frosted Sheen Overlay -->
-                    <div class="absolute inset-0 bg-white/88 backdrop-blur-xl pointer-events-none"></div>
+            {{-- ============ FORM MASUK ============ --}}
+            <div class="order-1 lg:order-2 lg:col-span-5 rounded-xl bg-club-paper border border-club-line shadow-[0_24px_60px_-28px_rgba(79,47,42,0.45)] p-6 sm:p-9 flex flex-col">
+                <div class="mb-7">
+                    <img src="{{ asset('images/identity/monogram-terracotta.png') }}" alt="" class="h-14 w-auto mb-5">
+                    <h1 class="font-display font-semibold text-3xl sm:text-[2.1rem] leading-tight text-club-brown">Masuk ke Club 61</h1>
+                    <p class="text-sm text-club-muted mt-1.5 leading-relaxed">Booking lapangan, kelola membership, dan lihat e-ticket Anda.</p>
+                </div>
 
-                    <!-- Ambient Gold Corner Glow -->
-                    <div class="absolute -right-20 -top-20 w-48 h-48 bg-[#D4AF37]/20 blur-3xl rounded-full pointer-events-none"></div>
-
-                    <!-- Card Top Header -->
-                    <div class="relative z-10 mb-4">
-                        <h1 class="text-2xl sm:text-3xl font-extrabold text-[#1F170D] font-serif mt-2 tracking-tight">
-                            Portal Club 61 Padel Court
-                        </h1>
-                        <p class="text-xs text-[#6B5738] mt-1 leading-relaxed">
-                            
-                        </p>
+                @if(app()->isLocal())
+                <!-- Pilih akun demo (hanya lokal): isi email & sandi otomatis. -->
+                <div class="mb-6 p-3 rounded-lg border border-dashed border-club-line bg-club-cream/50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-club-muted">Cara cepat (pilih akun)</span>
+                        <span id="role-destination" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-club-cream text-club-terra border border-club-line">Siap Masuk</span>
                     </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <button type="button" onclick="selectRole('budi@gmail.com', 'password123', 'Dashboard Member (/dashboard)')"
+                                class="role-btn text-left px-2.5 py-2 rounded-md bg-club-paper border border-club-line hover:border-club-terra transition-colors cursor-pointer">
+                            <span class="block font-bold text-[11px] text-club-brown">Member</span>
+                            <span class="block text-[10px] text-club-muted truncate">Customer VIP</span>
+                        </button>
+                        <button type="button" onclick="selectRole('cashier@club61.com', 'password123', 'Layar Kasir Frontdesk (/pos)')"
+                                class="role-btn text-left px-2.5 py-2 rounded-md bg-club-paper border border-club-line hover:border-club-terra transition-colors cursor-pointer">
+                            <span class="block font-bold text-[11px] text-club-brown">Kasir</span>
+                            <span class="block text-[10px] text-club-muted truncate">POS Venue</span>
+                        </button>
+                        <button type="button" onclick="selectRole('barista@club61.com', 'password123', 'Monitor KOT Kitchen (/kitchen)')"
+                                class="role-btn text-left px-2.5 py-2 rounded-md bg-club-paper border border-club-line hover:border-club-terra transition-colors cursor-pointer">
+                            <span class="block font-bold text-[11px] text-club-brown">Kitchen</span>
+                            <span class="block text-[10px] text-club-muted truncate">Display KDS</span>
+                        </button>
+                        <button type="button" onclick="selectRole('admin@club61.id', 'password123', 'Admin Panel Filament (/admin)')"
+                                class="role-btn text-left px-2.5 py-2 rounded-md bg-club-paper border border-club-line hover:border-club-terra transition-colors cursor-pointer">
+                            <span class="block font-bold text-[11px] text-club-brown">Admin</span>
+                            <span class="block text-[10px] text-club-muted truncate">Super Admin</span>
+                        </button>
+                    </div>
+                </div>
+                @endif
 
-                    @if(app()->isLocal())
-                    <!-- Interactive Quick Demo Role Selector (1-Click Auto Fill) -->
-                    <div class="relative z-10 mb-4 p-3 bg-white/70 shadow-inner backdrop-blur-sm"
-                         style="border: 1.5px solid #DFC387; border-radius: 18px;">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-[#634812]">
-                                CARA CEPAT (PILIH AKUN):
+                <x-auth-session-status class="mb-4 text-sm text-club-terra bg-club-cream p-3 rounded-md border border-club-line" :status="session('status')" />
+
+                <form method="POST" action="{{ route('login') }}" class="space-y-5">
+                    @csrf
+
+                    <div>
+                        <label for="email" class="block text-sm font-semibold text-club-brown mb-1.5">
+                            Email atau nomor WhatsApp / HP <span class="font-normal text-club-muted">(atau ketik: <span class="font-mono text-club-terra">admin</span>)</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-club-muted">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" /></svg>
                             </span>
-                            <span id="role-destination" class="text-[9px] font-semibold px-2 py-0.5 rounded-full bg-[#EEDBB2] text-[#5C410F] border border-[#C59B46]/50">
-                                Siap Masuk
+                            <input id="email" type="text" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
+                                   placeholder="nama@email.com atau 0812xxxxxxxx"
+                                   class="w-full h-12 pl-10 pr-4 rounded-md bg-white border border-club-line text-club-brown placeholder-club-muted/70 text-[15px] focus:border-club-terra focus:ring-2 focus:ring-club-terra/20 outline-none transition">
+                        </div>
+                        <x-input-error :messages="$errors->get('email')" class="mt-1.5 text-sm text-rose-700" />
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-1.5">
+                            <label for="password" class="block text-sm font-semibold text-club-brown">Kata sandi</label>
+                            @if (Route::has('password.request'))
+                                <a href="{{ route('password.request') }}" class="text-sm font-semibold text-club-terra hover:text-club-brown underline-offset-4 hover:underline">Lupa kata sandi?</a>
+                            @endif
+                        </div>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-club-muted">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
                             </span>
-                        </div>
-
-                        <!-- 4 Quick Metallic Gold Role Buttons -->
-                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                            <button type="button" onclick="selectRole('budi@gmail.com', 'password123', 'Dashboard Member (/dashboard)')" 
-                                    class="role-btn text-left p-2 transition-all duration-200 text-xs active:scale-95 group shadow-sm hover:shadow-md cursor-pointer"
-                                    style="background: linear-gradient(145deg, #FDF9EE 0%, #EEDBB0 55%, #CF9E46 100%); border: 1.5px solid #BD923E; border-radius: 12px;">
-                                <div class="mb-0.5">
-                                    <span class="font-bold text-[11px] text-[#241808]">Member</span>
-                                </div>
-                                <div class="text-[9px] text-[#6B4E15] font-medium truncate">Customer VIP</div>
-                            </button>
-
-                            <button type="button" onclick="selectRole('cashier@club61.com', 'password123', 'Layar Kasir Frontdesk (/pos)')" 
-                                    class="role-btn text-left p-2 transition-all duration-200 text-xs active:scale-95 group shadow-sm hover:shadow-md cursor-pointer"
-                                    style="background: linear-gradient(145deg, #FDF9EE 0%, #EEDBB0 55%, #CF9E46 100%); border: 1.5px solid #BD923E; border-radius: 12px;">
-                                <div class="mb-0.5">
-                                    <span class="font-bold text-[11px] text-[#241808]">Kasir</span>
-                                </div>
-                                <div class="text-[9px] text-[#6B4E15] font-medium truncate">POS Venue</div>
-                            </button>
-
-                            <button type="button" onclick="selectRole('barista@club61.com', 'password123', 'Monitor KOT Kitchen (/kitchen)')" 
-                                    class="role-btn text-left p-2 transition-all duration-200 text-xs active:scale-95 group shadow-sm hover:shadow-md cursor-pointer"
-                                    style="background: linear-gradient(145deg, #FDF9EE 0%, #EEDBB0 55%, #CF9E46 100%); border: 1.5px solid #BD923E; border-radius: 12px;">
-                                <div class="mb-0.5">
-                                    <span class="font-bold text-[11px] text-[#241808]">Kitchen</span>
-                                </div>
-                                <div class="text-[9px] text-[#6B4E15] font-medium truncate">Display KDS</div>
-                            </button>
-
-                            <button type="button" onclick="selectRole('admin@club61.id', 'password123', 'Admin Panel Filament (/admin)')" 
-                                    class="role-btn text-left p-2 transition-all duration-200 text-xs active:scale-95 group shadow-sm hover:shadow-md cursor-pointer"
-                                    style="background: linear-gradient(145deg, #FDF9EE 0%, #EEDBB0 55%, #CF9E46 100%); border: 1.5px solid #BD923E; border-radius: 12px;">
-                                <div class="mb-0.5">
-                                    <span class="font-bold text-[11px] text-[#241808]">Admin</span>
-                                </div>
-                                <div class="text-[9px] text-[#6B4E15] font-medium truncate">Super Admin</div>
-                            </button>
-                        </div>
-                    </div>
-                    @endif
-
-                    <!-- Center Body: Form Area -->
-                    <div class="relative z-10 flex-1 flex flex-col justify-center my-auto py-2">
-                        <!-- Session Status Alert -->
-                        <x-auth-session-status class="mb-3 text-[#7A5818] bg-[#FFF9E6] p-3 rounded-xl border border-[#D4AF37] text-xs font-medium shadow-sm" :status="session('status')" />
-
-                        <!-- Login Form -->
-                        <form method="POST" action="{{ route('login') }}" class="space-y-4">
-                            @csrf
-
-                            <!-- Email or Phone Number Input -->
-                            <div>
-                                <label for="email" class="block text-xs font-bold text-[#3B2B11] mb-1.5">
-                                    Email atau Nomor WhatsApp / HP (atau ketik: <span class="font-mono text-[#8C6418]">admin</span>)
-                                </label>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#AA771C]">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.206" />
-                                        </svg>
-                                    </div>
-                                    <input id="email" 
-                                           type="text" 
-                                           name="email" 
-                                           value="{{ old('email') }}" 
-                                           required 
-                                           autofocus 
-                                           autocomplete="username" 
-                                           placeholder="admin@club61.com, 081234567890, atau admin"
-                                           class="w-full pl-10 pr-4 py-3.5 bg-white/95 text-[#1E1609] placeholder-[#9E8A68] text-sm shadow-inner transition-all outline-none"
-                                           style="border: 1.5px solid #D6BC82; border-radius: 16px;"
-                                           onfocus="this.style.borderColor='#AA771C'; this.style.boxShadow='0 0 0 3px rgba(212,175,55,0.3)';"
-                                           onblur="this.style.borderColor='#D6BC82'; this.style.boxShadow='none';" />
-                                </div>
-                                <x-input-error :messages="$errors->get('email')" class="mt-1.5 text-xs text-rose-600 font-medium" />
-                            </div>
-
-                            <!-- Password Input -->
-                            <div>
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <label for="password" class="block text-xs font-bold text-[#3B2B11]">
-                                        Kata Sandi (Password)
-                                    </label>
-                                    @if (Route::has('password.request'))
-                                        <a href="{{ route('password.request') }}" class="text-[11px] font-semibold text-[#8C6418] hover:text-[#B8860B] transition-colors">
-                                            Lupa kata sandi?
-                                        </a>
-                                    @endif
-                                </div>
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#AA771C]">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                                        </svg>
-                                    </div>
-                                    <input id="password" 
-                                           type="password" 
-                                           name="password" 
-                                           required 
-                                           autocomplete="current-password" 
-                                           placeholder="••••••••••••"
-                                           class="w-full pl-10 pr-11 py-3.5 bg-white/95 text-[#1E1609] placeholder-[#9E8A68] text-sm shadow-inner transition-all outline-none"
-                                           style="border: 1.5px solid #D6BC82; border-radius: 16px;"
-                                           onfocus="this.style.borderColor='#AA771C'; this.style.boxShadow='0 0 0 3px rgba(212,175,55,0.3)';"
-                                           onblur="this.style.borderColor='#D6BC82'; this.style.boxShadow='none';" />
-                                    <!-- Eye Toggle Button -->
-                                    <button type="button" onclick="togglePasswordVisibility()" class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#AA771C] hover:text-[#634812] transition-colors focus:outline-none cursor-pointer" title="Lihat/Sembunyikan sandi">
-                                        <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                                        </svg>
-                                    </button>
-                                </div>
-                                <x-input-error :messages="$errors->get('password')" class="mt-1.5 text-xs text-rose-600 font-medium" />
-                            </div>
-
-                            <!-- Remember Me Option -->
-                            <div class="flex items-center justify-between pt-0.5">
-                                <label for="remember_me" class="inline-flex items-center cursor-pointer">
-                                    <input id="remember_me" 
-                                           type="checkbox" 
-                                           name="remember" 
-                                           class="w-4 h-4 rounded bg-white border-[#C59B46] text-[#B8860B] focus:ring-[#D4AF37] focus:ring-offset-0 transition-colors cursor-pointer accent-[#B8860B]">
-                                    <span class="ms-2 text-xs text-[#523F1C] font-semibold">{{ __('Ingat sesi masuk saya') }}</span>
-                                </label>
-                            </div>
-
-                            <!-- Primary Submit Button: 3D Luxury Polished Gold -->
-                            <div class="pt-1.5">
-                                <button type="submit" 
-                                        class="w-full py-3.5 px-6 text-[#281A05] font-black text-sm sm:text-base tracking-widest uppercase transition-all duration-200 transform active:scale-[0.98] hover:brightness-105 flex items-center justify-center gap-2.5 cursor-pointer"
-                                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1.5px solid #FBF0CE; box-shadow: 0 8px 25px -4px rgba(184, 134, 11, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.9); border-radius: 18px;">
-                                    <span>Masuk ke Club</span>
-                                    <svg class="w-4 h-4 stroke-[3]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-
-                    <!-- Bottom Anchor Area Inside Card -->
-                    <div class="relative z-10 pt-4 mt-auto">
-                        <!-- VIP Membership Registration Strip -->
-                        <div class="pt-3 border-t border-[#D9BE84]/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
-                            <div class="text-center sm:text-left">
-                                <span style="font-family: 'Alex Brush', cursive; font-size: 24px; color: #6E4F18; line-height: 1;">
-                                    Belum memiliki akun?
-                                </span>
-                            </div>
-                            <a href="{{ route('register') }}" 
-                               class="inline-flex items-center gap-1.5 font-bold text-[#8A6318] hover:text-[#B8860B] transition-colors underline-offset-4 hover:underline">
-                                <span>Daftar Membership</span>
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            <input id="password" type="password" name="password" required autocomplete="current-password" placeholder="••••••••••"
+                                   class="w-full h-12 pl-10 pr-12 rounded-md bg-white border border-club-line text-club-brown placeholder-club-muted/70 text-[15px] focus:border-club-terra focus:ring-2 focus:ring-club-terra/20 outline-none transition">
+                            <button type="button" onclick="togglePasswordVisibility()" aria-label="Lihat atau sembunyikan kata sandi"
+                                    class="absolute inset-y-0 right-0 w-12 flex items-center justify-center text-club-muted hover:text-club-terra transition-colors cursor-pointer">
+                                <svg id="eye-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                                 </svg>
-                            </a>
+                            </button>
                         </div>
+                        <x-input-error :messages="$errors->get('password')" class="mt-1.5 text-sm text-rose-700" />
+                    </div>
 
-                        <!-- Card Bottom Security & Concierge Assurance Strip -->
-                        <div class="pt-3 mt-3 border-t border-[#DFC387]/40 flex items-center justify-between text-[11px] text-[#7A643E] font-medium">
-                            <span class="flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)]"></span>
-                                Club 61 Verified Security
-                            </span>
-                            <span>&copy; {{ date('Y') }} All Rights Reserved</span>
-                        </div>
+                    <label for="remember_me" class="inline-flex items-center gap-2.5 cursor-pointer select-none">
+                        <input id="remember_me" type="checkbox" name="remember"
+                               class="w-[18px] h-[18px] rounded border-club-line text-club-terra focus:ring-club-terra/30">
+                        <span class="text-sm text-club-brown">{{ __('Ingat sesi masuk saya') }}</span>
+                    </label>
+
+                    <button type="submit"
+                            class="w-full h-12 rounded-md bg-club-terra text-club-cream font-bold text-[15px] tracking-wide hover:bg-club-terra-dark active:scale-[0.99] transition flex items-center justify-center gap-2 cursor-pointer">
+                        <span>Masuk ke Club</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.25" d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
+                    </button>
+                </form>
+
+                <div class="mt-auto pt-7">
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-2 py-4 border-t border-club-line text-sm">
+                        <span class="text-club-muted">Belum punya akun?</span>
+                        <a href="{{ route('register') }}" class="inline-flex items-center gap-1 font-bold text-club-terra hover:text-club-brown underline-offset-4 hover:underline">
+                            Daftar membership
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </a>
+                    </div>
+                    <div class="flex items-center justify-between pt-3 border-t border-club-line text-xs text-club-muted">
+                        <span class="flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-club-terra" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>
+                            Club 61 Verified Security
+                        </span>
+                        <span>&copy; {{ date('Y') }} Club 61</span>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Interactive Script for Quick Role Fill and Password Visibility -->
     <script>
         function selectRole(email, password, destinationLabel) {
             document.getElementById('email').value = email;
             document.getElementById('password').value = password;
-            
+
             const destBadge = document.getElementById('role-destination');
             if (destBadge) {
-                destBadge.innerHTML = destinationLabel;
-                destBadge.className = 'text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#D4AF37] text-[#1E1508] transition-all scale-105 shadow-md shadow-amber-500/30';
+                destBadge.textContent = destinationLabel;
+                destBadge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-club-terra text-club-cream border border-club-terra transition-colors';
                 setTimeout(() => {
-                    destBadge.className = 'text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#EEDBB2] text-[#5C410F] border border-[#C59B46]/50 transition-all';
+                    destBadge.className = 'text-[10px] font-semibold px-2 py-0.5 rounded-full bg-club-cream text-club-terra border border-club-line transition-colors';
                 }, 2000);
             }
         }

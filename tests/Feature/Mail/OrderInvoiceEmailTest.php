@@ -170,6 +170,7 @@ class OrderInvoiceEmailTest extends TestCase
     {
         $logo = public_path(OrderInvoiceMailer::LOGO_FILE);
         $existed = is_file($logo);
+        $dirExisted = is_dir(dirname($logo));
         if (! $existed) {
             @mkdir(dirname($logo), 0777, true);
             copy(public_path('images/club61-logo.png'), $logo);
@@ -187,6 +188,9 @@ class OrderInvoiceEmailTest extends TestCase
         } finally {
             if (! $existed) {
                 @unlink($logo);
+            }
+            if (! $dirExisted) {
+                @rmdir(dirname($logo));
             }
         }
     }
