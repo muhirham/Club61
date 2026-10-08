@@ -1,5 +1,44 @@
 {{-- Walk-In Offline Booking – POS Frontdesk (tablet first). Brand Club 61: Terakota #662721 (dominan), Cream #F7F0DB. --}}
-<div class="walkin-pos-root">
+<div class="walkin-pos-root"
+    x-data="{
+        step: 1,
+        busy: false,
+        sx: null, sy: null,
+        go(n) { this.step = n },
+        prev() { if (this.step > 1) this.step-- },
+        customerMissing() {
+            if (this.$wire.settleBill) return false;
+            return this.$wire.customerMode === 'search'
+                ? ! this.$wire.selectedCustomerId
+                : (! String(this.$wire.walkInName || '').trim() || ! String(this.$wire.walkInPhone || '').trim());
+        },
+        async toPayment() {
+            if (this.busy) return;
+            this.busy = true;
+            try { await this.$wire.proceedToPayment(); } finally { this.busy = false; }
+            // Validasi server gagal → kembali ke layar yang perlu dilengkapi.
+            if (this.$wire.posStep === 'selection') {
+                if (! Object.keys(this.$wire.selectedSlots || {}).length && ! this.$wire.settleBill) this.step = 1;
+                else if (this.customerMissing()) this.step = 2;
+            }
+        },
+        touchStart(e) {
+            const t = e.target;
+            const scroller = t.closest('.pos-timeline-scroll');
+            if (t.closest('input, textarea, select') || (scroller && scroller.scrollWidth > scroller.clientWidth + 2)) { this.sx = null; return; }
+            this.sx = e.changedTouches[0].clientX; this.sy = e.changedTouches[0].clientY;
+        },
+        touchEnd(e) {
+            if (this.sx === null) return;
+            const dx = e.changedTouches[0].clientX - this.sx, dy = e.changedTouches[0].clientY - this.sy;
+            this.sx = null;
+            if (Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
+            const stage = this.$refs.stage;
+            if (dx > 0) return this.prev();
+            if (this.step === 1 && Number(stage?.dataset.slots || 0) > 0) this.step = 2;
+            else if (this.step === 2 && stage?.dataset.settle !== '1') this.step = 3;
+        },
+    }">
     @include('filament.partials.pos-theme-style')
 
     {{-- ============================
@@ -128,9 +167,37 @@
         ])
     @else
     {{-- ============================
-     MAIN 2-COLUMN POS LAYOUT
+     ALUR KASIR: 1 Jadwal → 2 Customer → 3 Tambahan → 4 Pembayaran → konfirmasi → struk
      ============================ --}}
-    <div class="pos-main {{ $posStep === 'selection' ? 'is-selection' : '' }}">
+    @php
+        $flowSteps = [1 => 'Jadwal', 2 => 'Customer', 3 => 'Tambahan', 4 => 'Pembayaran'];
+        $serverStep = ['payment' => 4, 'receipt' => 5][$posStep] ?? null;
+    @endphp
+    <nav class="pos-stepper" aria-label="Langkah transaksi">
+        @foreach ($flowSteps as $n => $label)
+            @if ($posStep === 'selection')
+                <button type="button" class="pos-stepper-item" @click="{{ $n === 4 ? 'toPayment()' : 'go(' . $n . ')' }}"
+                    :class="{ 'is-active': step === {{ $n }}, 'is-done': step > {{ $n }} }">
+                    <span class="pos-stepper-num">{{ $n }}</span>{{ $label }}
+                </button>
+            @else
+                <button type="button" class="pos-stepper-item {{ $serverStep === $n ? 'is-active' : ($serverStep > $n ? 'is-done' : '') }}"
+                    @if ($posStep === 'payment' && $n < 4) @click="step = {{ $n }}; $wire.backToSelection()" @else disabled @endif>
+                    <span class="pos-stepper-num">{{ $n }}</span>{{ $label }}
+                </button>
+            @endif
+            @if ($n < 4)<span class="pos-stepper-line" aria-hidden="true"></span>@endif
+        @endforeach
+    </nav>
+
+    @if ($posStep === 'selection')
+    <div class="pos-stage" x-ref="stage" data-slots="{{ count($selectedSlots) }}" data-settle="{{ $settleBill ? 1 : 0 }}"
+        @touchstart.passive="touchStart($event)" @touchend="touchEnd($event)">
+        {{-- Kembali dari pembayaran → layar Tambahan; setelah transaksi selesai → mulai dari Jadwal. --}}
+        <span hidden x-init="if (step === 4) step = 3; else if (step > 4) step = 1;"></span>
+    @endif
+    <div class="pos-main {{ $posStep === 'selection' ? 'is-selection' : '' }}"
+        @if ($posStep === 'selection') x-bind:style="`transform: translateX(-${(Math.min(step, 3) - 1) * 100}%)`" @endif>
 
         @if ($posStep === 'selection')
             {{-- ==================== JADWAL: timeline lapangan (baris) x jam (kolom) — satu hari terlihat utuh ==================== --}}
@@ -160,7 +227,7 @@
                     return $segments;
                 });
             @endphp
-            <div class="pos-timeline-card">
+            <div class="pos-timeline-card" x-bind:inert="step !== 1">
                 <div class="pos-grid-header">
                     <div>
                         <div class="pos-grid-title">Slot Lapangan &mdash;
@@ -251,6 +318,7 @@
         @elseif($posStep === 'payment')
             {{-- ==================== KIRI: TERMINAL PEMBAYARAN KASIR IN-PAGE ==================== --}}
             <div class="pos-terminal-card">
+                <span hidden x-init="step = 4"></span>
                 <div class="pos-terminal-header">
                     <div>
                         <span class="pos-terminal-eyebrow">TERMINAL KASIR LOKET</span>
@@ -276,7 +344,8 @@
                         <button type="button" wire:click="backToSelection" class="pos-btn pos-btn-ghost" style="height:50px; padding:0 1.2rem;">
                             &larr; Kembali ke Pilih Jadwal
                         </button>
-                        <button type="button" wire:click="submitWalkInBooking" wire:loading.attr="disabled" class="pos-submit-btn" style="flex:1;">
+                        {{-- Konfirmasi dulu (atas nama, jadwal, tambahan, total, metode) sebelum diproses. --}}
+                        <button type="button" x-on:click="$dispatch('open-modal', { id: 'walkin-confirm-payment' })" wire:loading.attr="disabled" wire:target="submitWalkInBooking" class="pos-submit-btn" style="flex:1;">
                             <span wire:loading.remove wire:target="submitWalkInBooking">Bayar Lunas &amp; Cetak
                                 Struk</span>
                             <span wire:loading wire:target="submitWalkInBooking">Memproses Transaksi...</span>
@@ -287,6 +356,7 @@
         @elseif($posStep === 'receipt')
             {{-- ==================== KIRI: STRUK POS RESMI IN-PAGE ==================== --}}
             <div class="pos-receipt-inpage">
+                <span hidden x-init="step = 5"></span>
                 <div class="pos-terminal-header">
                     <div>
                         <span class="pos-terminal-eyebrow is-done">TRANSAKSI SELESAI</span>
@@ -316,7 +386,7 @@
             <div class="pos-panel-header">
                 <div>
                     @if ($posStep === 'payment')
-                        <div class="pos-panel-eyebrow">LANGKAH 2 DARI 2</div>
+                        <div class="pos-panel-eyebrow">LANGKAH 4 DARI 4</div>
                         <div class="pos-panel-title">Ringkasan Tagihan</div>
                     @elseif($posStep === 'receipt')
                         <div class="pos-panel-eyebrow">TRANSAKSI SELESAI</div>
@@ -336,7 +406,8 @@
             <div class="pos-panel-body">
 
                 @if ($settleBill)
-                <div class="pos-col pos-col-cust is-settle">
+                <div class="pos-col pos-col-cust is-settle" @if ($posStep === 'selection') x-bind:inert="step !== 2" @endif>
+                    @if ($posStep === 'selection')<span hidden x-init="step = 2"></span>@endif
                     {{-- TAGIHAN SELISIH RESCHEDULE — customer & nominal terisi otomatis dari booking --}}
                     <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:12px; padding:0.85rem; margin-bottom:0.75rem;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
@@ -365,7 +436,7 @@
                     </div>
                 </div>
                 @else
-                <div class="pos-col pos-col-cust">
+                <div class="pos-col pos-col-cust" @if ($posStep === 'selection') x-bind:inert="step !== 2" @endif>
                 {{-- 1. DATA CUSTOMER --}}
                 <div class="pos-customer-box">
                     <div
@@ -476,7 +547,7 @@
                 </div>
                 </div>{{-- end pos-col-cust --}}
 
-                <div class="pos-col pos-col-items">
+                <div class="pos-col pos-col-items" @if ($posStep === 'selection') x-bind:inert="step !== 3" @endif>
                 {{-- 2. SLOT TERPILIH --}}
                 <div>
                     <div
@@ -528,7 +599,7 @@
                             <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
                                 {{ number_format($this->equipmentTotal, 0, ',', '.') }}</span>
                         </div>
-                        <div
+                        <div class="pos-eq-list"
                             style="background:#FCF8EE; border:1px solid #E6DAC0; border-radius:8px; padding:0.35rem 0.65rem;">
                             @foreach ($equipments as $eq)
                                 @php $qty = $rentalQuantities[$eq->id] ?? 0; @endphp
@@ -599,7 +670,7 @@
                 </div>{{-- end pos-col-items --}}
                 @endif
 
-                <div class="pos-col pos-col-sum">
+                <div class="pos-col pos-col-sum" @if ($posStep === 'selection') x-bind:inert="step !== 3" @endif>
                 @if (! $settleBill)
                 {{-- 4. TOTAL --}}
                 <div class="pos-total-box">
@@ -704,6 +775,113 @@
         </div>{{-- end pos-panel-card --}}
 
     </div>{{-- end pos-main --}}
+    @if ($posStep === 'selection')
+    </div>{{-- end pos-stage --}}
+
+    @php
+        $firstSlot = collect($selectedSlots)->first();
+        $slotSummary = $firstSlot
+            ? $firstSlot['court_name'] . ' ' . $firstSlot['time_label'] . (count($selectedSlots) > 1 ? ' +' . (count($selectedSlots) - 1) . ' slot' : '')
+            : 'Belum pilih jam';
+    @endphp
+    <div class="pos-actionbar">
+        <div class="pos-actionbar-summary">
+            <div class="pos-sum-item">
+                <span class="k">Jadwal</span>
+                <span class="v">{{ $settleBill ? ($settleBill['court'] . ' • ' . $settleBill['schedule']) : $slotSummary }}</span>
+            </div>
+            <div class="pos-sum-item">
+                <span class="k">Atas nama</span>
+                @if ($settleBill)
+                    <span class="v">{{ $settleBill['customer'] }}</span>
+                @elseif ($customerMode === 'search')
+                    <span class="v">{{ $selectedCustomerName ?: 'Belum dipilih' }}</span>
+                @else
+                    <span class="v" x-text="String($wire.walkInName || '').trim() || 'Belum diisi'">{{ $walkInName ?: 'Belum diisi' }}</span>
+                @endif
+            </div>
+            <div class="pos-sum-item is-total">
+                <span class="k">Total</span>
+                <span class="v">Rp {{ number_format($settleBill ? $settleBill['amount'] : $this->grandTotal, 0, ',', '.') }}</span>
+            </div>
+        </div>
+        <div class="pos-actionbar-actions">
+            <button type="button" class="pos-btn pos-btn-ghost pos-actionbar-back" x-show="step > 1" x-cloak @click="prev()">&larr; Kembali</button>
+            <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 1" {{ count($selectedSlots) === 0 && ! $settleBill ? 'disabled' : '' }}
+                @click="go(2)">Lanjut: Data Customer &rarr;</button>
+            @if ($settleBill)
+                <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 2" x-cloak @click="toPayment()" :disabled="busy">Lanjut ke Pembayaran &rarr;</button>
+            @else
+                <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 2" x-cloak @click="go(3)">Lanjut: Tambahan &rarr;</button>
+            @endif
+            <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 3" x-cloak @click="toPayment()" :disabled="busy">
+                <span x-show="! busy">Lanjut ke Pembayaran &rarr;</span><span x-show="busy" x-cloak>Memeriksa...</span>
+            </button>
+        </div>
+    </div>
+    @endif
+    @endif
+
+    @if ($posStep === 'payment')
+        @php
+            $confirmName = $settleBill['customer'] ?? ($selectedCustomerId ? $selectedCustomerName : ($walkInName ?: '-'));
+            $confirmPhone = $settleBill['phone'] ?? ($selectedCustomerId ? $selectedCustomerPhone : $walkInPhone);
+            $confirmMethod = match ($paymentMethod) {
+                'DEBIT_CARD', 'DEBIT' => 'Kartu Debit (EDC)',
+                'CREDIT_CARD', 'CREDIT' => 'Kartu Kredit (EDC)',
+                'EDC_BCA' => 'Mesin EDC BCA',
+                'EDC_MANDIRI' => 'Mesin EDC Mandiri',
+                'QRIS', 'QRIS_STATIS' => $qrisMode === 'MIDTRANS' ? 'QRIS (QR otomatis)' : 'QRIS Kasir Frontdesk',
+                default => $paymentMethod,
+            };
+            $confirmAddons = collect($equipments)->filter(fn ($eq) => ($rentalQuantities[$eq->id] ?? 0) > 0);
+        @endphp
+        <x-filament::modal id="walkin-confirm-payment" width="lg" :close-by-clicking-away="false">
+            <x-slot name="heading">Pastikan Pesanan Sudah Benar</x-slot>
+            <x-slot name="description">Periksa bersama customer sebelum pembayaran diproses.</x-slot>
+
+            <div class="pos-confirm">
+                <div class="pos-confirm-row"><span>Atas nama</span><strong>{{ $confirmName }}@if ($confirmPhone)<small>{{ $confirmPhone }}</small>@endif</strong></div>
+                <div class="pos-confirm-row"><span>Tanggal</span><strong>{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</strong></div>
+                <div class="pos-confirm-row"><span>Jadwal</span>
+                    <strong>
+                        @if ($settleBill)
+                            {{ $settleBill['court'] }} &bull; {{ $settleBill['schedule'] }}
+                        @else
+                            @foreach ($selectedSlots as $s)
+                                <span class="pos-confirm-line">{{ $s['court_name'] }} &bull; {{ $s['time_label'] }} WIB</span>
+                            @endforeach
+                        @endif
+                    </strong>
+                </div>
+                @unless ($settleBill)
+                    <div class="pos-confirm-row"><span>Tambahan</span>
+                        <strong>
+                            @forelse ($confirmAddons as $eq)
+                                <span class="pos-confirm-line">{{ $rentalQuantities[$eq->id] }}&times; {{ $eq->name }}</span>
+                            @empty
+                                <span class="pos-confirm-muted">Tidak ada</span>
+                            @endforelse
+                            @if ($appliedVoucherCode)
+                                <span class="pos-confirm-line">Voucher {{ $appliedVoucherCode }}</span>
+                            @endif
+                        </strong>
+                    </div>
+                @endunless
+                <div class="pos-confirm-row"><span>Metode bayar</span><strong>{{ $confirmMethod }}</strong></div>
+                <div class="pos-confirm-total"><span>Total</span><strong>Rp {{ number_format($settleBill ? $settleBill['amount'] : $this->grandTotal, 0, ',', '.') }}</strong></div>
+            </div>
+
+            <x-slot name="footer">
+                <div class="pos-confirm-actions">
+                    <button type="button" class="pos-btn pos-btn-ghost" x-on:click="$dispatch('close-modal', { id: 'walkin-confirm-payment' })">Periksa Lagi</button>
+                    <button type="button" class="pos-btn pos-btn-primary" wire:click="submitWalkInBooking" wire:loading.attr="disabled" wire:target="submitWalkInBooking"
+                        x-on:click="$dispatch('close-modal', { id: 'walkin-confirm-payment' })">
+                        Ya, Proses Pembayaran
+                    </button>
+                </div>
+            </x-slot>
+        </x-filament::modal>
     @endif
 
     {{-- QR Midtrans menunggu dibayar customer --}}

@@ -158,7 +158,7 @@
     .pos-terminal-eyebrow.is-done { color: #065F46; background: #ECFDF5; }
     .pos-terminal-title { font-size: 1.0625rem; font-weight: 900; color: var(--pos-brown); margin-top: 0.25rem; }
     .pos-terminal-body { flex: 1; overflow-y: auto; padding: 1.1rem 1.3rem; display: flex; flex-direction: column; gap: 1rem; }
-    .pos-terminal-actions { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: 0.25rem; }
+    .pos-terminal-actions { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: auto; position: sticky; bottom: -1.1rem; z-index: 5; background: #FFFFFF; padding: 0.75rem 0 1.1rem; border-top: 1px solid var(--pos-line-soft); }
     .pos-method-selector-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; }
     .pos-method-tab { border: 1.5px solid var(--pos-line); background: #FFFFFF; border-radius: 12px; padding: 0.75rem 0.5rem; text-align: center; cursor: pointer; transition: border-color 0.15s; user-select: none; }
     .pos-method-tab:hover { border-color: var(--pos-terra); }
@@ -177,7 +177,6 @@
     /* Ikuti lebar area konten sebenarnya (sidebar buka/ciut), bukan lebar layar. */
     @container pos (max-width: 980px) { .pos-date-label { display: none; } }
     @container pos (max-width: 760px) { .pos-draft-desc { white-space: normal; } }
-    .pos-main.is-selection { display: flex; flex-direction: column; gap: 0.75rem; }
     .pos-timeline-card { flex: 0 0 auto; background: #FFFFFF; border: 1px solid var(--pos-line); border-radius: 14px; overflow: hidden; }
     .pos-timeline-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
     .pos-timeline { display: grid; width: 100%; }
@@ -196,18 +195,6 @@
     .pos-timeline .slot-btn .sub { font-size: 0.5625rem; font-weight: 700; opacity: 0.75; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .pos-timeline .slot-past { background: repeating-linear-gradient(135deg, #FAF8F3 0 6px, #F4EFE5 6px 7px); border-color: #F3EEE2; }
 
-    .pos-main.is-selection .pos-panel-card { flex: 1 1 auto; min-height: 180px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) minmax(250px, 0.85fr); grid-template-rows: minmax(0, 1fr) auto; }
-    .pos-main.is-selection .pos-panel-header { display: none; }
-    .pos-main.is-selection .pos-panel-body { display: contents; }
-    .pos-main.is-selection .pos-col { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0.85rem 1rem; display: flex; flex-direction: column; gap: 0.75rem; grid-row: 1 / span 2; border-right: 1px solid var(--pos-line); }
-    .pos-main.is-selection .pos-col-cust { grid-column: 1; }
-    .pos-main.is-selection .pos-col-cust.is-settle { grid-column: 1 / span 2; }
-    .pos-main.is-selection .pos-col-items { grid-column: 2; }
-    .pos-main.is-selection .pos-col-sum { grid-column: 3; grid-row: 1; border-right: none; background: var(--pos-paper); }
-    .pos-main.is-selection .pos-panel-footer { grid-column: 3; grid-row: 2; border-top: none; padding-top: 0; }
-    .pos-col { display: flex; flex-direction: column; gap: 0.9rem; }
-    .pos-col > .pos-customer-box { background: transparent; border: none; padding: 0; }
-    .pos-main.is-selection .pos-input { height: 38px; }
     .pos-link-danger { background: none; border: none; padding: 0.25rem 0; font-size: 0.6875rem; font-weight: 800; color: #BE123C; cursor: pointer; white-space: nowrap; }
     .pos-link-danger:hover { text-decoration: underline; }
 
@@ -216,6 +203,68 @@
     .pos-recent-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; width: min(420px, 90vw); max-height: 60vh; overflow-y: auto; background: #FFFFFF; border: 1px solid var(--pos-line); border-radius: 14px; box-shadow: 0 18px 40px rgba(79,47,42,0.2); padding: 0.85rem; }
     .pos-recent-panel .pos-recent-list { grid-template-columns: 1fr; }
 
+    /* ===== Alur kasir bertahap: stepper → panggung geser (Jadwal | Customer | Tambahan) → bar aksi ===== */
+    .pos-stepper { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; background: #FFFFFF; border: 1px solid var(--pos-line); border-radius: 14px; padding: 0.4rem 0.5rem; overflow-x: auto; }
+    .pos-stepper-item { display: inline-flex; align-items: center; gap: 0.5rem; height: 38px; padding: 0 0.85rem 0 0.45rem; border-radius: 999px; border: none; background: transparent; color: var(--pos-faint); font-size: 0.875rem; font-weight: 800; white-space: nowrap; cursor: pointer; }
+    .pos-stepper-item:disabled { cursor: default; }
+    .pos-stepper-num { width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8125rem; font-weight: 900; background: var(--pos-cream); color: var(--pos-muted); }
+    .pos-stepper-item.is-done { color: var(--pos-brown); }
+    .pos-stepper-item.is-done .pos-stepper-num { background: var(--pos-line); color: var(--pos-terra); }
+    .pos-stepper-item.is-active { background: var(--pos-terra); color: var(--pos-cream); }
+    .pos-stepper-item.is-active .pos-stepper-num { background: var(--pos-cream); color: var(--pos-terra); }
+    .pos-stepper-line { flex: 1 1 24px; min-width: 16px; height: 2px; border-radius: 2px; background: var(--pos-line); }
+
+    .pos-stage { flex: 1 1 auto; min-height: 300px; overflow: hidden; position: relative; border-radius: 14px; }
+    .pos-main.is-selection { display: grid; grid-template-columns: 100% 100% 60% 40%; grid-template-rows: 100%; height: 100%; gap: 0; transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); will-change: transform; }
+    .pos-main.is-selection > .pos-timeline-card { grid-column: 1; display: flex; flex-direction: column; min-height: 0; }
+    .pos-main.is-selection > .pos-timeline-card .pos-timeline-scroll { flex: 1; min-height: 0; overflow: auto; }
+    .pos-main.is-selection .tl-cell { height: 68px; }
+    .pos-main.is-selection .pos-panel-card, .pos-main.is-selection .pos-panel-body { display: contents; }
+    .pos-main.is-selection .pos-panel-header, .pos-main.is-selection .pos-panel-footer { display: none; }
+    .pos-main.is-selection .pos-col { min-height: 0; overflow-y: auto; overscroll-behavior: contain; background: #FFFFFF; border: 1px solid var(--pos-line); border-radius: 14px; padding: 1.1rem 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+    .pos-main.is-selection .pos-col-cust { grid-column: 2; }
+    .pos-main.is-selection .pos-col-cust > * { width: 100%; max-width: 720px; margin-inline: auto; }
+    .pos-main.is-selection .pos-col-items { grid-column: 3; margin-right: 0.375rem; }
+    .pos-main.is-selection .pos-col-sum { grid-column: 4; margin-left: 0.375rem; background: var(--pos-paper); }
+    .pos-col { display: flex; flex-direction: column; gap: 0.9rem; }
+
+    /* Langkah Customer: kolom lebar, input & tombol besar. */
+    .pos-main.is-selection .pos-col-cust .pos-customer-box { background: transparent; border: none; padding: 0; }
+    .pos-main.is-selection .pos-col-cust .pos-section-label { font-size: 0.8125rem; }
+    .pos-main.is-selection .pos-col-cust .pos-tab { height: 40px; font-size: 0.875rem; padding: 0 1.1rem; }
+    .pos-main.is-selection .pos-col-cust .pos-input { height: 50px; font-size: 1rem; padding: 0 0.9rem; }
+    .pos-main.is-selection .pos-col-cust .pos-customer-box > div:last-child { gap: 0.75rem !important; }
+
+    /* Langkah Tambahan: alat sewa jadi kartu dengan tombol +/− besar. */
+    .pos-main.is-selection .pos-eq-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 0.6rem; background: transparent !important; border: none !important; padding: 0 !important; }
+    .pos-main.is-selection .pos-eq-list .pos-eq-row { border: 1px solid var(--pos-line); border-radius: 12px; padding: 0.7rem 0.8rem; background: var(--pos-paper); gap: 0.5rem; }
+    .pos-main.is-selection .pos-eq-list .pos-eq-row:last-child { border-bottom: 1px solid var(--pos-line); }
+    .pos-main.is-selection .pos-qty-btn { width: 40px; height: 40px; border-radius: 10px; font-size: 1.125rem; }
+    .pos-main.is-selection .pos-col-sum .pos-total-box { background: #FFFFFF; }
+
+    .pos-actionbar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-shrink: 0; background: #FFFFFF; border: 1px solid var(--pos-line); border-radius: 14px; padding: 0.6rem 0.6rem 0.6rem 1rem; box-shadow: 0 -6px 20px rgba(79,47,42,0.06); }
+    .pos-actionbar-summary { display: flex; align-items: center; gap: 1.25rem; min-width: 0; flex: 1; }
+    .pos-sum-item { display: flex; flex-direction: column; min-width: 0; }
+    .pos-sum-item .k { font-size: 0.625rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pos-faint); }
+    .pos-sum-item .v { font-size: 0.875rem; font-weight: 800; color: var(--pos-brown); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 260px; }
+    .pos-sum-item.is-total .v { font-size: 1.125rem; font-weight: 900; color: var(--pos-terra); font-variant-numeric: tabular-nums; }
+    .pos-actionbar-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; }
+    .pos-actionbar-back { height: 50px; padding: 0 1.1rem; }
+    .pos-actionbar-next { width: auto; padding: 0 1.4rem; min-width: 230px; }
+
+    /* Konfirmasi pesanan (isi modal Filament). */
+    .pos-confirm { display: flex; flex-direction: column; gap: 0.1rem; color: #4F2F2A; }
+    .pos-confirm-row { display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem; padding: 0.6rem 0; border-bottom: 1px solid #EFE6D2; font-size: 0.875rem; }
+    .pos-confirm-row > span { color: #7A5A52; font-weight: 600; }
+    .pos-confirm-row > strong { font-weight: 800; display: flex; flex-direction: column; gap: 0.15rem; }
+    .pos-confirm-row small { font-size: 0.75rem; font-weight: 600; color: #7A5A52; }
+    .pos-confirm-muted { color: #A08F86; font-weight: 600; }
+    .pos-confirm-total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 0.6rem; padding: 0.75rem 0.9rem; border-radius: 12px; background: #F7F0DB; }
+    .pos-confirm-total span { font-weight: 800; color: #4F2F2A; }
+    .pos-confirm-total strong { font-size: 1.375rem; font-weight: 900; color: #662721; font-variant-numeric: tabular-nums; }
+    .pos-confirm-actions { display: flex; justify-content: flex-end; gap: 0.5rem; width: 100%; }
+    .pos-confirm-actions .pos-btn { height: 46px; padding: 0 1.2rem; }
+    [x-cloak] { display: none !important; }
     /* ===== Jual Membership: data pelanggan, kartu paket, ringkasan ===== */
     .pos-scroll-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 1rem; display: flex; flex-direction: column; gap: 1.25rem; }
     .pos-step-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.65rem; }
@@ -255,9 +304,10 @@
         .pos-grid-card, .pos-terminal-card, .pos-receipt-inpage { max-height: none; }
         .pos-grid-scroll { max-height: 64vh; }
         .pos-panel-body, .pos-scroll-body { overflow: visible; }
-        .pos-main.is-selection .pos-panel-card { display: flex; flex-direction: column; min-height: 0; }
-        .pos-main.is-selection .pos-col { overflow: visible; border-right: none; border-bottom: 1px solid var(--pos-line); }
-        .pos-main.is-selection .pos-panel-footer { padding-top: 0.75rem; }
+        .pos-stage { flex: none; height: 72vh; }
+        .pos-actionbar { flex-wrap: wrap; }
+        .pos-actionbar-summary { flex-wrap: wrap; gap: 0.75rem; }
+        .pos-actionbar-next { min-width: 0; }
     }
     @media (max-width: 640px) {
         .pos-date-label { width: 100%; margin-left: 0; }

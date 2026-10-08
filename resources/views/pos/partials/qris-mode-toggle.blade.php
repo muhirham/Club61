@@ -8,9 +8,9 @@
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.85rem;">
         @foreach(['MIDTRANS' => ['Bayar Otomatis', 'QR / VA tampil di layar, lunas terkonfirmasi otomatis'], 'MANUAL' => ['QRIS Manual', 'Cadangan: QRIS statis + input RRN']] as $mode => [$modeLabel, $modeHint])
             <button type="button" wire:click="$set('qrisMode', '{{ $mode }}')"
-                style="text-align:left; padding:0.6rem 0.75rem; border-radius:10px; cursor:pointer; border:1.5px solid {{ $qrisMode === $mode ? '#B38622' : '#DFC387' }}; background:{{ $qrisMode === $mode ? '#FAF2DE' : '#FFFFFF' }};">
-                <div style="font-size:0.8125rem; font-weight:900; color:#1F170D;">{{ $modeLabel }}</div>
-                <div style="font-size:0.6875rem; color:#7A643E;">{{ $modeHint }}</div>
+                style="text-align:left; padding:0.6rem 0.75rem; border-radius:10px; cursor:pointer; border:1.5px solid {{ $qrisMode === $mode ? '#662721' : '#E6DAC0' }}; background:{{ $qrisMode === $mode ? '#EFE6D2' : '#FFFFFF' }};">
+                <div style="font-size:0.8125rem; font-weight:900; color:#4F2F2A;">{{ $modeLabel }}</div>
+                <div style="font-size:0.6875rem; color:#7A5A52;">{{ $modeHint }}</div>
             </button>
         @endforeach
     </div>
@@ -20,13 +20,13 @@
             <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.65rem;">
                 @foreach($posMethods as $pm)
                     <button type="button" wire:click="$set('posOnlineMethod', '{{ $pm['code'] }}')"
-                        style="padding:0.4rem 0.75rem; border-radius:999px; font-size:0.75rem; font-weight:800; cursor:pointer; white-space:nowrap; border:1.5px solid {{ $activeAuto === $pm['code'] ? '#B38622' : '#DFC387' }}; background:{{ $activeAuto === $pm['code'] ? '#FAF2DE' : '#FFFFFF' }}; color:#1F170D;">
+                        style="padding:0.4rem 0.75rem; border-radius:999px; font-size:0.75rem; font-weight:800; cursor:pointer; white-space:nowrap; border:1.5px solid {{ $activeAuto === $pm['code'] ? '#662721' : '#E6DAC0' }}; background:{{ $activeAuto === $pm['code'] ? '#EFE6D2' : '#FFFFFF' }}; color:#4F2F2A;">
                         {{ $pm['label'] }}
                     </button>
                 @endforeach
             </div>
         @endif
-        <div style="background:#FAF5E8; border:1px dashed #DFC387; border-radius:10px; padding:0.85rem 1rem; font-size:0.8125rem; line-height:1.55; color:#5C410F;">
+        <div style="background:#FCF8EE; border:1px dashed #E6DAC0; border-radius:10px; padding:0.85rem 1rem; font-size:0.8125rem; line-height:1.55; color:#662721;">
             Klik tombol bayar → popup <strong>{{ collect($posMethods)->firstWhere('code', $activeAuto)['label'] ?? $activeAuto }}</strong> muncul di layar
             (sama seperti checkout online). Struk keluar otomatis setelah pembayaran diterima — tidak perlu input RRN.
         </div>
