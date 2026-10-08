@@ -52,18 +52,44 @@
                 <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" /></svg>
             </button>
             <input type="date" wire:model.live="bookingDate" class="pos-date-input" aria-label="Pilih tanggal">
-            <span class="pos-date-label">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</span>
+            <span class="pos-date-label"><span class="pos-only-wide">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</span><span class="pos-only-narrow">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('D, d M Y') }}</span></span>
         </div>
 
         <div class="pos-kpis">
-            @if (count($selectedSlots) > 0)
-                <button type="button" wire:click="clearSelectedSlots" class="pos-btn pos-btn-danger">
-                    Hapus {{ count($selectedSlots) }} Slot
-                </button>
-            @endif
             <div class="pos-kpi"><span class="pos-kpi-value">{{ $bookedSlotsAll }}/{{ $totalSlotsAll }}</span><span class="pos-kpi-label">Slot Terisi</span></div>
             <div class="pos-kpi"><span class="pos-kpi-value">{{ $walkInStatsToday['count'] }}</span><span class="pos-kpi-label">Transaksi</span></div>
             <div class="pos-kpi"><span class="pos-kpi-value">Rp {{ number_format($walkInStatsToday['revenue'], 0, ',', '.') }}</span><span class="pos-kpi-label">Omzet Walk-In</span></div>
+            @if ($posStep === 'selection')
+                <div class="pos-recent-pop" x-data="{ open: false }" @click.outside="open = false" @keydown.escape.window="open = false">
+                    <button type="button" class="pos-btn pos-btn-ghost" @click="open = ! open" :aria-expanded="open">
+                        <svg width="15" height="15" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Terakhir
+                        <span class="pos-count-badge">{{ $recentWalkInOrders->count() }}</span>
+                    </button>
+                    <div x-show="open" x-transition.opacity.duration.150ms class="pos-recent-panel" style="display:none;">
+                        <div class="pos-recent-header">Transaksi Walk-In Terakhir</div>
+                        <div class="pos-recent-list">
+                            @forelse($recentWalkInOrders as $ro)
+                                <div wire:key="recent-order-{{ $ro->id }}" class="pos-recent-row">
+                                    <div style="min-width:0;">
+                                        <div class="pos-recent-name">{{ $ro->user?->name ?? 'Walk-In' }}</div>
+                                        <div class="pos-recent-sub">
+                                            {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Lapangan' }}
+                                            &bull; {{ $ro->created_at->format('H:i') }}
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; flex-shrink:0;">
+                                        <div class="pos-recent-amount">Rp {{ number_format($ro->grand_total, 0, ',', '.') }}</div>
+                                        <div class="pos-recent-badge pos-badge-{{ strtolower($ro->payment_status) }}">{{ $ro->payment_status }}</div>
+                                    </div>
+                                </div>
+                            @empty
+                                <div class="pos-recent-empty">Belum ada transaksi walk-in yang diproses hari ini.</div>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
     @endif
@@ -104,33 +130,43 @@
     {{-- ============================
      MAIN 2-COLUMN POS LAYOUT
      ============================ --}}
-    <div class="pos-main">
+    <div class="pos-main {{ $posStep === 'selection' ? 'is-selection' : '' }}">
 
         @if ($posStep === 'selection')
-            {{-- ==================== KIRI: JADWAL (lapangan = kolom, jam = baris) ==================== --}}
+            {{-- ==================== JADWAL: timeline lapangan (baris) x jam (kolom) — satu hari terlihat utuh ==================== --}}
             @php
-                $courtCount = count($gridData);
-                // Baris jam yang di SEMUA lapangan sudah lewat/tutup tidak bisa dipilih → disembunyikan (hanya tampilan).
-                $visibleHours = collect($operationalHours)->map(fn ($oh, $i) => $oh + ['index' => $i])
-                    ->reject(fn ($oh) => $courtCount > 0 && collect($gridData)->every(
-                        fn ($cr) => in_array($cr['slots'][$oh['index']]['status'] ?? 'CLOSED', ['PAST', 'CLOSED'], true)));
-                $firstVisibleHour = $visibleHours->first();
-                $hiddenPastBefore = $isToday && $firstVisibleHour && $firstVisibleHour['index'] > 0 ? $firstVisibleHour['label'] : null;
-                // Jam dikelompokkan siang (sebelum 17:00) & malam (17:00 ke atas), sama dengan halaman booking customer.
-                $hourGroups = $visibleHours
-                    ->groupBy(fn ($oh) => $oh['hour'] < 17 ? 'day' : 'night')
-                    ->map(fn ($rows) => [
-                        'label' => $rows->first()['label'] . ' – ' . substr($rows->last()['end_time'], 0, 5) . ' WIB',
-                        'rows' => $rows->values(),
-                    ]);
+                $hoursCount = count($operationalHours);
+                $nowHour = $isToday ? (int) now('Asia/Jakarta')->format('H') : null;
+                $firstCourtSlots = collect($gridData)->first()['slots'] ?? [];
+                $deadHour = collect($operationalHours)->keys()->mapWithKeys(fn ($i) => [$i => count($gridData) > 0 && collect($gridData)->every(
+                    fn ($cr) => in_array($cr['slots'][$i]['status'] ?? 'CLOSED', ['PAST', 'CLOSED'], true))])->all();
+                $timelineColumns = collect($operationalHours)->keys()->map(fn ($i) => $deadHour[$i] ? '30px' : 'minmax(44px, 1fr)')->implode(' ');
+                $timelineMinWidth = 116 + collect($deadHour)->sum(fn ($dead) => $dead ? 30 : 44);
+                // Booking lunas yang berurutan (kode sama) digabung jadi satu blok, seperti kalender klub padel.
+                $courtSegments = collect($gridData)->map(function ($courtRow) {
+                    $slots = $courtRow['slots'];
+                    $n = count($slots);
+                    $segments = [];
+                    for ($i = 0; $i < $n; $i++) {
+                        $span = 1;
+                        $code = $slots[$i]['status'] === 'BOOKED' ? ($slots[$i]['booking']['code'] ?? null) : null;
+                        while ($code && $i + $span < $n && $slots[$i + $span]['status'] === 'BOOKED' && ($slots[$i + $span]['booking']['code'] ?? null) === $code) {
+                            $span++;
+                        }
+                        $segments[] = ['slot' => $slots[$i], 'span' => $span, 'end_label' => substr($slots[$i + $span - 1]['end_time'], 0, 5)];
+                        $i += $span - 1;
+                    }
+
+                    return $segments;
+                });
             @endphp
-            <div class="pos-grid-card">
+            <div class="pos-timeline-card">
                 <div class="pos-grid-header">
                     <div>
                         <div class="pos-grid-title">Slot Lapangan &mdash;
                             {{ !empty($operationalHours) ? $operationalHours[0]['label'] . ' sampai ' . substr(end($operationalHours)['end_time'], 0, 5) . ' WIB' : 'Jam Operasional' }}
                         </div>
-                        <div class="pos-grid-sub">Ketuk kotak jam untuk memilih, ketuk lagi untuk batal &bull; Prime 17:00–23:00, weekend tarif prime</div>
+                        <div class="pos-grid-sub">Ketuk kotak jam untuk memilih, ketuk lagi untuk batal &bull; Kolom jam berwarna = prime time</div>
                     </div>
                     <div class="pos-legend">
                         <span class="legend-dot"><i style="background:#FFFFFF; border:1px solid #E6DAC0;"></i>Tersedia</span>
@@ -138,118 +174,79 @@
                         <span class="legend-dot"><i style="background:#EEE5D3;"></i>Terisi</span>
                         <span class="legend-dot"><i style="background:#FFFBEB; border:1px dashed #D97706;"></i>Hold</span>
                         <span class="legend-dot"><i style="background:#FEF3C7; border:1.5px solid #D97706;"></i>Bayar Selisih</span>
-                        <span class="legend-dot"><i style="width:6px; height:6px; border-radius:50%; background:#662721;"></i>Prime</span>
                     </div>
                 </div>
 
-                <div class="pos-grid-scroll">
-                    <div class="pos-slotgrid" style="grid-template-columns: 72px repeat({{ max($courtCount, 1) }}, minmax(136px, 1fr));">
-                        <div class="hd corner"></div>
-                        @foreach ($gridData as $courtRow)
-                            @php $court = $courtRow['court']; @endphp
-                            <div class="hd" wire:key="court-head-{{ $court->id }}">
-                                <div class="pos-court-name">{{ $court->name }}</div>
-                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k/jam</div>
-                            </div>
+                @if (empty($gridData))
+                    <div class="pos-past-note">Belum ada lapangan aktif.</div>
+                @else
+                <div class="pos-timeline-scroll">
+                    <div class="pos-timeline" style="grid-template-columns: 116px {{ $timelineColumns ?: 'minmax(44px, 1fr)' }}; min-width: {{ $timelineMinWidth }}px;">
+                        <div class="tl-th tl-corner">Lapangan</div>
+                        @foreach ($operationalHours as $i => $oh)
+                            <div class="tl-th {{ ($firstCourtSlots[$i]['is_prime'] ?? false) ? 'is-prime' : '' }} {{ $nowHour === $oh['hour'] ? 'is-now' : '' }}"
+                                wire:key="oh-head-{{ $oh['hour'] }}" title="{{ $oh['full_label'] }}">{{ ($deadHour[$i] ?? false) ? substr($oh['label'], 0, 2) : $oh['label'] }}</div>
                         @endforeach
 
-                        @if ($hiddenPastBefore)
-                            <div class="pos-past-note">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                Jam sebelum {{ $hiddenPastBefore }} hari ini sudah lewat
+                        @foreach ($gridData as $ci => $courtRow)
+                            @php $court = $courtRow['court']; @endphp
+                            <div class="tl-court" wire:key="court-row-{{ $court->id }}">
+                                <div class="pos-court-name">{{ $court->name }}</div>
+                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k</div>
+                                <div class="pos-court-free">{{ collect($courtRow['slots'])->where('status', 'AVAILABLE')->count() }} jam kosong</div>
                             </div>
-                        @endif
-                        @if ($hourGroups->isEmpty())
-                            <div class="pos-past-note">Tidak ada jam yang masih bisa dipesan di tanggal ini &mdash; pilih tanggal lain.</div>
-                        @endif
-                        @foreach ($hourGroups as $groupKey => $group)
-                            <div class="grp" wire:key="hour-group-{{ $groupKey }}">{{ $group['label'] }}</div>
-                            @foreach ($group['rows'] as $oh)
-                                <div class="tm" wire:key="oh-row-{{ $oh['hour'] }}">{{ $oh['label'] }}</div>
-                                @foreach ($gridData as $courtRow)
-                                    @php
-                                        $court = $courtRow['court'];
-                                        $slot = $courtRow['slots'][$oh['index']] ?? null;
-                                    @endphp
-                                    <div class="cell" wire:key="slot-cell-{{ $slot['slot_key'] ?? $court->id . '-' . $oh['hour'] }}">
-                                        @if ($slot)
-                                            @php
-                                                $st = $slot['status'];
-                                                $rate = number_format($slot['rate'] / 1000, 0) . 'k';
-                                            @endphp
-                                            @if ($st === 'SELECTED')
-                                                <button type="button"
-                                                    wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
-                                                    class="slot-btn slot-selected"
-                                                    title="Batal pilih: {{ $slot['full_label'] }} ({{ $court->name }})">
-                                                    <span class="lbl">&#10003; Dipilih</span>
-                                                    <span class="prc">{{ $rate }}</span>
-                                                    @if ($slot['is_prime'])<span class="prime"></span>@endif
-                                                </button>
-                                            @elseif($st === 'AVAILABLE')
-                                                <button type="button"
-                                                    wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
-                                                    class="slot-btn slot-available"
-                                                    title="Pilih: {{ $slot['full_label'] }} – Rp{{ number_format($slot['rate'], 0, ',', '.') }}">
-                                                    <span class="prc">{{ $rate }}</span>
-                                                    @if ($slot['is_prime'])<span class="prime"></span>@endif
-                                                </button>
-                                            @elseif($st === 'BOOKED')
-                                                <div class="slot-btn slot-booked"
-                                                    title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }}">
-                                                    <span class="lbl">Terisi &bull; {{ $slot['booking']['player'] ?? 'Main' }}</span>
-                                                </div>
-                                            @elseif($st === 'UNPAID_DELTA')
-                                                <button type="button"
-                                                    wire:click="startSettlement('{{ $slot['booking']['id'] }}')"
-                                                    class="slot-btn slot-delta {{ $slot['booking']['is_active_bill'] ? 'is-active' : '' }}"
-                                                    title="Selisih reschedule belum dibayar: {{ $slot['booking']['player'] }} (#{{ $slot['booking']['code'] }}) — klik untuk melunasi">
-                                                    <span class="lbl">Bayar &bull; {{ $slot['booking']['player'] }}</span>
-                                                </button>
-                                            @elseif($st === 'LOCKED')
-                                                <div class="slot-btn slot-locked" title="Hold di keranjang">
-                                                    <span class="lbl">Hold &bull; Cart</span>
-                                                </div>
-                                            @elseif($st === 'CLOSED')
-                                                <div class="slot-btn slot-past" title="Di luar jam operasional lapangan">
-                                                    <span class="lbl">Tutup</span>
-                                                </div>
-                                            @else
-                                                <div class="slot-btn slot-past" title="Jam sudah lewat">
-                                                    <span class="lbl">&mdash;</span>
-                                                </div>
-                                            @endif
-                                        @endif
-                                    </div>
-                                @endforeach
+                            @foreach ($courtSegments[$ci] as $seg)
+                                @php
+                                    $slot = $seg['slot'];
+                                    $st = $slot['status'];
+                                    $rate = number_format($slot['rate'] / 1000, 0) . 'k';
+                                @endphp
+                                <div class="tl-cell {{ $nowHour === $slot['hour'] ? 'is-now' : '' }}" style="grid-column: span {{ $seg['span'] }};"
+                                    wire:key="slot-cell-{{ $slot['slot_key'] }}">
+                                    @if ($st === 'SELECTED')
+                                        <button type="button"
+                                            wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
+                                            class="slot-btn slot-selected"
+                                            title="Batal pilih: {{ $slot['full_label'] }} ({{ $court->name }})">
+                                            <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" /></svg>
+                                            <span class="prc">{{ $rate }}</span>
+                                        </button>
+                                    @elseif($st === 'AVAILABLE')
+                                        <button type="button"
+                                            wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
+                                            class="slot-btn slot-available"
+                                            title="Pilih: {{ $slot['full_label'] }} – Rp{{ number_format($slot['rate'], 0, ',', '.') }}">
+                                            <span class="prc">{{ $rate }}</span>
+                                        </button>
+                                    @elseif($st === 'BOOKED')
+                                        <div class="slot-btn slot-booked"
+                                            title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }} ({{ $slot['label'] }}–{{ $seg['end_label'] }})">
+                                            <span class="lbl">{{ $slot['booking']['player'] ?? 'Main' }}</span>
+                                            @if ($seg['span'] > 1)<span class="sub">{{ $slot['label'] }}–{{ $seg['end_label'] }}</span>@endif
+                                        </div>
+                                    @elseif($st === 'UNPAID_DELTA')
+                                        <button type="button"
+                                            wire:click="startSettlement('{{ $slot['booking']['id'] }}')"
+                                            class="slot-btn slot-delta {{ $slot['booking']['is_active_bill'] ? 'is-active' : '' }}"
+                                            title="Selisih reschedule belum dibayar: {{ $slot['booking']['player'] }} (#{{ $slot['booking']['code'] }}) — klik untuk melunasi">
+                                            <span class="lbl">Bayar</span>
+                                            <span class="sub">{{ $slot['booking']['player'] }}</span>
+                                        </button>
+                                    @elseif($st === 'LOCKED')
+                                        <div class="slot-btn slot-locked" title="Hold di keranjang">
+                                            <span class="lbl">Hold</span>
+                                        </div>
+                                    @elseif($st === 'CLOSED')
+                                        <div class="slot-btn slot-past" title="Di luar jam operasional lapangan"></div>
+                                    @else
+                                        <div class="slot-btn slot-past" title="Jam sudah lewat"></div>
+                                    @endif
+                                </div>
                             @endforeach
                         @endforeach
                     </div>
-
-                    {{-- Transaksi walk-in terakhir --}}
-                    <div class="pos-grid-footer">
-                        <div class="pos-recent-header">Transaksi Walk-In Terakhir</div>
-                        <div class="pos-recent-list">
-                            @forelse($recentWalkInOrders as $ro)
-                                <div wire:key="recent-order-{{ $ro->id }}" class="pos-recent-row">
-                                    <div style="min-width:0;">
-                                        <div class="pos-recent-name">{{ $ro->user?->name ?? 'Walk-In' }}</div>
-                                        <div class="pos-recent-sub">
-                                            {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Lapangan' }}
-                                            &bull; {{ $ro->created_at->format('H:i') }}
-                                        </div>
-                                    </div>
-                                    <div style="text-align:right; flex-shrink:0;">
-                                        <div class="pos-recent-amount">Rp {{ number_format($ro->grand_total, 0, ',', '.') }}</div>
-                                        <div class="pos-recent-badge pos-badge-{{ strtolower($ro->payment_status) }}">{{ $ro->payment_status }}</div>
-                                    </div>
-                                </div>
-                            @empty
-                                <div class="pos-recent-empty">Belum ada transaksi walk-in yang diproses hari ini.</div>
-                            @endforelse
-                        </div>
-                    </div>
                 </div>
+                @endif
             </div>
         @elseif($posStep === 'payment')
             {{-- ==================== KIRI: TERMINAL PEMBAYARAN KASIR IN-PAGE ==================== --}}
@@ -339,6 +336,7 @@
             <div class="pos-panel-body">
 
                 @if ($settleBill)
+                <div class="pos-col pos-col-cust is-settle">
                     {{-- TAGIHAN SELISIH RESCHEDULE — customer & nominal terisi otomatis dari booking --}}
                     <div style="background:#FFFBEB; border:1.5px solid #FCD34D; border-radius:12px; padding:0.85rem; margin-bottom:0.75rem;">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.5rem;">
@@ -365,7 +363,9 @@
                         </div>
                         <div style="font-size:0.625rem; color:#B45309; margin-top:0.35rem;">QR tiket aktif &amp; customer bisa check-in setelah lunas.</div>
                     </div>
+                </div>
                 @else
+                <div class="pos-col pos-col-cust">
                 {{-- 1. DATA CUSTOMER --}}
                 <div class="pos-customer-box">
                     <div
@@ -474,19 +474,26 @@
                         @endif
                     @endif
                 </div>
+                </div>{{-- end pos-col-cust --}}
 
+                <div class="pos-col pos-col-items">
                 {{-- 2. SLOT TERPILIH --}}
                 <div>
                     <div
                         style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
                         <span class="pos-section-label">Slot Dipilih ({{ count($selectedSlots) }})</span>
-                        <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
-                            {{ number_format($this->courtTotal, 0, ',', '.') }}</span>
+                        <span style="display:flex; align-items:center; gap:0.5rem;">
+                            @if ($posStep === 'selection' && count($selectedSlots) > 0)
+                                <button type="button" wire:click="clearSelectedSlots" class="pos-link-danger">Hapus {{ count($selectedSlots) }} Slot</button>
+                            @endif
+                            <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
+                                {{ number_format($this->courtTotal, 0, ',', '.') }}</span>
+                        </span>
                     </div>
                     @if (empty($selectedSlots))
                         <div
                             style="background:#F9FAFB; border:1px dashed #D1D5DB; border-radius:8px; padding:0.85rem; text-align:center; color:#9CA3AF; font-size:0.6875rem;">
-                            Klik kotak jam di tabel kiri untuk memilih slot.
+                            Ketuk kotak jam di jadwal untuk memilih slot.
                         </div>
                     @else
                         <div style="display:flex; flex-direction:column; gap:0.3rem;">
@@ -589,8 +596,13 @@
                         @endif
                     </div>
                 @endif
+                </div>{{-- end pos-col-items --}}
+                @endif
 
-                {{-- 4. TOTAL --}}                <div class="pos-total-box">
+                <div class="pos-col pos-col-sum">
+                @if (! $settleBill)
+                {{-- 4. TOTAL --}}
+                <div class="pos-total-box">
                     <div
                         style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A5A52; margin-bottom:0.2rem;">
                         <span>Lapangan:</span><span>Rp {{ number_format($this->courtTotal, 0, ',', '.') }}</span>
@@ -634,7 +646,6 @@
                             {{ number_format($this->grandTotal, 0, ',', '.') }}</span>
                     </div>
                 </div>
-
                 @endif
 
                 {{-- 5. METODE BAYAR (Ringkasan saat step payment / receipt) --}}
@@ -670,6 +681,7 @@
                 </label>
 
                 @endif
+                </div>{{-- end pos-col-sum --}}
             </div>{{-- end pos-panel-body --}}
 
             {{-- Footer: Action Button --}}
