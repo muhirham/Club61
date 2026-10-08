@@ -14,13 +14,17 @@
         {{-- Indikator Shift Kasir Frontdesk --}}
         <div class="pos-headbar-right">
             @if ($activeShift)
-                <span class="pos-shift-chip is-open">
+                {{-- Layar tablet: nomor shift diringkas (urutan terakhir) supaya sebaris dengan tab Riwayat;
+                     nomor lengkap, kasir & jam buka tetap ada di tooltip. --}}
+                <span class="pos-shift-chip is-open"
+                    title="Shift aktif {{ $activeShift->shift_number }} &bull; {{ $activeShift->openedBy?->name ?? 'Kasir' }} &bull; dibuka {{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('H:i') }} WIB">
                     <span class="dot"></span>
-                    SHIFT AKTIF: {{ $activeShift->shift_number }}
+                    <span class="pos-only-wide">SHIFT AKTIF: {{ $activeShift->shift_number }}</span>
+                    <span class="pos-only-narrow">SHIFT {{ \Illuminate\Support\Str::afterLast($activeShift->shift_number, '-') }} AKTIF</span>
                     <small class="pos-hide-md">{{ $activeShift->openedBy?->name ?? 'Kasir' }} &bull; {{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('H:i') }} WIB</small>
                 </span>
                 <button type="button" wire:click="prepareCloseShift" class="pos-btn pos-btn-danger">
-                    Tutup Shift (Closing)
+                    Tutup Shift<span class="pos-hide-md">&nbsp;(Closing)</span>
                 </button>
             @else
                 <span class="pos-shift-chip is-closed">

@@ -115,7 +115,12 @@
 
     .pos-section-label { font-size: 0.6875rem; font-weight: 900; color: var(--pos-terra); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.4rem; white-space: nowrap; }
     .pos-past-note { grid-column: 1 / -1; display: flex; align-items: center; gap: 0.4rem; padding: 0.55rem 0.9rem; font-size: 0.75rem; color: var(--pos-muted); background: var(--pos-paper); border-bottom: 1px solid var(--pos-line-soft); }
-    @media (max-width: 1279px) { .pos-hide-md { display: none !important; } }
+    /* Teks panjang (nomor shift lengkap, keterangan) hanya di layar lebar; tablet memakai versi ringkas. */
+    .pos-only-narrow { display: inline; }
+    .pos-only-wide { display: none; }
+    @media (min-width: 1680px) { .pos-only-narrow { display: none; } .pos-only-wide { display: inline; } }
+    @media (max-width: 1679px) { .pos-hide-md { display: none !important; } }
+    @media (max-width: 1279px) { .pos-headbar-left a, .pos-headbar-left button { padding-left: 0.75rem !important; padding-right: 0.75rem !important; } }
     .pos-customer-box { background: var(--pos-paper); border: 1px solid var(--pos-line); border-radius: 12px; padding: 0.75rem; }
     .pos-input { width: 100%; height: 40px; border: 1px solid var(--pos-line); border-radius: 9px; padding: 0 0.7rem; font-size: 0.875rem; font-weight: 600; color: var(--pos-brown); background: #FFFFFF; outline: none; box-sizing: border-box; }
     .pos-input::placeholder { color: var(--pos-faint); font-weight: 500; }
