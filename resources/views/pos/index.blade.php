@@ -5,41 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CLUB 61 POS - Frontdesk & Cashier Terminal</title>
     <link rel="icon" type="image/png" href="{{ asset('images/club61-logo.png') }}">
-    <!-- Fonts -->
+    {{-- Brand guideline: Cheltenham Classic (judul) & Acumin Variable Concept (teks) — selama webfont berlisensinya
+         belum dipasang, tampil dengan padanan terdekat: Source Serif 4 & Archivo (lihat tailwind.config.js). --}}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alex+Brush&family=Cinzel:wght@600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@87.5..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400..700&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>
-<body class="h-full font-sans antialiased text-[#1F170D] bg-[#FBF9F5] selection:bg-[#D4AF37] selection:text-[#1E160A] flex flex-col overflow-hidden"
-      style="background-image: url('{{ asset('images/white-gold-marble.jpg') }}'); background-size: cover; background-position: center;">
-
-    <!-- Top Ambient Lighting -->
-    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div class="absolute -top-40 left-1/4 w-[800px] h-[400px] bg-gradient-to-b from-amber-200/20 via-[#D4AF37]/10 to-transparent blur-3xl rounded-full"></div>
-    </div>
+<body class="h-full font-brand antialiased text-[#4F2F2A] bg-[#F7F0DB] selection:bg-[#662721] selection:text-[#F7F0DB] flex flex-col overflow-hidden">
 
     <!-- Top POS Navigation Header -->
-    <header class="relative z-20 bg-white/90 backdrop-blur-xl border-b border-[#D4AF37]/50 px-5 py-3 flex items-center justify-between shadow-sm shrink-0">
+    <header class="relative z-20 bg-[#662721] text-[#F7F0DB] px-5 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div class="flex items-center gap-4">
-            <div class="flex items-center gap-2.5">
-                <img src="{{ asset('images/club61-logo.png') }}" alt="Club 61 POS" class="w-10 h-10 object-contain rounded-xl shadow-sm border border-[#E5C378] bg-white p-0.5">
+            <div class="flex items-center gap-3">
+                <img src="{{ asset('images/identity/monogram-cream.png') }}" alt="Club 61 POS" class="w-10 h-10 object-contain">
                 <div>
-                    <div class="font-serif font-black text-[#1F170D] text-base tracking-wider flex items-center gap-2">
-                        <span>CLUB 61 POS</span>
-                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm"
-                              style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                    <div class="font-display font-bold text-[#F7F0DB] text-lg tracking-wide flex items-center gap-2 whitespace-nowrap">
+                        <span>Club 61 POS</span>
+                        <span class="font-brand px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
+                              style="background: rgba(247,240,219,0.12); border: 1px solid rgba(247,240,219,0.35); color: #F7F0DB;">
                             Terminal 01
                         </span>
                     </div>
-                    <div class="text-[11px] text-[#7A643E] font-medium -mt-0.5">Club 61 Padel Court &bull; Gedung Indosat Medan</div>
+                    <div class="text-[11px] text-[#F7F0DB]/70 font-medium -mt-0.5 whitespace-nowrap">Club 61 Padel Court &bull; Gedung Indosat Medan</div>
                 </div>
             </div>
 
             <!-- Quick Status Badge -->
-            <div class="hidden md:flex items-center gap-2 pl-4 border-l border-[#DFC387]/60 text-xs font-semibold text-[#5C410F]">
-                <span class="w-2 h-2 rounded-full animate-pulse" style="background-color: #D4AF37; box-shadow: 0 0 8px #D4AF37;"></span>
+            <div class="hidden lg:flex items-center gap-2 pl-4 border-l border-[#F7F0DB]/25 text-xs font-semibold text-[#F7F0DB]/90">
+                <span class="w-2 h-2 rounded-full animate-pulse" style="background-color: #34D399; box-shadow: 0 0 8px #34D399;"></span>
                 <span>Kasir Siap &bull; Printer Kasir Terhubung</span>
             </div>
         </div>
@@ -48,15 +43,15 @@
         <div class="flex items-center gap-3">
             <button type="button" 
                     onclick="openPosCheckInModal()" 
-                    class="px-3.5 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
-                    style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.25);">
+                    class="px-3.5 py-2 rounded-xl font-bold text-xs whitespace-nowrap flex items-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
+                    style="background: #F7F0DB; color: #662721; border: 1px solid #F7F0DB;">
                 <span>Check-In Tiket</span>
             </button>
 
             <div class="text-right hidden sm:block">
-                <div class="text-xs font-bold text-[#1F170D]">{{ Auth::user()->name ?? 'Kasir Frontdesk POS' }}</div>
-                <div class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 shadow-sm"
-                     style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                <div class="text-xs font-bold text-[#F7F0DB]">{{ Auth::user()->name ?? 'Kasir Frontdesk POS' }}</div>
+                <div class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 whitespace-nowrap"
+                     style="background: rgba(247,240,219,0.12); border: 1px solid rgba(247,240,219,0.35); color: #F7F0DB;">
                     Peran: {{ Auth::user()->role ?? 'CASHIER' }}
                 </div>
             </div>
@@ -65,7 +60,7 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" 
-                        class="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm" 
+                        class="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-[#F7F0DB]/30 text-[#F7F0DB] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer" 
                         title="Keluar">
                     <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -111,7 +106,7 @@
 
             const resultContainer = document.getElementById('pos-checkin-result');
             resultContainer.classList.remove('hidden');
-            resultContainer.className = 'rounded-2xl p-4 border text-xs space-y-2 bg-amber-50 border-amber-200 text-amber-900';
+            resultContainer.className = 'rounded-2xl p-4 border text-xs space-y-2 bg-[#F7F0DB] border-[#E6DAC0] text-[#4F2F2A]';
             resultContainer.innerHTML = 'Memverifikasi tiket ke server...';
 
             try {
@@ -162,31 +157,31 @@
 
     <!-- MODAL CHECK-IN GATE CLUB 61 POS -->
     <div id="pos-checkin-modal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl border border-[#DFC387] shadow-2xl w-full max-w-lg overflow-hidden animate-fadeIn">
+        <div class="bg-white rounded-3xl border border-[#E6DAC0] shadow-2xl w-full max-w-lg overflow-hidden animate-fadeIn">
             <!-- Header -->
-            <div class="p-5 border-b border-[#DFC387] flex items-center justify-between"
-                 style="background: linear-gradient(135deg, #FAF5E8 0%, #F5E8C7 100%);">
+            <div class="p-5 border-b border-[#E6DAC0] flex items-center justify-between"
+                 style="background: #F7F0DB;">
                 <div>
-                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-900 border border-amber-300">
+                    <span class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-[#F7F0DB] text-[#662721] border border-[#E6DAC0]">
                         Frontdesk Scanner &bull; Club 61 Medan
                     </span>
-                    <div class="font-serif font-black text-lg text-[#1F170D] mt-1">Check-In Tiket Lapangan</div>
+                    <div class="font-display font-black text-lg text-[#4F2F2A] mt-1">Check-In Tiket Lapangan</div>
                 </div>
-                <button type="button" onclick="closePosCheckInModal()" class="text-2xl text-[#78350F] hover:text-black leading-none cursor-pointer">&times;</button>
+                <button type="button" onclick="closePosCheckInModal()" class="text-2xl text-[#662721] hover:text-black leading-none cursor-pointer">&times;</button>
             </div>
 
             <!-- Body -->
             <div class="p-6 space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-[#1F170D] mb-1.5">Scan Barcode / Input Kode Tiket (BK-PAD-XXXX):</label>
+                    <label class="block text-xs font-bold text-[#4F2F2A] mb-1.5">Scan Barcode / Input Kode Tiket (BK-PAD-XXXX):</label>
                     <div class="flex gap-2">
                         <input type="text" id="pos-ticket-input" 
                                placeholder="Tembak barcode gun atau ketik kode tiket..." 
-                               class="flex-1 px-3.5 py-2.5 rounded-xl border border-[#D4AF37] text-sm font-mono font-bold text-[#1F170D] bg-[#FFFDF5] outline-none"
+                               class="flex-1 px-3.5 py-2.5 rounded-xl border border-[#E6DAC0] text-sm font-mono font-bold text-[#4F2F2A] bg-[#FCF8EE] outline-none focus:border-[#662721] focus:ring-2 focus:ring-[#662721]/20"
                                onkeydown="if(event.key === 'Enter') submitPosCheckIn();" />
                         <button type="button" onclick="submitPosCheckIn()" 
-                                 class="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#281A05] cursor-pointer active:scale-95 transition-all shadow-md"
-                                 style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1px solid #FBF0CE;">
+                                 class="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider text-[#F7F0DB] cursor-pointer active:scale-95 transition-all shadow-md"
+                                 style="background: #662721; border: 1px solid #662721;">
                             Check-In
                         </button>
                     </div>
@@ -197,8 +192,8 @@
             </div>
 
             <!-- Footer -->
-            <div class="p-4 bg-[#FAF5E8] border-t border-[#DFC387] flex justify-end gap-2">
-                <button type="button" onclick="closePosCheckInModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-[#5C410F] bg-white border border-[#DFC387]">
+            <div class="p-4 bg-[#F7F0DB] border-t border-[#E6DAC0] flex justify-end gap-2">
+                <button type="button" onclick="closePosCheckInModal()" class="px-4 py-2 rounded-xl text-xs font-bold text-[#4F2F2A] bg-white border border-[#E6DAC0]">
                     Tutup
                 </button>
             </div>

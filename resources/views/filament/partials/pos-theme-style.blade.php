@@ -7,7 +7,10 @@
         --pos-terra: #662721; --pos-terra-dark: #511D18; --pos-brown: #4F2F2A; --pos-cream: #F7F0DB;
         --pos-paper: #FCF8EE; --pos-line: #E6DAC0; --pos-line-soft: #EFE6D2; --pos-muted: #7A5A52; --pos-faint: #A08F86;
         display: flex; flex-direction: column; gap: 0.75rem;
-        height: calc(100vh - 7.5rem); min-height: 620px; overflow: hidden;
+        /* Tinggi = layar dikurangi topbar Filament (4rem) — tidak ada lagi min-height 620px yang bikin
+           halaman ke-scroll di laptop 14"/15" (ruang browser cuma ±530–600px). */
+        height: calc(100vh - 4rem); height: calc(100dvh - 4rem); min-height: 440px; box-sizing: border-box;
+        padding: 0.25rem 0 0.75rem; overflow: hidden;
         color: var(--pos-brown);
     }
     .walkin-pos-root button { -webkit-tap-highlight-color: transparent; }
@@ -298,6 +301,34 @@
     .pos-empty-note { text-align: center; padding: 2rem 1rem; color: var(--pos-faint); font-size: 0.8125rem; line-height: 1.5; }
 
     /* ===== Tablet tegak / layar sempit: panel checkout di bawah jadwal ===== */
+
+    /* ===== Laptop 14"–15" (layar pendek): seluruh POS muat satu layar, halaman tidak bisa di-scroll.
+       Jarak, tinggi tombol & baris timeline dirapatkan bertahap mengikuti tinggi layar. ===== */
+    @media (min-width: 1024px) and (max-height: 820px) {
+        .walkin-pos-root { gap: 0.5rem; }
+        .pos-toolbar { padding: 0.4rem 0.6rem; }
+        .pos-icon-btn, .pos-today-btn, .pos-date-input, .pos-kpi, .pos-btn, .pos-shift-chip { height: 34px; }
+        .pos-icon-btn { width: 34px; }
+        .pos-stepper { padding: 0.3rem 0.4rem; }
+        .pos-stepper-item { height: 32px; }
+        .pos-stepper-num { width: 24px; height: 24px; font-size: 0.75rem; }
+        .pos-grid-header { padding: 0.5rem 0.9rem; }
+        .pos-main.is-selection .tl-cell { height: 56px; }
+        .pos-main.is-selection .pos-col { padding: 0.85rem 1rem; gap: 0.75rem; }
+        .pos-main.is-selection .pos-col-cust .pos-input { height: 44px; }
+        .pos-actionbar { padding: 0.45rem 0.5rem 0.45rem 0.9rem; }
+        .pos-actionbar .pos-submit-btn, .pos-actionbar-back { height: 44px; }
+    }
+    @media (min-width: 1024px) and (max-height: 700px) {
+        .pos-grid-sub { display: none; }
+        .pos-stage { min-height: 200px; }
+        .pos-main.is-selection .tl-cell { height: 46px; }
+        .pos-timeline .tl-th { height: 26px; }
+        .pos-main.is-selection .pos-col-cust .pos-input { height: 40px; }
+        .pos-actionbar .pos-submit-btn, .pos-actionbar-back { height: 40px; }
+        .pos-sum-item.is-total .v { font-size: 1rem; }
+    }
+    @media (min-width: 1024px) and (max-height: 600px) { .pos-main.is-selection .tl-cell { height: 42px; } }
     @media (max-width: 1023px) {
         .walkin-pos-root { height: auto; min-height: 0; overflow: visible; }
         .pos-main { grid-template-columns: 1fr; }

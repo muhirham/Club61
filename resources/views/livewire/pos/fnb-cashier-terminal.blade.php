@@ -1,13 +1,13 @@
 <div class="flex-1 flex flex-col overflow-hidden">
     <style>
-        .fnbpos-pill { padding: 0.55rem 1rem; border-radius: 12px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; cursor: pointer; transition: all 0.15s ease; border: 1.5px solid #DFC387; background: rgba(255,255,255,0.9); color: #5C410F; }
-        .fnbpos-pill.active { background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border-color: #FBF0CE; color: #281A05; box-shadow: 0 4px 12px rgba(184,134,11,0.3); }
+        .fnbpos-pill { padding: 0.55rem 1rem; border-radius: 12px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; cursor: pointer; transition: all 0.15s ease; border: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.9); color: #4F2F2A; }
+        .fnbpos-pill.active { background: #662721; border-color: #662721; color: #F7F0DB; box-shadow: 0 4px 12px rgba(102,39,33,0.22); }
         /* Kartu tinggi seragam — semua kotak sama besar & rapi, isi (foto/teks) menyesuaikan kotak */
-        .fnbpos-card { height: 19rem; padding: 0.85rem; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 8px 20px -8px rgba(160,120,30,0.12); border: 1.5px solid #DFC387; background: linear-gradient(135deg, rgba(255,255,255,0.96) 0%, rgba(253,249,240,0.92) 100%); display: flex; flex-direction: column; overflow: hidden; }
+        .fnbpos-card { height: 19rem; padding: 0.85rem; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 8px 20px -8px rgba(79,47,42,0.10); border: 1.5px solid #E6DAC0; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; }
         .fnbpos-card:hover { transform: scale(1.02); }
-        .fnbpos-card-photo { width: 100%; height: 8.5rem; border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; background: linear-gradient(135deg, #FAF2DE 0%, #F0DB9D 100%); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .fnbpos-card-photo { width: 100%; height: 8.5rem; border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; background: #F7F0DB; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .fnbpos-card-photo img { width: 100% !important; height: 100% !important; max-width: none !important; object-fit: cover; display: block; }
-        .fnbpos-card-photo .fnbpos-photo-initial { font-family: 'Cinzel', serif; font-size: 2rem; font-weight: 900; color: #B38622; opacity: 0.55; }
+        .fnbpos-card-photo .fnbpos-photo-initial { font-family: 'Cheltenham Classic', 'Source Serif 4', Georgia, serif; font-size: 2rem; font-weight: 900; color: #662721; opacity: 0.55; }
         /* Desktop lebar: 1 halaman = 2 baris x 4 kolom yang dibagi rata mengisi tinggi layar,
            supaya tidak ada ruang kosong di bawah grid. Foto ikut membesar mengisi kotak. */
         @media (min-width: 1280px) {
@@ -15,28 +15,28 @@
             .fnbpos-grid .fnbpos-card { height: 100%; min-height: 0; }
             .fnbpos-grid .fnbpos-card-photo { height: auto; flex: 1 1 auto; min-height: 5rem; }
         }
-        .fnbpos-page-btn { padding: 0.5rem 1rem; border-radius: 10px; font-size: 0.75rem; font-weight: 800; border: 1.5px solid #DFC387; background: rgba(255,255,255,0.95); color: #5C410F; cursor: pointer; }
+        .fnbpos-page-btn { padding: 0.5rem 1rem; border-radius: 10px; font-size: 0.75rem; font-weight: 800; border: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.95); color: #4F2F2A; cursor: pointer; }
         .fnbpos-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .fnbpos-cart-item { padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.95); border: 1.5px solid #DFC387; }
-        .fnbpos-note-input { width: 100%; margin-top: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid #E8D5A8; background: #FFFDF7; font-size: 0.6875rem; color: #1F170D; outline: none; }
-        .fnbpos-note-input:focus { border-color: #B38622; box-shadow: 0 0 0 2px rgba(180,134,11,0.15); }
-        .fnbpos-qty-btn { width: 32px; height: 32px; border-radius: 8px; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; cursor: pointer; user-select: none; background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818; }
-        .fnbpos-pay-btn { padding: 0.85rem; border-radius: 14px; font-weight: 800; font-size: 0.8125rem; text-align: center; cursor: pointer; border: 1.5px solid #DFC387; background: rgba(255,255,255,0.95); color: #5C410F; }
-        .fnbpos-pay-btn.active { background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border-color: #FBF0CE; color: #281A05; }
+        .fnbpos-cart-item { padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.95); border: 1.5px solid #E6DAC0; }
+        .fnbpos-note-input { width: 100%; margin-top: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 8px; border: 1px solid #E6DAC0; background: #FCF8EE; font-size: 0.6875rem; color: #4F2F2A; outline: none; }
+        .fnbpos-note-input:focus { border-color: #662721; box-shadow: 0 0 0 2px rgba(102,39,33,0.15); }
+        .fnbpos-qty-btn { width: 32px; height: 32px; border-radius: 8px; font-size: 1rem; display: inline-flex; align-items: center; justify-content: center; font-weight: 900; cursor: pointer; user-select: none; background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52; }
+        .fnbpos-pay-btn { padding: 0.85rem; border-radius: 14px; font-weight: 800; font-size: 0.8125rem; text-align: center; cursor: pointer; border: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.95); color: #4F2F2A; }
+        .fnbpos-pay-btn.active { background: #662721; border-color: #662721; color: #F7F0DB; }
         /* Tombol tipe pesanan (Dine-In / Bawa Pulang) — satu ketukan di tablet. */
-        .fnbpos-type-btn { padding: 0.6rem 0.5rem; border-radius: 9px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; cursor: pointer; border: 1.5px solid #DFC387; background: #FAF9F6; color: #5C410F; transition: all 0.15s ease; }
-        .fnbpos-type-btn.active { background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border-color: #FBF0CE; color: #281A05; }
-        .fnbpos-input { width: 100%; padding: 0.65rem 0.85rem; border-radius: 9px; border: 1.5px solid #DFC387; font-size: 0.8125rem; background: #FAF9F6; outline: none; }
+        .fnbpos-type-btn { padding: 0.6rem 0.5rem; border-radius: 9px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; cursor: pointer; border: 1.5px solid #E6DAC0; background: #FCF8EE; color: #4F2F2A; transition: all 0.15s ease; }
+        .fnbpos-type-btn.active { background: #662721; border-color: #662721; color: #F7F0DB; }
+        .fnbpos-input { width: 100%; padding: 0.65rem 0.85rem; border-radius: 9px; border: 1.5px solid #E6DAC0; font-size: 0.8125rem; background: #FCF8EE; outline: none; }
         .fnbpos-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(6px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
-        .fnbpos-modal-dialog { background: #FFFFFF; border: 2px solid #D4AF37; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); width: 100%; max-width: 480px; padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
-        .fnbpos-tab-bar { display: flex; gap: 0.5rem; padding: 0.85rem 1rem; border-bottom: 1.5px solid rgba(223,195,135,0.6); background: rgba(255,255,255,0.9); flex-shrink: 0; }
+        .fnbpos-modal-dialog { background: #FFFFFF; border: 2px solid #662721; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); width: 100%; max-width: 480px; padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
+        .fnbpos-tab-bar { display: flex; gap: 0.5rem; padding: 0.85rem 1rem; border-bottom: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.9); flex-shrink: 0; }
         .fnbpos-status-badge { display: inline-block; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
         .fnbpos-status-paid { background: #ECFDF5; color: #15803D; border: 1px solid #6EE7B7; }
         .fnbpos-status-unpaid { background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; }
         .fnbpos-status-refunded, .fnbpos-status-cancelled { background: #FEE2E2; color: #991B1B; border: 1px solid #FCA5A5; }
-        .fnbpos-history-table th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: #5C410F; background: #FAF5E8; white-space: nowrap; }
+        .fnbpos-history-table th { text-align: left; padding: 0.6rem 0.75rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.04em; color: #4F2F2A; background: #F7F0DB; white-space: nowrap; }
         /* Riwayat: satu baris per sel (tidak turun ke bawah); teks panjang dipotong "…" — lengkapnya di tooltip. */
-        .fnbpos-history-table td { padding: 0.6rem 0.75rem; font-size: 0.75rem; border-top: 1px solid #F3E8CE; vertical-align: middle; white-space: nowrap; }
+        .fnbpos-history-table td { padding: 0.6rem 0.75rem; font-size: 0.75rem; border-top: 1px solid #EFE6D2; vertical-align: middle; white-space: nowrap; }
         .fnbpos-history-table td.fnbpos-cell-clip { max-width: 9rem; overflow: hidden; text-overflow: ellipsis; }
     </style>
     @include('pos.partials.receipt-print-style', ['selectors' => ['#fnbpos-receipt']])
@@ -62,8 +62,8 @@
     <div class="flex-1 flex overflow-hidden">
     @if($posStep === 'selection')
         {{-- ================= STEP 1: PILIH MENU ================= --}}
-        <section class="flex-1 flex flex-col border-r border-[#D4AF37]/50 overflow-hidden" style="background: rgba(255,255,255,0.72); backdrop-filter: blur(12px);">
-            <div class="p-4 border-b border-[#DFC387]/60 flex flex-wrap items-center justify-between gap-3 bg-white/80">
+        <section class="flex-1 flex flex-col border-r border-[#E6DAC0] overflow-hidden" style="background: rgba(255,255,255,0.72); backdrop-filter: blur(12px);">
+            <div class="p-4 border-b border-[#E6DAC0]/60 flex flex-wrap items-center justify-between gap-3 bg-white/80">
                 <div class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                     <button type="button" wire:click="setActiveCategory('ALL')" class="fnbpos-pill {{ $activeCategoryId === 'ALL' ? 'active' : '' }}">Semua Menu</button>
                     @foreach($this->categories as $category)
@@ -81,8 +81,8 @@
                 @forelse($menus as $menu)
                     <div wire:click="addToCart('{{ $menu->id }}')" wire:key="menu-{{ $menu->id }}" class="fnbpos-card">
                         <div class="flex items-center justify-between text-[10px] font-bold mb-1.5 shrink-0">
-                            <span class="text-[#7A5818] truncate pr-2">{{ $menu->category?->name }}</span>
-                            <span class="px-1.5 py-0.5 rounded-md font-mono shrink-0" style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">{{ $menu->station }}</span>
+                            <span class="text-[#7A5A52] truncate pr-2">{{ $menu->category?->name }}</span>
+                            <span class="px-1.5 py-0.5 rounded-md font-mono shrink-0" style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">{{ $menu->station }}</span>
                         </div>
 
                         {{-- Kotak foto ukurannya SAMA di semua kartu; menu tanpa foto tetap dapat kotak
@@ -95,12 +95,12 @@
                             @endif
                         </div>
 
-                        <div class="font-bold text-sm text-[#1F170D] line-clamp-1">{{ $menu->name }}</div>
-                        <div class="text-[11px] text-[#6B5738] mt-0.5 line-clamp-2">{{ $menu->description }}</div>
+                        <div class="font-bold text-sm text-[#4F2F2A] line-clamp-1">{{ $menu->name }}</div>
+                        <div class="text-[11px] text-[#7A5A52] mt-0.5 line-clamp-2">{{ $menu->description }}</div>
 
-                        <div class="mt-auto pt-2 border-t border-[#DFC387]/50 flex items-center justify-between font-mono">
-                            <span class="text-xs font-black text-[#8C6418]">Rp {{ number_format($menu->base_price, 0, ',', '.') }}</span>
-                            <span class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-sm" style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05;">+</span>
+                        <div class="mt-auto pt-2 border-t border-[#E6DAC0]/50 flex items-center justify-between font-mono">
+                            <span class="text-xs font-black text-[#662721]">Rp {{ number_format($menu->base_price, 0, ',', '.') }}</span>
+                            <span class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-sm" style="background: #662721; color: #F7F0DB;">+</span>
                         </div>
                     </div>
                 @empty
@@ -109,22 +109,22 @@
             </div>
 
             @if($menus->hasPages())
-                <div class="px-4 py-3 border-t border-[#DFC387]/60 bg-white/80 flex items-center justify-between">
+                <div class="px-4 py-3 border-t border-[#E6DAC0]/60 bg-white/80 flex items-center justify-between">
                     <button type="button" wire:click="previousPage" @disabled($menus->onFirstPage()) class="fnbpos-page-btn">&larr; Sebelumnya</button>
-                    <span class="text-xs font-bold text-[#7A5818]">Halaman {{ $menus->currentPage() }} / {{ $menus->lastPage() }}</span>
+                    <span class="text-xs font-bold text-[#7A5A52]">Halaman {{ $menus->currentPage() }} / {{ $menus->lastPage() }}</span>
                     <button type="button" wire:click="nextPage" @disabled(! $menus->hasMorePages()) class="fnbpos-page-btn">Berikutnya &rarr;</button>
                 </div>
             @endif
         </section>
 
-        <aside class="w-full sm:w-72 lg:w-80 xl:w-96 flex flex-col justify-between shrink-0 shadow-2xl border-l border-[#D4AF37]/50" style="background: rgba(255,255,255,0.94); backdrop-filter: blur(20px);">
-            <div class="p-4 border-b border-[#DFC387]/60 bg-white/80">
+        <aside class="w-full sm:w-72 lg:w-80 xl:w-96 flex flex-col justify-between shrink-0 shadow-2xl border-l border-[#E6DAC0]" style="background: rgba(255,255,255,0.94); backdrop-filter: blur(20px);">
+            <div class="p-4 border-b border-[#E6DAC0]/60 bg-white/80">
                 <div class="flex items-center justify-between mb-2.5">
-                    <span class="text-xs font-bold uppercase tracking-wider text-[#7A5818]">Pesanan Baru</span>
+                    <span class="text-xs font-bold uppercase tracking-wider text-[#7A5A52]">Pesanan Baru</span>
                     @if($this->activeShift)
-                        <span class="font-mono text-[10px] font-bold text-[#8C6418] bg-[#FAF5E8] px-2 py-0.5 rounded-md border border-[#DFC387]">{{ $this->activeShift->shift_number }}</span>
+                        <span class="font-mono text-[10px] font-bold text-[#662721] bg-[#F7F0DB] px-2 py-0.5 rounded-md border border-[#E6DAC0]">{{ $this->activeShift->shift_number }}</span>
                     @else
-                        <button type="button" wire:click="openShiftModal" class="font-mono text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Buka Shift</button>
+                        <button type="button" wire:click="openShiftModal" class="font-mono text-[10px] font-bold text-[#F7F0DB] bg-[#662721] px-2 py-0.5 rounded-md border border-[#662721]">Buka Shift</button>
                     @endif
                 </div>
 
@@ -142,7 +142,7 @@
 
                 <div class="flex items-center justify-end mt-2">
                     @if($this->activeShift)
-                        <button type="button" wire:click="prepareCloseShift" class="text-[10px] font-bold text-[#8C6418] underline">Tutup Shift F&amp;B</button>
+                        <button type="button" wire:click="prepareCloseShift" class="text-[10px] font-bold text-[#662721] underline">Tutup Shift F&amp;B</button>
                     @endif
                 </div>
             </div>
@@ -152,8 +152,8 @@
                     <div class="fnbpos-cart-item" wire:key="cart-{{ $menuId }}">
                         <div class="flex items-center justify-between">
                             <div class="flex-1 pr-2">
-                                <div class="text-xs font-bold text-[#1F170D]">{{ $item['name'] }}</div>
-                                <div class="text-[10px] text-[#7A5818] font-mono font-medium">Rp {{ number_format($item['price'], 0, ',', '.') }} x {{ $item['quantity'] }}</div>
+                                <div class="text-xs font-bold text-[#4F2F2A]">{{ $item['name'] }}</div>
+                                <div class="text-[10px] text-[#7A5A52] font-mono font-medium">Rp {{ number_format($item['price'], 0, ',', '.') }} x {{ $item['quantity'] }}</div>
                             </div>
                             <div class="flex items-center gap-2">
                                 <span wire:click="decrementCartItem('{{ $menuId }}')" class="fnbpos-qty-btn">-</span>
@@ -169,15 +169,15 @@
                 @endforelse
             </div>
 
-            <div class="p-4 border-t border-[#DFC387]/60 bg-white/90 space-y-3">
-                <div class="space-y-1.5 text-xs text-[#6B5738] font-mono font-medium">
-                    <div class="flex justify-between"><span>Subtotal:</span><span class="font-bold text-[#1F170D]">Rp {{ number_format($this->finance['subtotal'], 0, ',', '.') }}</span></div>
+            <div class="p-4 border-t border-[#E6DAC0]/60 bg-white/90 space-y-3">
+                <div class="space-y-1.5 text-xs text-[#7A5A52] font-mono font-medium">
+                    <div class="flex justify-between"><span>Subtotal:</span><span class="font-bold text-[#4F2F2A]">Rp {{ number_format($this->finance['subtotal'], 0, ',', '.') }}</span></div>
                     @if($this->finance['tax_enabled'])
-                        <div class="flex justify-between text-[11px] text-[#8C7A58]"><span>{{ $this->finance['tax_name'] }} ({{ $this->finance['tax_rate'] }}%):</span><span class="font-bold">Rp {{ number_format($this->finance['tax_amount'], 0, ',', '.') }}</span></div>
+                        <div class="flex justify-between text-[11px] text-[#7A5A52]"><span>{{ $this->finance['tax_name'] }} ({{ $this->finance['tax_rate'] }}%):</span><span class="font-bold">Rp {{ number_format($this->finance['tax_amount'], 0, ',', '.') }}</span></div>
                     @endif
-                    <div class="flex justify-between text-base font-extrabold text-[#1F170D] pt-2 border-t border-[#DFC387]/50">
-                        <span class="font-serif">Total Tagihan:</span>
-                        <span class="font-mono font-black text-[#8C6418] text-lg">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</span>
+                    <div class="flex justify-between text-base font-extrabold text-[#4F2F2A] pt-2 border-t border-[#E6DAC0]/50">
+                        <span class="font-display">Total Tagihan:</span>
+                        <span class="font-mono font-black text-[#662721] text-lg">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</span>
                     </div>
                 </div>
 
@@ -189,21 +189,21 @@
     @if($posStep === 'payment')
         {{-- ================= STEP 2: PEMBAYARAN (layout & form identik POS Walk-In Booking) ================= --}}
         <section class="flex-1 flex flex-col overflow-hidden p-4" style="background: rgba(255,255,255,0.72);">
-            <div class="flex-1 flex flex-col rounded-2xl overflow-hidden" style="background:#FFFFFF; border:1.5px solid #DFC387; box-shadow:0 10px 30px -10px rgba(160,120,30,0.15);">
-                <div class="flex items-center justify-between px-5 py-4" style="background:linear-gradient(135deg,#FAF5E8 0%,#F5E8C7 100%); border-bottom:1.5px solid #DFC387;">
+            <div class="flex-1 flex flex-col rounded-2xl overflow-hidden" style="background:#FFFFFF; border:1.5px solid #E6DAC0; box-shadow:0 10px 30px -10px rgba(79,47,42,0.12);">
+                <div class="flex items-center justify-between px-5 py-4" style="background:#F7F0DB; border-bottom:1.5px solid #E6DAC0;">
                     <div>
-                        <span style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; border:1px solid #DFC387; background:#FFFDF5; border-radius:4px; padding:0.1rem 0.45rem;">Terminal Kasir F&amp;B</span>
-                        <div style="font-size:1.05rem; font-weight:900; color:#1F170D; margin-top:0.3rem;">Layar Pembayaran &amp; Penyelesaian Transaksi</div>
+                        <span style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; border:1px solid #E6DAC0; background:#FCF8EE; border-radius:4px; padding:0.1rem 0.45rem;">Terminal Kasir F&amp;B</span>
+                        <div style="font-size:1.05rem; font-weight:900; color:#4F2F2A; margin-top:0.3rem;">Layar Pembayaran &amp; Penyelesaian Transaksi</div>
                     </div>
-                    <button type="button" wire:click="backToSelection" style="padding:0.4rem 0.85rem; font-size:0.75rem; font-weight:800; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#1F170D;">&larr; Ubah Pesanan</button>
+                    <button type="button" wire:click="backToSelection" style="padding:0.4rem 0.85rem; font-size:0.75rem; font-weight:800; border:1.5px solid #E6DAC0; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#4F2F2A;">&larr; Ubah Pesanan</button>
                 </div>
 
                 <div class="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
                     @include("pos.partials.payment-method-form", ["grandTotal" => $this->grandTotal, "qrisMidtrans" => true])
 
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-top:0.5rem;">
-                        <button type="button" wire:click="backToSelection" style="padding:0.7rem 1.2rem; border-radius:10px; border:1.5px solid #DFC387; background:#FFFFFF; color:#1F170D; font-weight:800; font-size:0.8125rem; cursor:pointer;">&larr; Kembali ke Menu</button>
-                        <button type="button" wire:click="submitFnbCheckout" wire:loading.attr="disabled" style="flex:1; padding:0.75rem 1.5rem; border-radius:10px; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 30%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; font-weight:900; font-size:0.9375rem; cursor:pointer; box-shadow:0 4px 14px rgba(184,134,11,0.35); text-transform:uppercase; letter-spacing:0.05em;">
+                        <button type="button" wire:click="backToSelection" style="padding:0.7rem 1.2rem; border-radius:10px; border:1.5px solid #E6DAC0; background:#FFFFFF; color:#4F2F2A; font-weight:800; font-size:0.8125rem; cursor:pointer;">&larr; Kembali ke Menu</button>
+                        <button type="button" wire:click="submitFnbCheckout" wire:loading.attr="disabled" style="flex:1; padding:0.75rem 1.5rem; border-radius:10px; background:#662721; color:#F7F0DB; border:1px solid #662721; font-weight:900; font-size:0.9375rem; cursor:pointer; box-shadow:0 4px 14px rgba(102,39,33,0.25); text-transform:uppercase; letter-spacing:0.05em;">
                             <span wire:loading.remove wire:target="submitFnbCheckout">Bayar Lunas &amp; Cetak Struk</span>
                             <span wire:loading wire:target="submitFnbCheckout">Memproses Transaksi...</span>
                         </button>
@@ -212,15 +212,15 @@
             </div>
         </section>
 
-        <aside class="w-full sm:w-72 lg:w-80 xl:w-96 flex flex-col shrink-0 shadow-2xl border-l border-[#D4AF37]/50" style="background: rgba(255,255,255,0.94);">
-            <div class="p-4 border-b border-[#DFC387]/60 bg-white/80 flex items-center justify-between">
+        <aside class="w-full sm:w-72 lg:w-80 xl:w-96 flex flex-col shrink-0 shadow-2xl border-l border-[#E6DAC0]" style="background: rgba(255,255,255,0.94);">
+            <div class="p-4 border-b border-[#E6DAC0]/60 bg-white/80 flex items-center justify-between">
                 <div>
-                    <span style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; border:1px solid #DFC387; border-radius:4px; padding:0.1rem 0.45rem;">Langkah 2 dari 2</span>
-                    <div class="font-bold text-sm text-[#1F170D] mt-1">Ringkasan Tagihan</div>
+                    <span style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; border:1px solid #E6DAC0; border-radius:4px; padding:0.1rem 0.45rem;">Langkah 2 dari 2</span>
+                    <div class="font-bold text-sm text-[#4F2F2A] mt-1">Ringkasan Tagihan</div>
                 </div>
                 <div class="text-right">
-                    <div class="font-mono font-black text-lg text-[#8C6418]">Rp {{ number_format($this->grandTotal, 0, ",", ".") }}</div>
-                    <div class="text-[10px] text-[#7A5818]">{{ collect($cart)->sum("quantity") }} item &bull; {{ $orderType === "TAKE_AWAY" ? "Bawa Pulang" : "Dine-In" }}{{ $tableNumber ? " - ".$tableNumber : "" }}</div>
+                    <div class="font-mono font-black text-lg text-[#662721]">Rp {{ number_format($this->grandTotal, 0, ",", ".") }}</div>
+                    <div class="text-[10px] text-[#7A5A52]">{{ collect($cart)->sum("quantity") }} item &bull; {{ $orderType === "TAKE_AWAY" ? "Bawa Pulang" : "Dine-In" }}{{ $tableNumber ? " - ".$tableNumber : "" }}</div>
                 </div>
             </div>
 
@@ -228,28 +228,28 @@
                 @foreach($cart as $menuId => $item)
                     <div class="fnbpos-cart-item flex items-center justify-between" wire:key="pay-cart-{{ $menuId }}">
                         <div>
-                            <div class="text-xs font-bold text-[#1F170D]">{{ $item["name"] }}</div>
-                            <div class="text-[10px] text-[#7A5818] font-mono">Rp {{ number_format($item["price"], 0, ",", ".") }} x {{ $item["quantity"] }}</div>
+                            <div class="text-xs font-bold text-[#4F2F2A]">{{ $item["name"] }}</div>
+                            <div class="text-[10px] text-[#7A5A52] font-mono">Rp {{ number_format($item["price"], 0, ",", ".") }} x {{ $item["quantity"] }}</div>
                             @if(trim($item["notes"] ?? "") !== "")
-                                <div class="text-[10px] italic text-[#8C6418]">Catatan: {{ $item["notes"] }}</div>
+                                <div class="text-[10px] italic text-[#662721]">Catatan: {{ $item["notes"] }}</div>
                             @endif
                         </div>
-                        <span class="font-mono text-xs font-extrabold text-[#8C6418]">Rp {{ number_format($item["price"] * $item["quantity"], 0, ",", ".") }}</span>
+                        <span class="font-mono text-xs font-extrabold text-[#662721]">Rp {{ number_format($item["price"] * $item["quantity"], 0, ",", ".") }}</span>
                     </div>
                 @endforeach
             </div>
 
-            <div class="p-4 border-t border-[#DFC387]/60 bg-white/90 space-y-1.5 text-xs text-[#6B5738] font-mono">
-                <div class="flex justify-between"><span>Subtotal:</span><span class="font-bold text-[#1F170D]">Rp {{ number_format($this->finance["subtotal"], 0, ",", ".") }}</span></div>
+            <div class="p-4 border-t border-[#E6DAC0]/60 bg-white/90 space-y-1.5 text-xs text-[#7A5A52] font-mono">
+                <div class="flex justify-between"><span>Subtotal:</span><span class="font-bold text-[#4F2F2A]">Rp {{ number_format($this->finance["subtotal"], 0, ",", ".") }}</span></div>
                 @if($this->finance["tax_enabled"])
                     <div class="flex justify-between text-[11px]"><span>{{ $this->finance["tax_name"] }} ({{ $this->finance["tax_rate"] }}%):</span><span class="font-bold">Rp {{ number_format($this->finance["tax_amount"], 0, ",", ".") }}</span></div>
                 @endif
                 @if($this->finance["admin_fee_amount"] > 0)
                     <div class="flex justify-between text-[11px]"><span>{{ $this->finance["admin_fee_name"] }}:</span><span class="font-bold">Rp {{ number_format($this->finance["admin_fee_amount"], 0, ",", ".") }}</span></div>
                 @endif
-                <div class="flex justify-between text-base font-extrabold text-[#1F170D] pt-2 border-t border-[#DFC387]/50">
-                    <span class="font-serif">Total Tagihan:</span>
-                    <span class="font-mono font-black text-[#8C6418] text-lg">Rp {{ number_format($this->grandTotal, 0, ",", ".") }}</span>
+                <div class="flex justify-between text-base font-extrabold text-[#4F2F2A] pt-2 border-t border-[#E6DAC0]/50">
+                    <span class="font-display">Total Tagihan:</span>
+                    <span class="font-mono font-black text-[#662721] text-lg">Rp {{ number_format($this->grandTotal, 0, ",", ".") }}</span>
                 </div>
             </div>
         </aside>
@@ -258,9 +258,9 @@
     @if($posStep === 'history')
         {{-- ================= TAB: RIWAYAT TRANSAKSI ================= --}}
         <section class="flex-1 flex flex-col overflow-hidden" style="background: rgba(255,255,255,0.72);">
-            <div class="p-4 border-b border-[#DFC387]/60 bg-white/80">
-                <div class="font-serif font-black text-base text-[#1F170D]">Riwayat Transaksi F&amp;B</div>
-                <div class="text-[11px] text-[#7A643E]">{{ $this->activeShift ? 'Selama shift '.$this->activeShift->shift_number.' berjalan' : '50 transaksi terakhir (belum ada shift aktif)' }}</div>
+            <div class="p-4 border-b border-[#E6DAC0]/60 bg-white/80">
+                <div class="font-display font-black text-base text-[#4F2F2A]">Riwayat Transaksi F&amp;B</div>
+                <div class="text-[11px] text-[#7A5A52]">{{ $this->activeShift ? 'Selama shift '.$this->activeShift->shift_number.' berjalan' : '50 transaksi terakhir (belum ada shift aktif)' }}</div>
             </div>
 
             <div class="flex-1 overflow-auto p-4">
@@ -271,7 +271,7 @@
                 @if($history->isEmpty())
                     <div class="text-xs text-center py-16 text-[#9CA3AF]">Belum ada transaksi F&amp;B yang tercatat.</div>
                 @else
-                    <div class="overflow-x-auto rounded-xl" style="border:1.5px solid #DFC387;">
+                    <div class="overflow-x-auto rounded-xl" style="border:1.5px solid #E6DAC0;">
                     <table class="fnbpos-history-table w-full border-collapse" style="background:#FFFFFF;">
                         <thead>
                             <tr>
@@ -299,8 +299,8 @@
                                     $payment = $order->payments->firstWhere('status', 'SUCCESS') ?? $order->payments->first();
                                 @endphp
                                 <tr wire:key="history-row-{{ $order->id }}">
-                                    <td class="font-mono font-black text-[#8C6418]">{{ $order->queue_number ? str_pad((string) $order->queue_number, 3, '0', STR_PAD_LEFT) : '—' }}</td>
-                                    <td class="font-mono font-bold text-[#1F170D]">{{ $order->order_number }}</td>
+                                    <td class="font-mono font-black text-[#662721]">{{ $order->queue_number ? str_pad((string) $order->queue_number, 3, '0', STR_PAD_LEFT) : '—' }}</td>
+                                    <td class="font-mono font-bold text-[#4F2F2A]">{{ $order->order_number }}</td>
                                     <td class="font-mono">{{ $order->created_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }}</td>
                                     <td class="fnbpos-cell-clip" title="{{ $order->cashier?->name }}">{{ $order->cashier?->name ?? '-' }}</td>
                                     <td>{{ $order->order_type === 'DINE_IN' ? 'Dine-In' : 'Bawa Pulang' }}{{ $order->table_number ? ' - '.$order->table_number : '' }}</td>
@@ -308,7 +308,7 @@
                                     <td class="fnbpos-cell-clip" title="{{ $this->paymentLabelFor($payment) }}">{{ $this->paymentLabelFor($payment) }}</td>
                                     <td class="font-mono font-bold text-right">Rp {{ number_format($order->grand_total, 0, ',', '.') }}</td>
                                     <td><span class="fnbpos-status-badge {{ $statusClass }}">{{ $order->payment_status }}</span></td>
-                                    <td><button type="button" wire:click="viewOrderReceipt('{{ $order->id }}')" class="text-[11px] font-bold text-[#8C6418] underline">Lihat Struk</button></td>
+                                    <td><button type="button" wire:click="viewOrderReceipt('{{ $order->id }}')" class="text-[11px] font-bold text-[#662721] underline">Lihat Struk</button></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -334,7 +334,7 @@
                         {{-- Status mengikuti order — dulu selalu "Transaksi Lunas" walau order batal / belum dibayar. --}}
                         @switch($completedOrderData['payment_status'] ?? 'PAID')
                             @case('PAID')
-                                <span style="font-size:0.6875rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:4px; padding:0.1rem 0.5rem;">Transaksi Lunas</span>
+                                <span style="font-size:0.6875rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; background:#F7F0DB; border:1px solid #E6DAC0; border-radius:4px; padding:0.1rem 0.5rem;">Transaksi Lunas</span>
                                 @break
                             @case('CANCELLED')
                                 <span style="font-size:0.6875rem; font-weight:900; color:#991B1B; text-transform:uppercase; letter-spacing:0.06em; background:#FEE2E2; border:1px solid #FCA5A5; border-radius:4px; padding:0.1rem 0.5rem;">Dibatalkan — tidak dibayar</span>
@@ -345,9 +345,9 @@
                             @default
                                 <span style="font-size:0.6875rem; font-weight:900; color:#92400E; text-transform:uppercase; letter-spacing:0.06em; background:#FEF3C7; border:1px solid #FCD34D; border-radius:4px; padding:0.1rem 0.5rem;">Belum Dibayar</span>
                         @endswitch
-                        <div class="font-serif font-black text-lg text-[#1F170D] mt-1.5">Struk Pembayaran F&amp;B</div>
+                        <div class="font-display font-black text-lg text-[#4F2F2A] mt-1.5">Struk Pembayaran F&amp;B</div>
                     </div>
-                    <button type="button" wire:click="closeReceiptModal" aria-label="Tutup" style="background:none; border:none; font-size:1.5rem; color:#78350F; cursor:pointer; line-height:1; padding:0.25rem 0.5rem;">&times;</button>
+                    <button type="button" wire:click="closeReceiptModal" aria-label="Tutup" style="background:none; border:none; font-size:1.5rem; color:#662721; cursor:pointer; line-height:1; padding:0.25rem 0.5rem;">&times;</button>
                 </div>
 
                 @include('pos.receipts.fnb', ['receipt' => $completedOrderData])
@@ -371,8 +371,8 @@
     @if($showOpenShiftModal)
         <div class="fnbpos-modal-backdrop">
             <div class="fnbpos-modal-dialog">
-                <div class="font-serif font-black text-lg text-[#1F170D]">Buka Shift Kasir F&amp;B</div>
-                <p class="text-xs text-[#5C410F]">Loket beroperasi 100% Cashless (QRIS / EDC). Tidak ada modal kas fisik yang perlu dihitung.</p>
+                <div class="font-display font-black text-lg text-[#4F2F2A]">Buka Shift Kasir F&amp;B</div>
+                <p class="text-xs text-[#4F2F2A]">Loket beroperasi 100% Cashless (QRIS / EDC). Tidak ada modal kas fisik yang perlu dihitung.</p>
                 <textarea wire:model="openingNotes" class="fnbpos-input" placeholder="Catatan pembukaan (opsional)"></textarea>
                 <div class="flex justify-end gap-2">
                     <button type="button" wire:click="$set('showOpenShiftModal', false)" class="fnbpos-pay-btn">Batal</button>
@@ -389,10 +389,10 @@
                 <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                     <div>
                         <span style="font-size:0.625rem; font-weight:900; color:#BE123C; text-transform:uppercase; letter-spacing:0.06em; background:#FFF1F2; border:1px solid #FECDD3; border-radius:4px; padding:0.08rem 0.4rem;">Closing Register</span>
-                        <div class="font-serif font-black text-lg text-[#1F170D] mt-1">Tutup Shift &amp; Rekonsiliasi Settlement</div>
-                        <div class="text-[11px] text-[#7A643E]">{{ $this->activeShift->shift_number }} &bull; dibuka {{ $this->activeShift->openedBy?->name ?? 'Kasir' }} ({{ $this->activeShift->opened_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }} WIB)</div>
+                        <div class="font-display font-black text-lg text-[#4F2F2A] mt-1">Tutup Shift &amp; Rekonsiliasi Settlement</div>
+                        <div class="text-[11px] text-[#7A5A52]">{{ $this->activeShift->shift_number }} &bull; dibuka {{ $this->activeShift->openedBy?->name ?? 'Kasir' }} ({{ $this->activeShift->opened_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }} WIB)</div>
                     </div>
-                    <button type="button" wire:click="$set('showCloseShiftModal', false)" style="background:none; border:none; font-size:1.25rem; color:#78350F; cursor:pointer;">&times;</button>
+                    <button type="button" wire:click="$set('showCloseShiftModal', false)" style="background:none; border:none; font-size:1.25rem; color:#662721; cursor:pointer;">&times;</button>
                 </div>
 
                 <div style="background:#ECFDF5; border:1.5px solid #6EE7B7; border-radius:8px; padding:0.6rem 0.8rem; font-size:0.75rem; color:#065F46; font-weight:700;">
@@ -405,7 +405,7 @@
                     <div style="overflow-x:auto;">
                         <table style="width:100%; font-size:0.75rem; border-collapse:collapse;">
                             <thead>
-                                <tr style="background:#FAF5E8; color:#5C410F; text-transform:uppercase; font-size:0.65rem; letter-spacing:0.04em;">
+                                <tr style="background:#F7F0DB; color:#4F2F2A; text-transform:uppercase; font-size:0.65rem; letter-spacing:0.04em;">
                                     <th style="text-align:left; padding:0.5rem;">Kategori Pembayaran</th>
                                     <th style="text-align:center; padding:0.5rem;">Trx</th>
                                     <th style="text-align:right; padding:0.5rem;">Tercatat POS</th>
@@ -425,9 +425,9 @@
                                         $totalSettled += $settled ?? 0;
                                         $allFilled = $allFilled && $isFilled;
                                     @endphp
-                                    <tr wire:key="settle-{{ $row['key'] }}" style="border-bottom:1px solid #F3E8CE;">
+                                    <tr wire:key="settle-{{ $row['key'] }}" style="border-bottom:1px solid #EFE6D2;">
                                         <td style="padding:0.5rem;">
-                                            <div style="font-weight:800; color:#1F170D;">{{ $row['label'] }}</div>
+                                            <div style="font-weight:800; color:#4F2F2A;">{{ $row['label'] }}</div>
                                             <div style="font-size:0.65rem; color:#9CA3AF;">Cek: {{ $row['source'] }}</div>
                                         </td>
                                         <td style="padding:0.5rem; text-align:center;">{{ $row['count'] }}</td>
@@ -446,7 +446,7 @@
                                         </td>
                                     </tr>
                                 @endforeach
-                                <tr style="background:#FAF5E8; font-weight:900;">
+                                <tr style="background:#F7F0DB; font-weight:900;">
                                     <td style="padding:0.5rem;" colspan="2">TOTAL</td>
                                     <td style="padding:0.5rem; text-align:right; font-family:monospace;">Rp {{ number_format($totalSystem, 0, ',', '.') }}</td>
                                     <td style="padding:0.5rem; text-align:right; font-family:monospace;">{{ $allFilled ? 'Rp '.number_format($totalSettled, 0, ',', '.') : '—' }}</td>
@@ -466,7 +466,7 @@
                 @endif
 
                 <div>
-                    <label class="text-xs font-bold text-[#1F170D] block mb-1">Catatan Penutupan <span class="font-normal text-[#9CA3AF]">(wajib diisi kalau ada selisih)</span></label>
+                    <label class="text-xs font-bold text-[#4F2F2A] block mb-1">Catatan Penutupan <span class="font-normal text-[#9CA3AF]">(wajib diisi kalau ada selisih)</span></label>
                     <textarea wire:model="closingNotes" rows="2" class="fnbpos-input" placeholder="Penjelasan selisih, nomor batch settlement, catatan serah terima..."></textarea>
                 </div>
 
@@ -482,8 +482,8 @@
     @if($showShiftReportModal && $reportShiftData)
         <div class="fnbpos-modal-backdrop">
             <div class="fnbpos-modal-dialog" style="max-width:560px;">
-                <div class="font-serif font-black text-lg text-[#1F170D]">Laporan Shift {{ $reportShiftData['shift_number'] }}</div>
-                <div class="text-xs text-[#5C410F] space-y-1 font-mono">
+                <div class="font-display font-black text-lg text-[#4F2F2A]">Laporan Shift {{ $reportShiftData['shift_number'] }}</div>
+                <div class="text-xs text-[#4F2F2A] space-y-1 font-mono">
                     <div class="flex justify-between"><span>Dibuka</span><span>{{ $reportShiftData['opened_at'] }} ({{ $reportShiftData['opened_by'] }})</span></div>
                     <div class="flex justify-between"><span>Ditutup</span><span>{{ $reportShiftData['closed_at'] }} ({{ $reportShiftData['closed_by'] }})</span></div>
                     <div class="flex justify-between"><span>Total Transaksi</span><span>{{ $reportShiftData['total_transactions'] }}</span></div>
@@ -491,12 +491,12 @@
                 </div>
 
                 @if(! empty($reportShiftData['reconciliation']))
-                    <div class="text-xs font-mono border-t border-dashed border-[#DFC387] pt-2 space-y-1.5">
-                        <div class="font-bold text-[#1F170D] uppercase text-[10px] tracking-wider">Rekonsiliasi Settlement</div>
+                    <div class="text-xs font-mono border-t border-dashed border-[#E6DAC0] pt-2 space-y-1.5">
+                        <div class="font-bold text-[#4F2F2A] uppercase text-[10px] tracking-wider">Rekonsiliasi Settlement</div>
                         @foreach($reportShiftData['reconciliation'] as $row)
                             <div>
-                                <div class="font-bold text-[#1F170D]">{{ $row['label'] }} ({{ $row['count'] }} trx)</div>
-                                <div class="flex justify-between text-[#5C410F]"><span>POS Rp {{ number_format($row['system_amount'], 0, ',', '.') }} / Settlement Rp {{ number_format($row['settled_amount'], 0, ',', '.') }}</span>
+                                <div class="font-bold text-[#4F2F2A]">{{ $row['label'] }} ({{ $row['count'] }} trx)</div>
+                                <div class="flex justify-between text-[#4F2F2A]"><span>POS Rp {{ number_format($row['system_amount'], 0, ',', '.') }} / Settlement Rp {{ number_format($row['settled_amount'], 0, ',', '.') }}</span>
                                     <span style="color:{{ abs($row['difference']) < 0.01 ? '#15803D' : '#BE123C' }}; font-weight:900;">{{ abs($row['difference']) < 0.01 ? 'COCOK' : (($row['difference'] > 0 ? '+' : '-').'Rp '.number_format(abs($row['difference']), 0, ',', '.')) }}</span>
                                 </div>
                             </div>
@@ -506,7 +506,7 @@
                             <span>{{ abs($reportShiftData['total_difference']) < 0.01 ? 'COCOK (Rp 0)' : (($reportShiftData['total_difference'] > 0 ? '+' : '-').'Rp '.number_format(abs($reportShiftData['total_difference']), 0, ',', '.')) }}</span>
                         </div>
                         @if($reportShiftData['closing_notes'])
-                            <div class="text-[#7A643E]">Catatan: {{ $reportShiftData['closing_notes'] }}</div>
+                            <div class="text-[#7A5A52]">Catatan: {{ $reportShiftData['closing_notes'] }}</div>
                         @endif
                     </div>
                 @endif
