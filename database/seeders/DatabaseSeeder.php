@@ -59,7 +59,8 @@ class DatabaseSeeder extends Seeder
             ],
             'receptionist' => [
                 'description' => 'Resepsionis Frontdesk (Walk-In Booking & Check-In Tiket)',
-                'home_route' => '/admin/book-offline-court',
+                // Tanpa HOME ROUTE: login otomatis ke halaman pertama yang dicentang di matriks izin (HomeRouteResolver).
+                'home_route' => null,
             ],
             'kitchen' => [
                 'description' => 'Koki Dapur & Barista KDS',

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Permission\HomeRouteResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -29,12 +30,13 @@ class CustomerPortalOnly
 
     private function staffHome($user): string
     {
-        $homeRoute = (string) ($user->roles()->first()?->home_route ?? '');
-
-        // Home route yang mengarah ke portal customer akan memantul balik ke sini (loop).
-        foreach (self::STAFF_HOME_PREFIXES as $prefix) {
-            if ($homeRoute === $prefix || str_starts_with($homeRoute, $prefix.'/')) {
-                return $homeRoute;
+        // Home route yang mengarah ke portal customer akan memantul balik ke sini (loop) → pakai tujuan
+        // otomatis dari permission, lalu /admin sebagai pengaman terakhir.
+        foreach ([HomeRouteResolver::resolve($user), HomeRouteResolver::automatic($user)] as $homeRoute) {
+            foreach (self::STAFF_HOME_PREFIXES as $prefix) {
+                if ($homeRoute === $prefix || str_starts_with($homeRoute, $prefix.'/')) {
+                    return $homeRoute;
+                }
             }
         }
 

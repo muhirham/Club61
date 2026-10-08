@@ -25,7 +25,8 @@ class DemoAccessSeeder extends Seeder
         'super_admin' => ['Super Administrator Full Access', '/admin'],
         'admin' => ['Administrator Backoffice', '/admin'],
         'cashier' => ['Kasir Frontdesk & POS Terminal', '/pos'],
-        'receptionist' => ['Resepsionis Frontdesk (Walk-In Booking & Check-In Tiket)', '/admin/book-offline-court'],
+        // HOME ROUTE null = otomatis ke halaman pertama yang dicentang di matriks izin (HomeRouteResolver).
+        'receptionist' => ['Resepsionis Frontdesk (Walk-In Booking & Check-In Tiket)', null],
         'kitchen' => ['Koki Dapur & Barista KDS', '/kitchen'],
         'customer' => ['Pelanggan & Member Club', '/dashboard'],
     ];

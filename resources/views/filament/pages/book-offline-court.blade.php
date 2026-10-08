@@ -1,826 +1,68 @@
-{{-- Walk-In Offline Booking – Compact POS Terminal Layout --}}
+{{-- Walk-In Offline Booking – POS Frontdesk (tablet first). Brand Club 61: Terakota #662721 (dominan), Cream #F7F0DB. --}}
 <div class="walkin-pos-root">
-    <style>
-        /* ===== ROOT: Ambil seluruh sisa tinggi viewport setelah header Filament ===== */
-        .walkin-pos-root {
-            display: flex;
-            flex-direction: column;
-            height: calc(100vh - 120px);
-            /* header filament ~120px */
-            min-height: 600px;
-            gap: 0;
-            overflow: hidden;
-        }
-
-        /* ===== TOP BAR: Tanggal + Navigasi ===== */
-        .pos-topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.75rem;
-            padding: 0.6rem 1rem;
-            background: #FFFDF5;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            margin-bottom: 0.75rem;
-            flex-shrink: 0;
-            flex-wrap: wrap;
-        }
-
-        /* ===== MAIN SPLIT: Kiri (Grid) + Kanan (Panel) ===== */
-        .pos-main {
-            display: grid;
-            grid-template-columns: 1fr 340px;
-            gap: 0.75rem;
-            flex: 1;
-            min-height: 0;
-            /* penting agar anak bisa overflow */
-        }
-
-        @media (max-width: 1100px) {
-            .pos-main {
-                grid-template-columns: 1fr;
-            }
-
-            .walkin-pos-root {
-                height: auto;
-                overflow: visible;
-            }
-        }
-
-        /* ===== KIRI: Timetable Card ===== */
-        .pos-grid-card {
-            background: #FFFFFF;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-
-        .pos-grid-header {
-            padding: 0.65rem 1rem;
-            background: #FAF5E8;
-            border-bottom: 1.5px solid #DFC387;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .pos-grid-scroll {
-            overflow: auto;
-            /* scroll horizontal pada tabel, bukan halaman */
-            flex-shrink: 0;
-            /* tabel setinggi kontennya, tidak dipaksa mengisi ruang */
-        }
-
-        /* ===== Panel Bawah: Ringkasan Okupansi & Riwayat Walk-In ===== */
-        .pos-grid-footer {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 0.85rem 1rem;
-            border-top: 1.5px solid #F3E8CE;
-        }
-
-        .pos-stats-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.6rem;
-            margin-bottom: 0.85rem;
-        }
-
-        .pos-stat-card {
-            background: #FAF5E8;
-            border: 1.5px solid #DFC387;
-            border-radius: 10px;
-            padding: 0.55rem 0.7rem;
-            text-align: center;
-        }
-
-        .pos-stat-value {
-            font-size: 1.0625rem;
-            font-weight: 900;
-            color: #8C6418;
-        }
-
-        .pos-stat-label {
-            font-size: 0.625rem;
-            font-weight: 700;
-            color: #7A643E;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-            margin-top: 0.15rem;
-        }
-
-        .pos-recent-header {
-            font-size: 0.6875rem;
-            font-weight: 900;
-            color: #8C6418;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 0.5rem;
-        }
-
-        .pos-recent-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-
-        .pos-recent-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #FFFDF5;
-            border: 1px solid #F0DB9D;
-            border-radius: 8px;
-            padding: 0.5rem 0.7rem;
-        }
-
-        .pos-recent-name {
-            font-size: 0.75rem;
-            font-weight: 800;
-            color: #1F170D;
-        }
-
-        .pos-recent-sub {
-            font-size: 0.625rem;
-            color: #8C6418;
-            margin-top: 0.1rem;
-        }
-
-        .pos-recent-amount {
-            font-size: 0.8125rem;
-            font-weight: 900;
-            color: #B38622;
-        }
-
-        .pos-recent-badge {
-            display: inline-block;
-            margin-top: 0.15rem;
-            font-size: 0.5625rem;
-            font-weight: 800;
-            padding: 0.05rem 0.4rem;
-            border-radius: 4px;
-            text-transform: uppercase;
-        }
-
-        .pos-badge-paid {
-            background: #D1FAE5;
-            color: #047857;
-        }
-
-        .pos-badge-partially_paid {
-            background: #FEF3C7;
-            color: #92400E;
-        }
-
-        .pos-badge-unpaid {
-            background: #F3F4F6;
-            color: #6B7280;
-        }
-
-        .pos-badge-cancelled {
-            background: #FEE2E2;
-            color: #B91C1C;
-        }
-
-        .pos-badge-refunded {
-            background: #E0E7FF;
-            color: #3730A3;
-        }
-
-        .pos-recent-empty {
-            text-align: center;
-            color: #9CA3AF;
-            font-size: 0.6875rem;
-            padding: 1rem;
-            font-style: italic;
-        }
-
-        /* ===== KANAN: Checkout Panel ===== */
-        .pos-panel-card {
-            background: #FFFFFF;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-
-        .pos-panel-header {
-            padding: 0.65rem 1rem;
-            background: linear-gradient(135deg, #FAF5E8 0%, #F5E8C7 100%);
-            border-bottom: 1.5px solid #DFC387;
-            flex-shrink: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .pos-panel-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0.85rem 1rem;
-            min-height: 0;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-        }
-
-        .pos-panel-footer {
-            padding: 0.75rem 1rem;
-            background: #FAF5E8;
-            border-top: 1.5px solid #DFC387;
-            flex-shrink: 0;
-        }
-
-        /* ===== Timetable ===== */
-        .pos-timetable {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            min-width: 860px;
-            font-size: 0.72rem;
-        }
-
-        .pos-timetable th {
-            padding: 0.45rem 0.3rem;
-            text-align: center;
-            font-weight: 800;
-            color: #8C6418;
-            border-right: 1px solid #F3E8CE;
-            background: #FAF5E8;
-            position: sticky;
-            top: 0;
-            z-index: 15;
-        }
-
-        .pos-timetable th:first-child {
-            position: sticky;
-            left: 0;
-            z-index: 25;
-            text-align: left;
-            padding-left: 0.85rem;
-            min-width: 130px;
-            width: 130px;
-            border-right: 1.5px solid #DFC387;
-            font-weight: 900;
-            color: #1F170D;
-        }
-
-        .pos-timetable td {
-            padding: 0.25rem 0.2rem;
-            border-right: 1px solid #F3E8CE;
-            border-bottom: 1px solid #F3E8CE;
-            vertical-align: middle;
-            text-align: center;
-        }
-
-        .pos-timetable td:first-child {
-            position: sticky;
-            left: 0;
-            z-index: 10;
-            background: #FFFDF5;
-            padding: 0.55rem 0.85rem;
-            border-right: 1.5px solid #DFC387;
-            text-align: left;
-        }
-
-        /* ===== Slot Buttons ===== */
-        .slot-btn {
-            width: 100%;
-            min-height: 44px;
-            border-radius: 7px;
-            font-size: 0.625rem;
-            font-weight: 800;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 0.1rem;
-            transition: all 0.12s ease;
-            padding: 0.2rem;
-            user-select: none;
-        }
-
-        .slot-btn:active {
-            transform: scale(0.94);
-        }
-
-        .slot-available {
-            background: #F0FDF4;
-            border: 1px solid #86EFAC;
-            color: #166534;
-        }
-
-        .slot-available:hover {
-            background: #DCFCE7;
-            border-color: #4ADE80;
-            box-shadow: 0 2px 8px rgba(34, 197, 94, 0.2);
-        }
-
-        .slot-selected {
-            background: linear-gradient(160deg, #D4AF37 0%, #B38622 100%);
-            border: 1.5px solid #78350F;
-            color: #FFFFFF;
-            box-shadow: 0 3px 8px rgba(180, 134, 11, 0.4);
-        }
-
-        .slot-booked {
-            background: #10B981;
-            border: 1px solid #059669;
-            color: #FFFFFF;
-            cursor: not-allowed;
-        }
-
-        .slot-locked {
-            background: #FEF3C7;
-            border: 1px dashed #D97706;
-            color: #92400E;
-            cursor: not-allowed;
-        }
-
-        .slot-past {
-            background: #F3F4F6;
-            border: 1px solid #E5E7EB;
-            color: #D1D5DB;
-            cursor: not-allowed;
-        }
-
-        /* ===== Panel Sub-sections ===== */
-        .pos-section-label {
-            font-size: 0.6875rem;
-            font-weight: 900;
-            color: #8C6418;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-bottom: 0.4rem;
-        }
-
-        .pos-customer-box {
-            background: #FFFDF5;
-            border: 1.5px solid #F0DB9D;
-            border-radius: 10px;
-            padding: 0.65rem 0.75rem;
-        }
-
-        .pos-input {
-            width: 100%;
-            border: 1px solid #DFC387;
-            border-radius: 7px;
-            padding: 0.35rem 0.6rem;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #1F170D;
-            background: #FFFFFF;
-            outline: none;
-            box-sizing: border-box;
-        }
-
-        .pos-input:focus {
-            border-color: #B38622;
-            box-shadow: 0 0 0 2px rgba(180, 134, 11, 0.15);
-        }
-
-        .pos-tab-group {
-            display: flex;
-            background: #FAF5E8;
-            border: 1px solid #DFC387;
-            border-radius: 7px;
-            padding: 0.1rem;
-            gap: 0.15rem;
-        }
-
-        .pos-tab {
-            flex: 1;
-            padding: 0.25rem 0.4rem;
-            font-size: 0.6875rem;
-            font-weight: 800;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.15s;
-            background: transparent;
-            color: #8C6418;
-        }
-
-        .pos-tab.active {
-            background: #B38622;
-            color: #FFFFFF;
-        }
-
-        .pos-slot-chip {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #FAF5E8;
-            border: 1px solid #DFC387;
-            border-radius: 7px;
-            padding: 0.35rem 0.5rem;
-            font-size: 0.6875rem;
-            font-weight: 700;
-            color: #1F170D;
-        }
-
-        .pos-eq-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.35rem 0;
-            border-bottom: 1px solid #F3E8CE;
-            font-size: 0.6875rem;
-        }
-
-        .pos-eq-row:last-child {
-            border-bottom: none;
-        }
-
-        .pos-qty-btn {
-            width: 22px;
-            height: 22px;
-            border-radius: 5px;
-            background: #FAF5E8;
-            border: 1px solid #DFC387;
-            color: #1F170D;
-            font-weight: 900;
-            font-size: 0.75rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background 0.1s;
-        }
-
-        .pos-qty-btn:hover {
-            background: #DFC387;
-        }
-
-        .pos-total-box {
-            background: linear-gradient(135deg, #FAF5E8 0%, #F5E8C7 100%);
-            border: 1.5px solid #DFC387;
-            border-radius: 10px;
-            padding: 0.6rem 0.75rem;
-        }
-
-        .pos-pm-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.35rem;
-        }
-
-        .pos-pm-label {
-            border: 1.5px solid #E5E7EB;
-            background: #FFFFFF;
-            border-radius: 7px;
-            padding: 0.4rem 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.35rem;
-            cursor: pointer;
-            font-size: 0.6875rem;
-            font-weight: 800;
-            color: #1F170D;
-            transition: all 0.12s;
-        }
-
-        .pos-pm-label.active {
-            border-color: #B38622;
-            background: #FFFDF5;
-        }
-
-        .pos-submit-btn {
-            width: 100%;
-            padding: 0.7rem;
-            border-radius: 10px;
-            background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 30%, #B38622 100%);
-            color: #281A05;
-            border: 1px solid #FBF0CE;
-            font-weight: 900;
-            font-size: 0.875rem;
-            cursor: pointer;
-            box-shadow: 0 4px 14px rgba(184, 134, 11, 0.35);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            transition: all 0.15s;
-        }
-
-        .pos-submit-btn:hover {
-            box-shadow: 0 6px 20px rgba(184, 134, 11, 0.5);
-            transform: translateY(-1px);
-        }
-
-        .pos-submit-btn:active {
-            transform: translateY(0);
-        }
-
-        .pos-submit-btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        /* ===== Legend dots ===== */
-        .legend-dot {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            font-size: 0.625rem;
-            font-weight: 700;
-        }
-
-        .legend-dot span:first-child {
-            width: 9px;
-            height: 9px;
-            border-radius: 2px;
-        }
-
-        /* ===== DRAFT RECOVERY BANNER ===== */
-        .pos-draft-banner {
-            background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-            border: 1.5px solid #FCD34D;
-            border-radius: 12px;
-            padding: 0.65rem 1rem;
-            margin-bottom: 0.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 1rem;
-            box-shadow: 0 2px 10px rgba(245, 158, 11, 0.12);
-            animation: fadeInDown 0.25s ease;
-            flex-shrink: 0;
-        }
-
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .pos-draft-title {
-            font-size: 0.8125rem;
-            font-weight: 900;
-            color: #92400E;
-        }
-
-        .pos-draft-desc {
-            font-size: 0.6875rem;
-            color: #B45309;
-            margin-top: 0.1rem;
-        }
-
-        .pos-draft-resume-btn {
-            padding: 0.4rem 0.9rem;
-            font-size: 0.75rem;
-            font-weight: 900;
-            background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%);
-            border: 1px solid #FBF0CE;
-            color: #281A05;
-            border-radius: 7px;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(184, 134, 11, 0.25);
-            white-space: nowrap;
-            transition: transform 0.1s;
-        }
-
-        .pos-draft-resume-btn:hover {
-            transform: translateY(-1px);
-        }
-
-        .pos-draft-discard-btn {
-            padding: 0.4rem 0.8rem;
-            font-size: 0.75rem;
-            font-weight: 800;
-            background: #FFFFFF;
-            border: 1.5px solid #FECACA;
-            color: #DC2626;
-            border-radius: 7px;
-            cursor: pointer;
-            white-space: nowrap;
-        }
-
-        .pos-draft-discard-btn:hover {
-            background: #FEF2F2;
-        }
-
-        /* ===== TERMINAL LAYAR BAYAR (IN-PAGE PAYMENT) ===== */
-        .pos-terminal-card {
-            background: #FFFFFF;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-
-        .pos-terminal-header {
-            padding: 0.75rem 1.2rem;
-            background: linear-gradient(135deg, #FAF5E8 0%, #F5E8C7 100%);
-            border-bottom: 1.5px solid #DFC387;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .pos-terminal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1.2rem 1.4rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.1rem;
-        }
-
-        .pos-method-selector-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.65rem;
-        }
-
-        .pos-method-tab {
-            border: 2px solid #E5E7EB;
-            background: #F9FAFB;
-            border-radius: 10px;
-            padding: 0.7rem 0.5rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            user-select: none;
-        }
-
-        .pos-method-tab:hover {
-            border-color: #DFC387;
-            background: #FFFDF5;
-        }
-
-        .pos-method-tab.active {
-            border-color: #B38622;
-            background: linear-gradient(180deg, #FFFDF5 0%, #FAF5E8 100%);
-            box-shadow: 0 4px 12px rgba(179, 134, 34, 0.18);
-        }
-
-        .pos-method-tab-title {
-            font-size: 0.8125rem;
-            font-weight: 900;
-            color: #1F170D;
-        }
-
-        .pos-method-tab.active .pos-method-tab-title {
-            color: #8C6418;
-        }
-
-        .pos-method-tab-sub {
-            font-size: 0.625rem;
-            color: #6B7280;
-            margin-top: 0.15rem;
-        }
-
-        /* Form Card Pembayaran */
-        .pos-pay-content-card {
-            background: #FFFDF5;
-            border: 1.5px solid #DFC387;
-            border-radius: 12px;
-            padding: 1.1rem 1.25rem;
-        }
-
-        /* Quick Cash Buttons */
-        .quick-cash-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .quick-cash-btn {
-            background: #FFFFFF;
-            border: 1.5px solid #DFC387;
-            color: #1F170D;
-            font-weight: 800;
-            font-size: 0.75rem;
-            padding: 0.5rem 0.4rem;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.12s;
-            text-align: center;
-        }
-
-        .quick-cash-btn:hover {
-            background: #FAF5E8;
-            border-color: #B38622;
-            color: #8C6418;
-        }
-
-        /* Struk POS In-Page Card */
-        .pos-receipt-inpage {
-            background: #FFFFFF;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-    </style>
-
-    @include('filament.partials.pos-subnav', ['activePos' => 'walkin'])
-    @include('filament.partials.pos-history-tabs', ['isHistory' => $posStep === 'history', 'canShowHistory' => $this->canShowHistoryTab])
+    @include('filament.partials.pos-theme-style')
 
     {{-- ============================
-     TOP BAR: Date Navigation
+     BARIS ATAS: tab POS + Kasir/Riwayat + status shift
      ============================ --}}
-    <div class="pos-topbar">
-        <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-            <span
-                style="font-size:0.6875rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.05em;">Tanggal:</span>
-            <button type="button" wire:click="prevDay"
-                style="padding:0.3rem 0.6rem; font-size:0.75rem; font-weight:700; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#1F170D;">&larr;
-                H-1</button>
-            <button type="button" wire:click="today"
-                style="padding:0.3rem 0.7rem; font-size:0.75rem; font-weight:800; border-radius:7px; cursor:pointer;
-            {{ $isToday ? 'background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 50%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE;' : 'background:#FFFFFF; border:1.5px solid #DFC387; color:#1F170D;' }}">
-                Hari Ini
-            </button>
-            <button type="button" wire:click="nextDay"
-                style="padding:0.3rem 0.6rem; font-size:0.75rem; font-weight:700; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#1F170D;">H+1
-                &rarr;</button>
-            <input type="date" wire:model.live="bookingDate"
-                style="border:1.5px solid #DFC387; border-radius:7px; padding:0.28rem 0.6rem; font-size:0.75rem; background:#FFFDF5; font-weight:700; color:#1F170D; outline:none;">
+    <div class="pos-headbar">
+        <div class="pos-headbar-left">
+            @include('filament.partials.pos-subnav', ['activePos' => 'walkin', 'inline' => true])
+            @include('filament.partials.pos-history-tabs', ['isHistory' => $posStep === 'history', 'canShowHistory' => $this->canShowHistoryTab, 'inline' => true])
         </div>
 
         {{-- Indikator Shift Kasir Frontdesk --}}
-        <div style="display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <div class="pos-headbar-right">
             @if ($activeShift)
-                <div
-                    style="display:flex; align-items:center; gap:0.45rem; background:#ECFDF5; border:1.5px solid #6EE7B7; padding:0.25rem 0.65rem; border-radius:8px;">
-                    <span
-                        style="width:8px; height:8px; border-radius:50%; background:#10B981; display:inline-block; box-shadow:0 0 0 2px rgba(16,185,129,0.25);"></span>
-                    <span style="font-size:0.6875rem; font-weight:900; color:#065F46;">
-                        SHIFT AKTIF: {{ $activeShift->shift_number }}
-                    </span>
-                    <span style="font-size:0.625rem; color:#047857; font-weight:600;">
-                        ({{ $activeShift->openedBy?->name ?? 'Kasir' }} &bull;
-                        {{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('H:i') }} WIB)
-                    </span>
-                </div>
-                <button type="button" wire:click="prepareCloseShift"
-                    style="padding:0.32rem 0.75rem; font-size:0.75rem; font-weight:800; background:#FFF1F2; border:1.5px solid #FECDD3; color:#BE123C; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:0.3rem;">
+                <span class="pos-shift-chip is-open">
+                    <span class="dot"></span>
+                    SHIFT AKTIF: {{ $activeShift->shift_number }}
+                    <small class="pos-hide-md">{{ $activeShift->openedBy?->name ?? 'Kasir' }} &bull; {{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('H:i') }} WIB</small>
+                </span>
+                <button type="button" wire:click="prepareCloseShift" class="pos-btn pos-btn-danger">
                     Tutup Shift (Closing)
                 </button>
             @else
-                <div
-                    style="display:flex; align-items:center; gap:0.45rem; background:#FFF1F2; border:1.5px solid #FECDD3; padding:0.25rem 0.65rem; border-radius:8px;">
-                    <span
-                        style="width:8px; height:8px; border-radius:50%; background:#EF4444; display:inline-block;"></span>
-                    <span style="font-size:0.6875rem; font-weight:900; color:#9F1239;">
-                        LOKET TUTUP (BELUM BUKA SHIFT)
-                    </span>
-                </div>
-                <button type="button" wire:click="openShiftModal"
-                    style="padding:0.32rem 0.75rem; font-size:0.75rem; font-weight:900; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 35%,#B38622 100%); border:1px solid #FBF0CE; color:#281A05; border-radius:8px; cursor:pointer; display:flex; align-items:center; gap:0.3rem; box-shadow:0 2px 8px rgba(184,134,11,0.25);">
+                <span class="pos-shift-chip is-closed">
+                    <span class="dot"></span>
+                    LOKET TUTUP <span class="pos-hide-md">(BELUM BUKA SHIFT)</span>
+                </span>
+                <button type="button" wire:click="openShiftModal" class="pos-btn pos-btn-primary">
                     Buka Shift Pagi
                 </button>
             @endif
         </div>
+    </div>
 
-        <div style="display:flex; align-items:center; gap:0.75rem;">
-            <span style="font-size:0.8125rem; font-weight:900; color:#8C6418;">
-                {{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}
-            </span>
+    {{-- ============================
+     TOOLBAR: Tanggal + ringkasan hari ini
+     ============================ --}}
+    @if ($posStep !== 'history')
+    <div class="pos-toolbar">
+        <div class="pos-datenav">
+            <button type="button" wire:click="prevDay" class="pos-icon-btn" title="H-1" aria-label="Hari sebelumnya">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <button type="button" wire:click="today" class="pos-today-btn {{ $isToday ? 'is-active' : '' }}">Hari Ini</button>
+            <button type="button" wire:click="nextDay" class="pos-icon-btn" title="H+1" aria-label="Hari berikutnya">
+                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 5l7 7-7 7" /></svg>
+            </button>
+            <input type="date" wire:model.live="bookingDate" class="pos-date-input" aria-label="Pilih tanggal">
+            <span class="pos-date-label">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</span>
+        </div>
+
+        <div class="pos-kpis">
             @if (count($selectedSlots) > 0)
-                <button type="button" wire:click="clearSelectedSlots"
-                    style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; font-size:0.6875rem; font-weight:800; padding:0.25rem 0.55rem; border-radius:6px; cursor:pointer;">
+                <button type="button" wire:click="clearSelectedSlots" class="pos-btn pos-btn-danger">
                     Hapus {{ count($selectedSlots) }} Slot
                 </button>
             @endif
-            <div style="display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap;">
-                <span class="legend-dot"><span style="background:#F0FDF4; border:1px solid #86EFAC;"></span><span
-                        style="color:#166534;">Tersedia</span></span>
-                <span class="legend-dot"><span style="background:#D4AF37; border:1px solid #78350F;"></span><span
-                        style="color:#78350F;">Dipilih</span></span>
-                <span class="legend-dot"><span style="background:#10B981; border:1px solid #059669;"></span><span
-                        style="color:#047857;">Terisi</span></span>
-                <span class="legend-dot"><span style="background:#FEF3C7; border:1px dashed #D97706;"></span><span
-                        style="color:#92400E;">Hold</span></span>
-                <span class="legend-dot"><span style="background:#FEF3C7; border:1.5px solid #D97706;"></span><span
-                        style="color:#92400E;">Bayar Selisih</span></span>
-            </div>
+            <div class="pos-kpi"><span class="pos-kpi-value">{{ $bookedSlotsAll }}/{{ $totalSlotsAll }}</span><span class="pos-kpi-label">Slot Terisi</span></div>
+            <div class="pos-kpi"><span class="pos-kpi-value">{{ $walkInStatsToday['count'] }}</span><span class="pos-kpi-label">Transaksi</span></div>
+            <div class="pos-kpi"><span class="pos-kpi-value">Rp {{ number_format($walkInStatsToday['revenue'], 0, ',', '.') }}</span><span class="pos-kpi-label">Omzet Walk-In</span></div>
         </div>
     </div>
+    @endif
 
     {{-- ============================
      BANNER AUTO-RECOVERY DRAF TRANSAKSI POS
@@ -861,150 +103,147 @@
     <div class="pos-main">
 
         @if ($posStep === 'selection')
-            {{-- ==================== KIRI: TIMETABLE GRID ==================== --}}
+            {{-- ==================== KIRI: JADWAL (lapangan = kolom, jam = baris) ==================== --}}
+            @php
+                $courtCount = count($gridData);
+                // Baris jam yang di SEMUA lapangan sudah lewat/tutup tidak bisa dipilih → disembunyikan (hanya tampilan).
+                $visibleHours = collect($operationalHours)->map(fn ($oh, $i) => $oh + ['index' => $i])
+                    ->reject(fn ($oh) => $courtCount > 0 && collect($gridData)->every(
+                        fn ($cr) => in_array($cr['slots'][$oh['index']]['status'] ?? 'CLOSED', ['PAST', 'CLOSED'], true)));
+                $firstVisibleHour = $visibleHours->first();
+                $hiddenPastBefore = $isToday && $firstVisibleHour && $firstVisibleHour['index'] > 0 ? $firstVisibleHour['label'] : null;
+                // Jam dikelompokkan siang (sebelum 17:00) & malam (17:00 ke atas), sama dengan halaman booking customer.
+                $hourGroups = $visibleHours
+                    ->groupBy(fn ($oh) => $oh['hour'] < 17 ? 'day' : 'night')
+                    ->map(fn ($rows) => [
+                        'label' => $rows->first()['label'] . ' – ' . substr($rows->last()['end_time'], 0, 5) . ' WIB',
+                        'rows' => $rows->values(),
+                    ]);
+            @endphp
             <div class="pos-grid-card">
                 <div class="pos-grid-header">
                     <div>
-                        <div style="font-size:0.8125rem; font-weight:900; color:#1F170D;">Slot Lapangan &mdash;
+                        <div class="pos-grid-title">Slot Lapangan &mdash;
                             {{ !empty($operationalHours) ? $operationalHours[0]['label'] . ' sampai ' . substr(end($operationalHours)['end_time'], 0, 5) . ' WIB' : 'Jam Operasional' }}
                         </div>
-                        <div style="font-size:0.625rem; color:#7A643E; margin-top:0.1rem;">Klik kotak jam hijau untuk
-                            memilih. Klik lagi untuk membatalkan pilihan.</div>
+                        <div class="pos-grid-sub">Ketuk kotak jam untuk memilih, ketuk lagi untuk batal &bull; Prime 17:00–23:00, weekend tarif prime</div>
                     </div>
-                    <div style="font-size:0.6875rem; color:#7A643E;">
-                        Reguler 06:00–17:00 &bull; Prime Time 17:00–23:00 &bull; Weekend: tarif prime all-day
+                    <div class="pos-legend">
+                        <span class="legend-dot"><i style="background:#FFFFFF; border:1px solid #E6DAC0;"></i>Tersedia</span>
+                        <span class="legend-dot"><i style="background:#662721;"></i>Dipilih</span>
+                        <span class="legend-dot"><i style="background:#EEE5D3;"></i>Terisi</span>
+                        <span class="legend-dot"><i style="background:#FFFBEB; border:1px dashed #D97706;"></i>Hold</span>
+                        <span class="legend-dot"><i style="background:#FEF3C7; border:1.5px solid #D97706;"></i>Bayar Selisih</span>
+                        <span class="legend-dot"><i style="width:6px; height:6px; border-radius:50%; background:#662721;"></i>Prime</span>
                     </div>
                 </div>
 
                 <div class="pos-grid-scroll">
-                    <table class="pos-timetable">
-                        <thead>
-                            <tr>
-                                <th>LAPANGAN</th>
-                                @foreach ($operationalHours as $oh)
-                                    <th wire:key="oh-head-{{ $oh['hour'] }}" style="min-width:50px;">
-                                        {{ $oh['label'] }}</th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($gridData as $courtRow)
-                                @php $court = $courtRow['court']; @endphp
-                                <tr wire:key="court-row-{{ $court->id }}">
-                                    <td>
-                                        <div
-                                            style="font-weight:900; color:#1F170D; font-size:0.75rem; white-space:nowrap;">
-                                            {{ $court->name }}</div>
-                                        <div
-                                            style="font-size:0.5625rem; color:#8C6418; font-weight:700; margin-top:0.1rem;">
-                                            {{ $court->type }} &bull;
-                                            Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k/jam
-                                        </div>
-                                    </td>
-                                    @foreach ($courtRow['slots'] as $slot)
-                                        @php
-                                            $st = $slot['status'];
-                                            $rate = number_format($slot['rate'] / 1000, 0) . 'k';
-                                        @endphp
-                                        <td wire:key="slot-cell-{{ $slot['slot_key'] }}">
+                    <div class="pos-slotgrid" style="grid-template-columns: 72px repeat({{ max($courtCount, 1) }}, minmax(136px, 1fr));">
+                        <div class="hd corner"></div>
+                        @foreach ($gridData as $courtRow)
+                            @php $court = $courtRow['court']; @endphp
+                            <div class="hd" wire:key="court-head-{{ $court->id }}">
+                                <div class="pos-court-name">{{ $court->name }}</div>
+                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k/jam</div>
+                            </div>
+                        @endforeach
+
+                        @if ($hiddenPastBefore)
+                            <div class="pos-past-note">
+                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                Jam sebelum {{ $hiddenPastBefore }} hari ini sudah lewat
+                            </div>
+                        @endif
+                        @if ($hourGroups->isEmpty())
+                            <div class="pos-past-note">Tidak ada jam yang masih bisa dipesan di tanggal ini &mdash; pilih tanggal lain.</div>
+                        @endif
+                        @foreach ($hourGroups as $groupKey => $group)
+                            <div class="grp" wire:key="hour-group-{{ $groupKey }}">{{ $group['label'] }}</div>
+                            @foreach ($group['rows'] as $oh)
+                                <div class="tm" wire:key="oh-row-{{ $oh['hour'] }}">{{ $oh['label'] }}</div>
+                                @foreach ($gridData as $courtRow)
+                                    @php
+                                        $court = $courtRow['court'];
+                                        $slot = $courtRow['slots'][$oh['index']] ?? null;
+                                    @endphp
+                                    <div class="cell" wire:key="slot-cell-{{ $slot['slot_key'] ?? $court->id . '-' . $oh['hour'] }}">
+                                        @if ($slot)
+                                            @php
+                                                $st = $slot['status'];
+                                                $rate = number_format($slot['rate'] / 1000, 0) . 'k';
+                                            @endphp
                                             @if ($st === 'SELECTED')
                                                 <button type="button"
                                                     wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
                                                     class="slot-btn slot-selected"
                                                     title="Batal pilih: {{ $slot['full_label'] }} ({{ $court->name }})">
-                                                    <span style="font-size:0.5625rem;">PILIH</span>
-                                                    <span
-                                                        style="background:rgba(0,0,0,0.25); padding:0.05rem 0.25rem; border-radius:3px; font-size:0.5625rem;">{{ $rate }}</span>
+                                                    <span class="lbl">&#10003; Dipilih</span>
+                                                    <span class="prc">{{ $rate }}</span>
+                                                    @if ($slot['is_prime'])<span class="prime"></span>@endif
                                                 </button>
                                             @elseif($st === 'AVAILABLE')
                                                 <button type="button"
                                                     wire:click="toggleSlot('{{ $court->id }}', '{{ addslashes($court->name) }}', '{{ $slot['start_time'] }}', '{{ $slot['end_time'] }}', {{ $slot['rate'] }})"
                                                     class="slot-btn slot-available"
                                                     title="Pilih: {{ $slot['full_label'] }} – Rp{{ number_format($slot['rate'], 0, ',', '.') }}">
-                                                    <span style="font-size:0.5625rem; color:#047857;">Ada</span>
-                                                    <span
-                                                        style="font-size:0.625rem; color:#15803D; font-weight:900;">{{ $rate }}</span>
+                                                    <span class="prc">{{ $rate }}</span>
+                                                    @if ($slot['is_prime'])<span class="prime"></span>@endif
                                                 </button>
                                             @elseif($st === 'BOOKED')
                                                 <div class="slot-btn slot-booked"
                                                     title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }}">
-                                                    <span
-                                                        style="font-size:0.5rem; text-transform:uppercase;">Book</span>
-                                                    <span
-                                                        style="font-size:0.5rem; max-width:42px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $slot['booking']['player'] ?? 'Main' }}</span>
+                                                    <span class="lbl">Terisi &bull; {{ $slot['booking']['player'] ?? 'Main' }}</span>
                                                 </div>
                                             @elseif($st === 'UNPAID_DELTA')
                                                 <button type="button"
                                                     wire:click="startSettlement('{{ $slot['booking']['id'] }}')"
-                                                    class="slot-btn"
-                                                    style="background:{{ $slot['booking']['is_active_bill'] ? '#D97706' : '#FEF3C7' }}; border:1.5px solid #D97706; color:{{ $slot['booking']['is_active_bill'] ? '#FFFFFF' : '#92400E' }}; cursor:pointer;"
+                                                    class="slot-btn slot-delta {{ $slot['booking']['is_active_bill'] ? 'is-active' : '' }}"
                                                     title="Selisih reschedule belum dibayar: {{ $slot['booking']['player'] }} (#{{ $slot['booking']['code'] }}) — klik untuk melunasi">
-                                                    <span style="font-size:0.5rem; font-weight:900; text-transform:uppercase;">Bayar</span>
-                                                    <span style="font-size:0.5rem; max-width:42px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ $slot['booking']['player'] }}</span>
+                                                    <span class="lbl">Bayar &bull; {{ $slot['booking']['player'] }}</span>
                                                 </button>
                                             @elseif($st === 'LOCKED')
                                                 <div class="slot-btn slot-locked" title="Hold di keranjang">
-                                                    <span style="font-size:0.5rem;">HOLD</span>
-                                                    <span style="font-size:0.5rem;">Cart</span>
+                                                    <span class="lbl">Hold &bull; Cart</span>
                                                 </div>
                                             @elseif($st === 'CLOSED')
-                                                <div class="slot-btn slot-past"
-                                                    title="Di luar jam operasional lapangan">
-                                                    <span
-                                                        style="font-size:0.5rem; text-transform:uppercase; color:#9CA3AF;">Tutup</span>
+                                                <div class="slot-btn slot-past" title="Di luar jam operasional lapangan">
+                                                    <span class="lbl">Tutup</span>
                                                 </div>
                                             @else
                                                 <div class="slot-btn slot-past" title="Jam sudah lewat">
-                                                    <span style="font-size:0.5rem;">-</span>
+                                                    <span class="lbl">&mdash;</span>
                                                 </div>
                                             @endif
-                                        </td>
-                                    @endforeach
-                                </tr>
+                                        @endif
+                                    </div>
+                                @endforeach
                             @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                {{-- Ringkasan Okupansi & Riwayat Transaksi Walk-In --}}
-                <div class="pos-grid-footer">
-                    <div class="pos-stats-row">
-                        <div class="pos-stat-card">
-                            <div class="pos-stat-value">{{ $bookedSlotsAll }}/{{ $totalSlotsAll }}</div>
-                            <div class="pos-stat-label">Slot Terisi Hari Ini</div>
-                        </div>
-                        <div class="pos-stat-card">
-                            <div class="pos-stat-value">{{ $walkInStatsToday['count'] }}</div>
-                            <div class="pos-stat-label">Transaksi Walk-In</div>
-                        </div>
-                        <div class="pos-stat-card">
-                            <div class="pos-stat-value">Rp
-                                {{ number_format($walkInStatsToday['revenue'], 0, ',', '.') }}</div>
-                            <div class="pos-stat-label">Omzet Walk-In</div>
-                        </div>
+                        @endforeach
                     </div>
 
-                    <div class="pos-recent-header">Transaksi Walk-In Terakhir</div>
-                    <div class="pos-recent-list">
-                        @forelse($recentWalkInOrders as $ro)
-                            <div wire:key="recent-order-{{ $ro->id }}" class="pos-recent-row">
-                                <div>
-                                    <div class="pos-recent-name">{{ $ro->user?->name ?? 'Walk-In' }}</div>
-                                    <div class="pos-recent-sub">
-                                        {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Lapangan' }}
-                                        &bull; {{ $ro->created_at->format('H:i') }}
+                    {{-- Transaksi walk-in terakhir --}}
+                    <div class="pos-grid-footer">
+                        <div class="pos-recent-header">Transaksi Walk-In Terakhir</div>
+                        <div class="pos-recent-list">
+                            @forelse($recentWalkInOrders as $ro)
+                                <div wire:key="recent-order-{{ $ro->id }}" class="pos-recent-row">
+                                    <div style="min-width:0;">
+                                        <div class="pos-recent-name">{{ $ro->user?->name ?? 'Walk-In' }}</div>
+                                        <div class="pos-recent-sub">
+                                            {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Lapangan' }}
+                                            &bull; {{ $ro->created_at->format('H:i') }}
+                                        </div>
+                                    </div>
+                                    <div style="text-align:right; flex-shrink:0;">
+                                        <div class="pos-recent-amount">Rp {{ number_format($ro->grand_total, 0, ',', '.') }}</div>
+                                        <div class="pos-recent-badge pos-badge-{{ strtolower($ro->payment_status) }}">{{ $ro->payment_status }}</div>
                                     </div>
                                 </div>
-                                <div style="text-align:right;">
-                                    <div class="pos-recent-amount">Rp
-                                        {{ number_format($ro->grand_total, 0, ',', '.') }}</div>
-                                    <div class="pos-recent-badge pos-badge-{{ strtolower($ro->payment_status) }}">
-                                        {{ $ro->payment_status }}</div>
-                                </div>
-                            </div>
-                        @empty
-                            <div class="pos-recent-empty">Belum ada transaksi walk-in yang diproses hari ini.</div>
-                        @endforelse
+                            @empty
+                                <div class="pos-recent-empty">Belum ada transaksi walk-in yang diproses hari ini.</div>
+                            @endforelse
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1013,14 +252,10 @@
             <div class="pos-terminal-card">
                 <div class="pos-terminal-header">
                     <div>
-                        <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:5px; padding:0.1rem 0.45rem; display:inline-block;">
-                            TERMINAL KASIR LOKET</div>
-                        <div style="font-size:1.0625rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Layar
-                            Pembayaran &amp; Penyelesaian Transaksi</div>
+                        <span class="pos-terminal-eyebrow">TERMINAL KASIR LOKET</span>
+                        <div class="pos-terminal-title">Layar Pembayaran &amp; Penyelesaian Transaksi</div>
                     </div>
-                    <button type="button" wire:click="backToSelection"
-                        style="padding:0.4rem 0.85rem; font-size:0.75rem; font-weight:800; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#1F170D; display:flex; align-items:center; gap:0.3rem;">
+                    <button type="button" wire:click="backToSelection" class="pos-btn pos-btn-ghost">
                         &larr; Ubah Pilihan Slot
                     </button>
                 </div>
@@ -1028,7 +263,7 @@
                 <div class="pos-terminal-body">
                     {{-- Form metode pembayaran bersama (dipakai juga oleh Kasir F&B) --}}
                     @if ($appliedVoucherCode && ! $settleBill && $this->grandTotal <= 0)
-                        <div style="background:#ECFDF5; border:1.5px solid #A7F3D0; border-radius:12px; padding:0.9rem 1rem; margin-bottom:0.75rem; color:#065F46; font-size:0.8125rem; font-weight:700;">
+                        <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:0.9rem 1rem; color:#065F46; font-size:0.875rem; font-weight:700;">
                             Tagihan lunas penuh dengan voucher {{ $appliedVoucherCode }} &mdash; tidak perlu EDC / QRIS. Langsung selesaikan transaksi.
                         </div>
                     @else
@@ -1036,14 +271,11 @@
                     @endif
 
                     {{-- Action Buttons --}}
-                    <div
-                        style="display:flex; justify-content:space-between; align-items:center; gap:0.75rem; margin-top:0.5rem;">
-                        <button type="button" wire:click="backToSelection"
-                            style="padding:0.7rem 1.2rem; border-radius:10px; border:1.5px solid #DFC387; background:#FFFFFF; color:#1F170D; font-weight:800; font-size:0.8125rem; cursor:pointer;">
+                    <div class="pos-terminal-actions">
+                        <button type="button" wire:click="backToSelection" class="pos-btn pos-btn-ghost" style="height:50px; padding:0 1.2rem;">
                             &larr; Kembali ke Pilih Jadwal
                         </button>
-                        <button type="button" wire:click="submitWalkInBooking" wire:loading.attr="disabled"
-                            style="flex:1; padding:0.75rem 1.5rem; border-radius:10px; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 30%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; font-weight:900; font-size:0.9375rem; cursor:pointer; box-shadow:0 4px 14px rgba(184,134,11,0.35); text-transform:uppercase; letter-spacing:0.05em;">
+                        <button type="button" wire:click="submitWalkInBooking" wire:loading.attr="disabled" class="pos-submit-btn" style="flex:1;">
                             <span wire:loading.remove wire:target="submitWalkInBooking">Bayar Lunas &amp; Cetak
                                 Struk</span>
                             <span wire:loading wire:target="submitWalkInBooking">Memproses Transaksi...</span>
@@ -1056,26 +288,20 @@
             <div class="pos-receipt-inpage">
                 <div class="pos-terminal-header">
                     <div>
-                        <div
-                            style="font-size:0.625rem; font-weight:900; color:#065F46; text-transform:uppercase; letter-spacing:0.06em; background:#ECFDF5; border:1px solid #6EE7B7; border-radius:5px; padding:0.1rem 0.45rem; display:inline-block;">
-                            TRANSAKSI SELESAI</div>
-                        <div style="font-size:1.0625rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Struk
-                            Pembayaran POS &amp; E-Tiket Walk-In</div>
+                        <span class="pos-terminal-eyebrow is-done">TRANSAKSI SELESAI</span>
+                        <div class="pos-terminal-title">Struk Pembayaran POS &amp; E-Tiket Walk-In</div>
                     </div>
                     <div style="display:flex; gap:0.5rem;">
-                        <button type="button" onclick="club61PrintReceipt('#printable-pos-receipt')"
-                            style="padding:0.4rem 0.85rem; font-size:0.75rem; font-weight:800; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#1F170D;">
+                        <button type="button" onclick="club61PrintReceipt('#printable-pos-receipt')" class="pos-btn pos-btn-ghost">
                             Cetak Struk
                         </button>
-                        <button type="button" wire:click="startNewTransaction"
-                            style="padding:0.4rem 1rem; font-size:0.75rem; font-weight:900; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 35%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; border-radius:8px; cursor:pointer;">
+                        <button type="button" wire:click="startNewTransaction" class="pos-btn pos-btn-primary">
                             Transaksi Baru
                         </button>
                     </div>
                 </div>
 
-                <div
-                    style="flex:1; overflow-y:auto; padding:1.25rem 2rem; background:#F9FAFB; display:flex; justify-content:center;">
+                <div class="pos-receipt-stage">
                     @if ($completedOrderData)
                         @include('filament.partials.walkin-receipt', ['receipt' => $completedOrderData])
                     @endif
@@ -1089,31 +315,19 @@
             <div class="pos-panel-header">
                 <div>
                     @if ($posStep === 'payment')
-                        <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:5px; padding:0.1rem 0.45rem; display:inline-block;">
-                            LANGKAH 2 DARI 2</div>
-                        <div style="font-size:0.9375rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Ringkasan
-                            Tagihan</div>
+                        <div class="pos-panel-eyebrow">LANGKAH 2 DARI 2</div>
+                        <div class="pos-panel-title">Ringkasan Tagihan</div>
                     @elseif($posStep === 'receipt')
-                        <div
-                            style="font-size:0.625rem; font-weight:900; color:#065F46; text-transform:uppercase; letter-spacing:0.06em; background:#ECFDF5; border:1px solid #6EE7B7; border-radius:5px; padding:0.1rem 0.45rem; display:inline-block;">
-                            TRANSAKSI SELESAI</div>
-                        <div style="font-size:0.9375rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Detail
-                            Reservasi</div>
+                        <div class="pos-panel-eyebrow">TRANSAKSI SELESAI</div>
+                        <div class="pos-panel-title">Detail Reservasi</div>
                     @else
-                        <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:5px; padding:0.1rem 0.45rem; display:inline-block;">
-                            POS Kasir Loket</div>
-                        <div style="font-size:0.9375rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Walk-In
-                            Checkout</div>
+                        <div class="pos-panel-eyebrow">POS Kasir Loket</div>
+                        <div class="pos-panel-title">Walk-In Checkout</div>
                     @endif
                 </div>
-                <div style="text-align:right;">
-                    <div style="font-size:1.125rem; font-weight:900; color:#B38622;">
-                        Rp {{ number_format($this->grandTotal, 0, ',', '.') }}
-                    </div>
-                    <div style="font-size:0.625rem; color:#8C6418; font-weight:700;">{{ count($selectedSlots) }} slot
-                        dipilih</div>
+                <div>
+                    <div class="pos-panel-total">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</div>
+                    <div class="pos-panel-count">{{ count($selectedSlots) }} slot dipilih</div>
                 </div>
             </div>
 
@@ -1130,7 +344,7 @@
                                     style="font-size:0.625rem; font-weight:800; color:#B91C1C; background:none; border:none; cursor:pointer; padding:0;">Batal</button>
                             @endif
                         </div>
-                        <div style="font-size:0.875rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">{{ $settleBill['customer'] }}</div>
+                        <div style="font-size:0.875rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">{{ $settleBill['customer'] }}</div>
                         @if (! empty($settleBill['phone']))
                             <div style="font-size:0.6875rem; color:#78350F;">{{ $settleBill['phone'] }}</div>
                         @endif
@@ -1151,8 +365,8 @@
                 {{-- 1. DATA CUSTOMER --}}
                 <div class="pos-customer-box">
                     <div
-                        style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-                        <span class="pos-section-label">Data Customer</span>
+                        style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
+                        <span class="pos-section-label" style="margin-bottom:0;">Data Customer</span>
                         @if ($posStep === 'selection')
                             <div class="pos-tab-group">
                                 <button type="button" wire:click="setCustomerMode('quick_create')"
@@ -1182,11 +396,11 @@
                     @else
                         @if ($selectedCustomerId)
                             <div
-                                style="background:#FFFFFF; border:1.5px solid #D4AF37; border-radius:8px; padding:0.5rem 0.65rem; display:flex; justify-content:space-between; align-items:center;">
+                                style="background:#FFFFFF; border:1.5px solid #662721; border-radius:8px; padding:0.5rem 0.65rem; display:flex; justify-content:space-between; align-items:center;">
                                 <div>
-                                    <div style="font-weight:900; color:#1F170D; font-size:0.8125rem;">
+                                    <div style="font-weight:900; color:#4F2F2A; font-size:0.8125rem;">
                                         {{ $selectedCustomerName }}</div>
-                                    <div style="font-size:0.6875rem; color:#8C6418;">
+                                    <div style="font-size:0.6875rem; color:#662721;">
                                         {{ $selectedCustomerPhone ?? '-' }}</div>
                                     @if ($activeMembershipInfo)
                                         <div
@@ -1233,16 +447,16 @@
                                     {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 @if (count($searchResults) > 0)
                                     <div
-                                        style="position:absolute; top:100%; left:0; right:0; z-index:50; background:#FFFFFF; border:1.5px solid #DFC387; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.1); margin-top:0.2rem; max-height:140px; overflow-y:auto;">
+                                        style="position:absolute; top:100%; left:0; right:0; z-index:50; background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.1); margin-top:0.2rem; max-height:140px; overflow-y:auto;">
                                         @foreach ($searchResults as $res)
                                             <button type="button" wire:key="search-result-{{ $res->id }}"
                                                 wire:click="selectCustomer('{{ $res->id }}')"
-                                                style="width:100%; text-align:left; padding:0.4rem 0.65rem; border:none; border-bottom:1px solid #FAF2DE; background:#FFFFFF; cursor:pointer; font-size:0.75rem;"
-                                                onmouseover="this.style.background='#FAF5E8'"
+                                                style="width:100%; text-align:left; padding:0.4rem 0.65rem; border:none; border-bottom:1px solid #EFE6D2; background:#FFFFFF; cursor:pointer; font-size:0.75rem;"
+                                                onmouseover="this.style.background='#FCF8EE'"
                                                 onmouseout="this.style.background='#FFFFFF'">
-                                                <div style="font-weight:800; color:#1F170D;">{{ $res->name }}
+                                                <div style="font-weight:800; color:#4F2F2A;">{{ $res->name }}
                                                 </div>
-                                                <div style="font-size:0.625rem; color:#8C6418;">
+                                                <div style="font-size:0.625rem; color:#662721;">
                                                     {{ $res->phone ?? $res->email }}</div>
                                             </button>
                                         @endforeach
@@ -1262,7 +476,7 @@
                     <div
                         style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
                         <span class="pos-section-label">Slot Dipilih ({{ count($selectedSlots) }})</span>
-                        <span style="font-size:0.6875rem; font-weight:800; color:#B38622;">Rp
+                        <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
                             {{ number_format($this->courtTotal, 0, ',', '.') }}</span>
                     </div>
                     @if (empty($selectedSlots))
@@ -1275,14 +489,14 @@
                             @foreach ($selectedSlots as $sKey => $s)
                                 <div wire:key="selected-slot-{{ $sKey }}" class="pos-slot-chip">
                                     <div>
-                                        <div style="font-weight:800; font-size:0.6875rem; color:#1F170D;">
+                                        <div style="font-weight:800; font-size:0.6875rem; color:#4F2F2A;">
                                             {{ $s['court_name'] }}</div>
-                                        <div style="font-size:0.5625rem; color:#8C6418;">{{ $s['time_label'] }} WIB
+                                        <div style="font-size:0.5625rem; color:#662721;">{{ $s['time_label'] }} WIB
                                         </div>
                                     </div>
                                     <div style="display:flex; align-items:center; gap:0.4rem;">
                                         <span
-                                            style="font-weight:900; font-size:0.75rem; color:#B38622;">Rp{{ number_format($s['price'], 0, ',', '.') }}</span>
+                                            style="font-weight:900; font-size:0.75rem; color:#662721;">Rp{{ number_format($s['price'], 0, ',', '.') }}</span>
                                         @if ($posStep === 'selection')
                                             <button type="button" wire:click="removeSlot('{{ $sKey }}')"
                                                 style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; border-radius:50%; width:18px; height:18px; font-weight:900; font-size:0.625rem; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">&times;</button>
@@ -1300,18 +514,18 @@
                         <div
                             style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
                             <span class="pos-section-label">Sewa Alat (Opsional)</span>
-                            <span style="font-size:0.6875rem; font-weight:800; color:#B38622;">Rp
+                            <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
                                 {{ number_format($this->equipmentTotal, 0, ',', '.') }}</span>
                         </div>
                         <div
-                            style="background:#FFFDF5; border:1px solid #F0DB9D; border-radius:8px; padding:0.35rem 0.65rem;">
+                            style="background:#FCF8EE; border:1px solid #E6DAC0; border-radius:8px; padding:0.35rem 0.65rem;">
                             @foreach ($equipments as $eq)
                                 @php $qty = $rentalQuantities[$eq->id] ?? 0; @endphp
                                 <div wire:key="equipment-row-{{ $eq->id }}" class="pos-eq-row">
                                     <div>
-                                        <div style="font-weight:800; color:#1F170D; font-size:0.6875rem;">
+                                        <div style="font-weight:800; color:#4F2F2A; font-size:0.6875rem;">
                                             {{ $eq->name }}</div>
-                                        <div style="font-size:0.5625rem; color:#8C6418;">
+                                        <div style="font-size:0.5625rem; color:#662721;">
                                             Rp{{ number_format($eq->rental_price, 0, ',', '.') }} &bull; Stok:
                                             {{ $eq->stock_quantity }}</div>
                                     </div>
@@ -1322,7 +536,7 @@
                                                 class="pos-qty-btn">-</button>
                                         @endif
                                         <span
-                                            style="min-width:20px; text-align:center; font-weight:900; font-size:0.8125rem; color:#1F170D;">{{ $qty }}</span>
+                                            style="min-width:20px; text-align:center; font-weight:900; font-size:0.8125rem; color:#4F2F2A;">{{ $qty }}</span>
                                         @if ($posStep === 'selection')
                                             <button type="button"
                                                 wire:click="incrementEquipment('{{ $eq->id }}', {{ $eq->stock_quantity }})"
@@ -1354,9 +568,9 @@
                         @else
                             <div style="display:flex; gap:0.4rem;">
                                 <input type="text" wire:model="voucherInput" wire:keydown.enter.prevent="applyVoucher" maxlength="30" placeholder="Kode voucher"
-                                    style="flex:1; min-width:0; border:1.5px solid #DFC387; border-radius:8px; padding:0.4rem 0.55rem; font-size:0.75rem; font-family:var(--font-mono, monospace); text-transform:uppercase;">
+                                    style="flex:1; min-width:0; border:1.5px solid #E6DAC0; border-radius:8px; padding:0.4rem 0.55rem; font-size:0.75rem; font-family:var(--font-mono, monospace); text-transform:uppercase;">
                                 <button type="button" wire:click="applyVoucher" wire:loading.attr="disabled"
-                                    style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #DFC387; background:#FAF5E8; color:#7A5818; font-weight:800; font-size:0.75rem; cursor:pointer;">Pakai</button>
+                                    style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #E6DAC0; background:#FCF8EE; color:#662721; font-weight:800; font-size:0.75rem; cursor:pointer;">Pakai</button>
                             </div>
                             @foreach ($this->customerCreditVouchers as $cv)
                                 <div style="display:flex; justify-content:space-between; align-items:center; gap:0.5rem; margin-top:0.35rem; background:#F0FDF4; border:1px dashed #86EFAC; border-radius:8px; padding:0.35rem 0.55rem;">
@@ -1374,11 +588,11 @@
 
                 {{-- 4. TOTAL --}}                <div class="pos-total-box">
                     <div
-                        style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A643E; margin-bottom:0.2rem;">
+                        style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A5A52; margin-bottom:0.2rem;">
                         <span>Lapangan:</span><span>Rp {{ number_format($this->courtTotal, 0, ',', '.') }}</span>
                     </div>
                     <div
-                        style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A643E; margin-bottom:0.2rem;">
+                        style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A5A52; margin-bottom:0.2rem;">
                         <span>Sewa Alat:</span><span>Rp {{ number_format($this->equipmentTotal, 0, ',', '.') }}</span>
                     </div>
                     @if ($this->membershipDiscountAmount > 0)
@@ -1397,22 +611,22 @@
                     @endif
                     @if ($this->isTaxEnabled && $this->taxAmount > 0)
                         <div
-                            style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A643E; margin-bottom:0.2rem;">
+                            style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A5A52; margin-bottom:0.2rem;">
                             <span>{{ $this->taxName }}:</span><span>Rp
                                 {{ number_format($this->taxAmount, 0, ',', '.') }}</span>
                         </div>
                     @endif
                     @if ($this->isAdminFeeEnabled && $this->adminFeeAmount > 0)
                         <div
-                            style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A643E; margin-bottom:0.2rem;">
+                            style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#7A5A52; margin-bottom:0.2rem;">
                             <span>{{ $this->adminFeeName }}:</span><span>Rp
                                 {{ number_format($this->adminFeeAmount, 0, ',', '.') }}</span>
                         </div>
                     @endif
                     <div
-                        style="border-top:1.5px dashed #D4AF37; padding-top:0.4rem; display:flex; justify-content:space-between; align-items:baseline;">
-                        <span style="font-size:0.8125rem; font-weight:900; color:#1F170D;">TOTAL:</span>
-                        <span style="font-size:1.1875rem; font-weight:900; color:#B38622;">Rp
+                        style="border-top:1.5px dashed #662721; padding-top:0.4rem; display:flex; justify-content:space-between; align-items:baseline;">
+                        <span style="font-size:0.8125rem; font-weight:900; color:#4F2F2A;">TOTAL:</span>
+                        <span style="font-size:1.1875rem; font-weight:900; color:#662721;">Rp
                             {{ number_format($this->grandTotal, 0, ',', '.') }}</span>
                     </div>
                 </div>
@@ -1424,7 +638,7 @@
                     <div>
                         <div class="pos-section-label" style="margin-bottom:0.4rem;">Metode Pembayaran</div>
                         <div
-                            style="background:#FFFDF5; border:1.5px solid #DFC387; border-radius:8px; padding:0.45rem 0.65rem; font-size:0.75rem; font-weight:800; color:#8C6418;">
+                            style="background:#FCF8EE; border:1.5px solid #E6DAC0; border-radius:8px; padding:0.45rem 0.65rem; font-size:0.75rem; font-weight:800; color:#662721;">
                             {{ match ($paymentMethod) {
                                 'DEBIT_CARD', 'DEBIT' => 'Kartu Debit (EDC)',
                                 'CREDIT_CARD', 'CREDIT' => 'Kartu Kredit (EDC)',
@@ -1462,7 +676,7 @@
                     </button>
                 @elseif($posStep === 'payment')
                     <button type="button" wire:click="backToSelection"
-                        style="width:100%; padding:0.65rem; border-radius:10px; border:1.5px solid #DFC387; background:#FFFFFF; color:#1F170D; font-weight:800; font-size:0.8125rem; cursor:pointer;">
+                        style="width:100%; padding:0.65rem; border-radius:10px; border:1.5px solid #E6DAC0; background:#FFFFFF; color:#4F2F2A; font-weight:800; font-size:0.8125rem; cursor:pointer;">
                         &larr; Ubah Pilihan Slot
                     </button>
                 @elseif($posStep === 'receipt')
@@ -1486,7 +700,7 @@
         <div
             style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:1rem;">
             <div
-                style="background:#FFFFFF; border:1.5px solid #DFC387; border-radius:18px; box-shadow:0 25px 50px -12px rgba(184,134,11,0.4); width:100%; max-width:440px; overflow:hidden; animation:fadeInUp 0.2s ease;">
+                style="background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:18px; box-shadow:0 25px 50px -12px rgba(102,39,33,0.4); width:100%; max-width:440px; overflow:hidden; animation:fadeInUp 0.2s ease;">
                 <style>
                     @keyframes fadeInUp {
                         from {
@@ -1502,12 +716,12 @@
                 </style>
 
                 <div
-                    style="background:linear-gradient(135deg,#FAF5E8 0%,#F5E8C7 100%); border-bottom:1.5px solid #DFC387; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
+                    style="background:#FCF8EE; border-bottom:1.5px solid #E6DAC0; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
+                            style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; background:#FCF8EE; border:1px solid #E6DAC0; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
                             TRANSAKSI LUNAS</div>
-                        <div style="font-size:1rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Tiket Walk-In
+                        <div style="font-size:1rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">Tiket Walk-In
                             Siap Digunakan</div>
                     </div>
                     <button type="button" wire:click="closeSuccessModal"
@@ -1518,13 +732,13 @@
 
 
                 <div
-                    style="background:#FAF5E8; border-top:1px solid #DFC387; padding:0.65rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                    style="background:#FCF8EE; border-top:1px solid #E6DAC0; padding:0.65rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
                     <button type="button" onclick="club61PrintReceipt('#printable-pos-receipt')"
-                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#1F170D;">
+                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; border:1.5px solid #E6DAC0; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#4F2F2A;">
                         Cetak Struk
                     </button>
                     <button type="button" wire:click="closeSuccessModal"
-                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 35%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; border-radius:7px; cursor:pointer;">
+                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; background:#662721; color:#F7F0DB; border:1px solid #662721; border-radius:7px; cursor:pointer;">
                         Transaksi Baru
                     </button>
                 </div>
@@ -1539,14 +753,14 @@
         <div
             style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:1rem;">
             <div
-                style="background:#FFFFFF; border:1.5px solid #DFC387; border-radius:18px; box-shadow:0 25px 50px -12px rgba(184,134,11,0.4); width:100%; max-width:460px; overflow:hidden; animation:fadeInUp 0.2s ease;">
+                style="background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:18px; box-shadow:0 25px 50px -12px rgba(102,39,33,0.4); width:100%; max-width:460px; overflow:hidden; animation:fadeInUp 0.2s ease;">
                 <div
-                    style="background:linear-gradient(135deg,#FAF5E8 0%,#F5E8C7 100%); border-bottom:1.5px solid #DFC387; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
+                    style="background:#FCF8EE; border-bottom:1.5px solid #E6DAC0; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
+                            style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; background:#FCF8EE; border:1px solid #E6DAC0; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
                             REGISTER OPENING</div>
-                        <div style="font-size:1rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Buka Shift
+                        <div style="font-size:1rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">Buka Shift
                             Kasir Baru</div>
                     </div>
                     <button type="button" wire:click="$set('showOpenShiftModal', false)"
@@ -1555,19 +769,19 @@
 
                 <div style="padding:1.1rem; display:flex; flex-direction:column; gap:0.85rem;">
                     <div
-                        style="background:#FFFDF5; border:1px solid #DFC387; border-radius:8px; padding:0.65rem 0.8rem; font-size:0.75rem;">
+                        style="background:#FCF8EE; border:1px solid #E6DAC0; border-radius:8px; padding:0.65rem 0.8rem; font-size:0.75rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
                             <span style="color:#6B7280; font-weight:600;">Loket Kasir:</span>
-                            <strong style="color:#1F170D;">PADEL FRONTDESK</strong>
+                            <strong style="color:#4F2F2A;">PADEL FRONTDESK</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
                             <span style="color:#6B7280; font-weight:600;">Petugas Bertugas:</span>
-                            <strong style="color:#1F170D;">{{ auth()->user()?->name ?? 'Kasir' }}</strong>
+                            <strong style="color:#4F2F2A;">{{ auth()->user()?->name ?? 'Kasir' }}</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between;">
                             <span style="color:#6B7280; font-weight:600;">Waktu Pembukaan:</span>
                             <strong
-                                style="color:#1F170D;">{{ now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }}
+                                style="color:#4F2F2A;">{{ now()->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }}
                                 WIB</strong>
                         </div>
                     </div>
@@ -1581,23 +795,23 @@
 
                     <div>
                         <label
-                            style="display:block; font-size:0.75rem; font-weight:800; color:#1F170D; margin-bottom:0.3rem;">
+                            style="display:block; font-size:0.75rem; font-weight:800; color:#4F2F2A; margin-bottom:0.3rem;">
                             Catatan Pembukaan (Opsional)
                         </label>
                         <textarea wire:model="openingNotes" rows="2"
-                            style="width:100%; border:1.5px solid #DFC387; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; color:#1F170D; background:#FFFDF5; outline:none;"
+                            style="width:100%; border:1.5px solid #E6DAC0; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; color:#4F2F2A; background:#FCF8EE; outline:none;"
                             placeholder="Catatan serah terima kas atau kondisi register..."></textarea>
                     </div>
                 </div>
 
                 <div
-                    style="background:#FAF5E8; border-top:1px solid #DFC387; padding:0.75rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                    style="background:#FCF8EE; border-top:1px solid #E6DAC0; padding:0.75rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
                     <button type="button" wire:click="$set('showOpenShiftModal', false)"
-                        style="padding:0.45rem 0.9rem; font-size:0.8125rem; font-weight:700; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#1F170D;">
+                        style="padding:0.45rem 0.9rem; font-size:0.8125rem; font-weight:700; border:1.5px solid #E6DAC0; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#4F2F2A;">
                         Batal
                     </button>
                     <button type="button" wire:click="executeOpenShift"
-                        style="padding:0.45rem 1.1rem; font-size:0.8125rem; font-weight:900; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 35%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(184,134,11,0.25);">
+                        style="padding:0.45rem 1.1rem; font-size:0.8125rem; font-weight:900; background:#662721; color:#F7F0DB; border:1px solid #662721; border-radius:8px; cursor:pointer; box-shadow:0 2px 8px rgba(102,39,33,0.25);">
                         Konfirmasi &amp; Buka Shift
                     </button>
                 </div>
@@ -1612,14 +826,14 @@
         <div
             style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:1rem;">
             <div
-                style="background:#FFFFFF; border:1.5px solid #DFC387; border-radius:18px; box-shadow:0 25px 50px -12px rgba(184,134,11,0.4); width:100%; max-width:480px; overflow:hidden; animation:fadeInUp 0.2s ease;">
+                style="background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:18px; box-shadow:0 25px 50px -12px rgba(102,39,33,0.4); width:100%; max-width:480px; overflow:hidden; animation:fadeInUp 0.2s ease;">
                 <div
-                    style="background:linear-gradient(135deg,#FAF5E8 0%,#F5E8C7 100%); border-bottom:1.5px solid #DFC387; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
+                    style="background:#FCF8EE; border-bottom:1.5px solid #E6DAC0; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div
                             style="font-size:0.625rem; font-weight:900; color:#BE123C; text-transform:uppercase; letter-spacing:0.06em; background:#FFF1F2; border:1px solid #FECDD3; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
                             CLOSING REGISTER</div>
-                        <div style="font-size:1rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Tutup Shift
+                        <div style="font-size:1rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">Tutup Shift
                             &amp; Rekonsiliasi Kas</div>
                     </div>
                     <button type="button" wire:click="$set('showCloseShiftModal', false)"
@@ -1628,20 +842,20 @@
 
                 <div style="padding:1.1rem; display:flex; flex-direction:column; gap:0.85rem;">
                     <div
-                        style="background:#FFFDF5; border:1px solid #DFC387; border-radius:8px; padding:0.65rem 0.8rem; font-size:0.75rem;">
+                        style="background:#FCF8EE; border:1px solid #E6DAC0; border-radius:8px; padding:0.65rem 0.8rem; font-size:0.75rem;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
                             <span style="color:#6B7280; font-weight:600;">No. Shift:</span>
-                            <strong style="color:#1F170D;">{{ $activeShift->shift_number }}</strong>
+                            <strong style="color:#4F2F2A;">{{ $activeShift->shift_number }}</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
                             <span style="color:#6B7280; font-weight:600;">Dibuka Oleh:</span>
-                            <strong style="color:#1F170D;">{{ $activeShift->openedBy?->name ?? 'Kasir' }}
+                            <strong style="color:#4F2F2A;">{{ $activeShift->openedBy?->name ?? 'Kasir' }}
                                 ({{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('d/m/Y H:i') }}
                                 WIB)</strong>
                         </div>
                         <div style="display:flex; justify-content:space-between; margin-bottom:0.25rem;">
                             <span style="color:#6B7280; font-weight:600;">Petugas Closing:</span>
-                            <strong style="color:#1F170D;">{{ auth()->user()?->name ?? 'Kasir' }}</strong>
+                            <strong style="color:#4F2F2A;">{{ auth()->user()?->name ?? 'Kasir' }}</strong>
                         </div>
                     </div>
 
@@ -1655,19 +869,19 @@
 
                     <div>
                         <label
-                            style="display:block; font-size:0.75rem; font-weight:800; color:#1F170D; margin-bottom:0.3rem;">
+                            style="display:block; font-size:0.75rem; font-weight:800; color:#4F2F2A; margin-bottom:0.3rem;">
                             Catatan Penutupan Kasir (Opsional)
                         </label>
                         <textarea wire:model="closingNotes" rows="2"
-                            style="width:100%; border:1.5px solid #DFC387; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; color:#1F170D; background:#FFFDF5; outline:none;"
+                            style="width:100%; border:1.5px solid #E6DAC0; border-radius:8px; padding:0.5rem 0.75rem; font-size:0.75rem; color:#4F2F2A; background:#FCF8EE; outline:none;"
                             placeholder="Catatan serah terima kas, selisih uang, atau catatan operasional..."></textarea>
                     </div>
                 </div>
 
                 <div
-                    style="background:#FAF5E8; border-top:1px solid #DFC387; padding:0.75rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
+                    style="background:#FCF8EE; border-top:1px solid #E6DAC0; padding:0.75rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem;">
                     <button type="button" wire:click="$set('showCloseShiftModal', false)"
-                        style="padding:0.45rem 0.9rem; font-size:0.8125rem; font-weight:700; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#1F170D;">
+                        style="padding:0.45rem 0.9rem; font-size:0.8125rem; font-weight:700; border:1.5px solid #E6DAC0; background:#FFFFFF; border-radius:8px; cursor:pointer; color:#4F2F2A;">
                         Batal
                     </button>
                     <button type="button" wire:click="executeCloseShift"
@@ -1686,14 +900,14 @@
         <div
             style="position:fixed; inset:0; z-index:9999; background:rgba(15,23,42,0.65); backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; padding:1rem;">
             <div
-                style="background:#FFFFFF; border:1.5px solid #DFC387; border-radius:18px; box-shadow:0 25px 50px -12px rgba(184,134,11,0.4); width:100%; max-width:460px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; animation:fadeInUp 0.2s ease;">
+                style="background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:18px; box-shadow:0 25px 50px -12px rgba(102,39,33,0.4); width:100%; max-width:460px; max-height:90vh; display:flex; flex-direction:column; overflow:hidden; animation:fadeInUp 0.2s ease;">
                 <div
-                    style="background:linear-gradient(135deg,#FAF5E8 0%,#F5E8C7 100%); border-bottom:1.5px solid #DFC387; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
+                    style="background:#FCF8EE; border-bottom:1.5px solid #E6DAC0; padding:0.85rem 1.1rem; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">
                     <div>
                         <div
-                            style="font-size:0.625rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em; background:#FAF5E8; border:1px solid #DFC387; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
+                            style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; background:#FCF8EE; border:1px solid #E6DAC0; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
                             REKONSILIASI KAS</div>
-                        <div style="font-size:1rem; font-weight:900; color:#1F170D; margin-top:0.2rem;">Laporan
+                        <div style="font-size:1rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">Laporan
                             Penutupan Kasir (Z-Report)</div>
                     </div>
                     <button type="button" wire:click="closeShiftReportModal"
@@ -1796,13 +1010,13 @@
                 </div>
 
                 <div
-                    style="background:#FAF5E8; border-top:1px solid #DFC387; padding:0.65rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem; flex-shrink:0;">
+                    style="background:#FCF8EE; border-top:1px solid #E6DAC0; padding:0.65rem 1.1rem; display:flex; justify-content:flex-end; gap:0.5rem; flex-shrink:0;">
                     <button type="button" onclick="club61PrintReceipt('#printable-z-report')"
-                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; border:1.5px solid #DFC387; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#1F170D;">
+                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; border:1.5px solid #E6DAC0; background:#FFFFFF; border-radius:7px; cursor:pointer; color:#4F2F2A;">
                         Cetak Z-Report
                     </button>
                     <button type="button" wire:click="closeShiftReportModal"
-                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; background:linear-gradient(180deg,#F0DB9D 0%,#D4AF37 35%,#B38622 100%); color:#281A05; border:1px solid #FBF0CE; border-radius:7px; cursor:pointer;">
+                        style="padding:0.4rem 0.85rem; font-size:0.8125rem; font-weight:800; background:#662721; color:#F7F0DB; border:1px solid #662721; border-radius:7px; cursor:pointer;">
                         Selesai
                     </button>
                 </div>

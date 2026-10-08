@@ -75,15 +75,15 @@
                 },
                 destroy() { clearInterval(this.timer); this.release(); },
             }"
-             style="background:#FFFFFF; border:2px solid #D4AF37; border-radius:20px; width:100%; max-width:440px; max-height:94vh; overflow-y:auto; padding:1rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
+             style="background:#FFFFFF; border:2px solid #662721; border-radius:20px; width:100%; max-width:440px; max-height:94vh; overflow-y:auto; padding:1rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem;">
                 <div style="min-width:0;">
-                    <div style="font-size:0.6875rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.06em;">Bayar Otomatis &bull; {{ $pendingQris['method'] === 'QRIS' ? 'QRIS' : $pendingQris['method_label'] }}</div>
-                    <div style="font-size:0.75rem; color:#7A643E; margin-top:0.15rem;">{{ $pendingQris['order_number'] }}</div>
+                    <div style="font-size:0.6875rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em;">Bayar Otomatis &bull; {{ $pendingQris['method'] === 'QRIS' ? 'QRIS' : $pendingQris['method_label'] }}</div>
+                    <div style="font-size:0.75rem; color:#7A5A52; margin-top:0.15rem;">{{ $pendingQris['order_number'] }}</div>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">
-                    <div style="font-size:1.25rem; font-weight:900; color:#1F170D; line-height:1.15;">Rp {{ number_format((float) $pendingQris['amount'], 0, ',', '.') }}</div>
-                    <div style="font-size:0.75rem; color:#5C410F;">Berlaku <strong x-text="left" style="font-variant-numeric:tabular-nums;"></strong></div>
+                    <div style="font-size:1.25rem; font-weight:900; color:#4F2F2A; line-height:1.15;">Rp {{ number_format((float) $pendingQris['amount'], 0, ',', '.') }}</div>
+                    <div style="font-size:0.75rem; color:#662721;">Berlaku <strong x-text="left" style="font-variant-numeric:tabular-nums;"></strong></div>
                 </div>
             </div>
 
@@ -92,7 +92,7 @@
                 Batalkan pembayaran ini? Pesanan dibatalkan. Kalau customer ternyata sudah membayar, transaksi tetap dilanjutkan.
                 <div style="display:flex; gap:0.5rem; margin-top:0.6rem;">
                     <button type="button" x-on:click="confirming = false"
-                            style="flex:1; padding:0.6rem; border-radius:10px; font-weight:800; font-size:0.8125rem; cursor:pointer; border:1.5px solid #DFC387; background:#FFFFFF; color:#5C410F;">Kembali</button>
+                            style="flex:1; padding:0.6rem; border-radius:10px; font-weight:800; font-size:0.8125rem; cursor:pointer; border:1.5px solid #E6DAC0; background:#FFFFFF; color:#662721;">Kembali</button>
                     <button type="button" wire:click="{{ $cancelAction }}" wire:loading.attr="disabled"
                             style="flex:1; padding:0.6rem; border-radius:10px; font-weight:800; font-size:0.8125rem; cursor:pointer; border:none; background:#B91C1C; color:#FFFFFF;">Ya, batalkan</button>
                 </div>
@@ -123,7 +123,7 @@
             </div>
 
             @if($pendingQris['is_mock'] ?? false)
-                <div style="margin-top:0.25rem; padding:1.5rem 1rem; border-radius:12px; border:1.5px dashed #DFC387; background:#FAF5E8; text-align:center; font-size:0.8125rem; color:#5C410F;">
+                <div style="margin-top:0.25rem; padding:1.5rem 1rem; border-radius:12px; border:1.5px dashed #E6DAC0; background:#FCF8EE; text-align:center; font-size:0.8125rem; color:#662721;">
                     Mode lokal (tanpa kunci pembayaran): QR tidak dibuat. Pakai <strong>Simulasi Lunas</strong> untuk menguji alur struk.
                 </div>
             @endif
@@ -136,7 +136,7 @@
                 @endif
             </div>
 
-            <div style="margin-top:0.5rem; text-align:center; font-size:0.75rem; color:#5C410F;">
+            <div style="margin-top:0.5rem; text-align:center; font-size:0.75rem; color:#662721;">
                 <span style="display:inline-block; width:8px; height:8px; border-radius:999px; background:#16A34A; margin-right:0.3rem;"></span>Menunggu pembayaran customer — struk keluar otomatis setelah lunas.
             </div>
 

@@ -1,17 +1,18 @@
 {{--
     Tab "Kasir | Riwayat Transaksi" untuk halaman POS (Walk-In Padel & Jual Membership).
-    Param: $isHistory (bool), $canShowHistory (bool).
+    Param: $isHistory (bool), $canShowHistory (bool), $inline (opsional, tanpa jarak bawah).
 --}}
 @if ($canShowHistory)
-    <div style="display:flex; gap:0.4rem; margin-bottom:0.75rem;">
+    @php
+        $histTabBase = 'height:36px; padding:0 0.95rem; border-radius:8px; font-size:0.8125rem; font-weight:800; cursor:pointer; border:none; white-space:nowrap; transition:background 0.15s, color 0.15s;';
+    @endphp
+    <div style="display:inline-flex; gap:3px; padding:3px; background:#FFFFFF; border:1px solid #E6DAC0; border-radius:11px; {{ ($inline ?? false) ? '' : 'margin-bottom:0.75rem;' }}">
         <button type="button" wire:click="showCashier"
-            style="padding:0.45rem 1rem; border-radius:9px; font-size:0.75rem; font-weight:800; cursor:pointer;
-            {{ ! $isHistory ? 'background:#1F170D; color:#F0DB9D; border:1.5px solid #1F170D;' : 'background:#FFFFFF; color:#7A643E; border:1.5px solid #DFC387;' }}">
+            style="{{ $histTabBase }} {{ ! $isHistory ? 'background:#4F2F2A; color:#F7F0DB;' : 'background:transparent; color:#7A5A52;' }}">
             Kasir
         </button>
         <button type="button" wire:click="showHistory"
-            style="padding:0.45rem 1rem; border-radius:9px; font-size:0.75rem; font-weight:800; cursor:pointer;
-            {{ $isHistory ? 'background:#1F170D; color:#F0DB9D; border:1.5px solid #1F170D;' : 'background:#FFFFFF; color:#7A643E; border:1.5px solid #DFC387;' }}">
+            style="{{ $histTabBase }} {{ $isHistory ? 'background:#4F2F2A; color:#F7F0DB;' : 'background:transparent; color:#7A5A52;' }}">
             Riwayat Transaksi
         </button>
     </div>

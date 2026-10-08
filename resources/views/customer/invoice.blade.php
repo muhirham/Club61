@@ -12,7 +12,7 @@
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" /></svg>
                     </a>
                     <div class="min-w-0">
-                        <h1 class="font-display font-black text-xl sm:text-2xl leading-tight">Invoice &amp; E-Ticket</h1>
+                        <h1 class="font-display font-black text-xl sm:text-2xl leading-tight">Invoice &amp; Booking Code </h1>
                         <p class="hidden sm:block text-xs text-[#7A5A52] mt-0.5">Show the QR code at the front desk when you arrive.</p>
                     </div>
                 </div>

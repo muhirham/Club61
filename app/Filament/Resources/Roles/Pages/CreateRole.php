@@ -30,7 +30,7 @@ class CreateRole extends CreateRecord
             'name' => $data['name'],
             'guard_name' => $data['guard_name'] ?? 'web',
             'description' => $data['description'] ?? null,
-            'home_route' => $data['home_route'] ?? '/admin',
+            'home_route' => ($data['home_route'] ?? null) ?: null, // kosong = otomatis dari permission
         ];
     }
 

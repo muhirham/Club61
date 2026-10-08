@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\Permission\HomeRouteResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -35,26 +36,23 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        // 1. Cek rute home_route yang disetel pada peran pengguna secara eksplisit
-        $primaryRole = $user->roles()->first();
-        if ($primaryRole && ! empty($primaryRole->home_route)) {
+        // 1. HOME ROUTE terdaftar yang dipilih di role → langsung ke sana.
+        // 2. Kosong / tidak terdaftar → otomatis dari permission (Dashboard → POS → KDS → halaman admin
+        //    pertama yang dicentang). Lihat HomeRouteResolver.
+        $configured = HomeRouteResolver::configured($user);
+        $destination = HomeRouteResolver::resolve($user);
+
+        if ($configured !== null || str_starts_with($destination, HomeRouteResolver::ADMIN)) {
             $request->session()->forget('url.intended');
-            return redirect($primaryRole->home_route);
+
+            return redirect($destination);
         }
 
-        // 2. Fallback cerdas berbasis role default
-        if ($user->hasRole('cashier') && $user->roles->count() === 1) {
-            return redirect()->intended('/pos');
-        }
-        if ($user->hasRole('kitchen') && $user->roles->count() === 1) {
-            return redirect()->intended('/kitchen');
-        }
-        if ($user->canAccessPanel(\Filament\Facades\Filament::getPanel('admin'))) {
-            $request->session()->forget('url.intended');
-            return redirect('/admin');
+        if ($destination === HomeRouteResolver::CUSTOMER) {
+            return redirect()->intended(route('dashboard', absolute: false));
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended($destination);
     }
 
     /**

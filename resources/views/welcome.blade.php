@@ -58,11 +58,11 @@
                 @auth
                     @php
                         $loggedUser = auth()->user();
-                        $homeRoute = $loggedUser->roles()->first()?->home_route ?? ($loggedUser->canAccessPanel(\Filament\Facades\Filament::getPanel('admin')) ? '/admin' : '/dashboard');
-                        $buttonLabel = match ($homeRoute) {
-                            '/admin' => __('site.btn_admin_panel'),
-                            '/pos' => __('site.btn_pos_screen'),
-                            '/kitchen' => __('site.btn_kitchen_screen'),
+                        $homeRoute = \App\Services\Permission\HomeRouteResolver::resolve($loggedUser);
+                        $buttonLabel = match (true) {
+                            str_starts_with($homeRoute, '/admin') => __('site.btn_admin_panel'),
+                            $homeRoute === '/pos' => __('site.btn_pos_screen'),
+                            $homeRoute === '/kitchen' => __('site.btn_kitchen_screen'),
                             default => __('site.btn_open_dashboard'),
                         };
                     @endphp
