@@ -1,502 +1,257 @@
-<div class="adm-wrap">
+<div class="c61 bp-wrap">
+    @include('filament.partials.c61-admin-style')
+    {{-- Gaya khusus halaman Biaya & Pajak (toggle, segmented metode, simulator struk). --}}
     <style>
-        .tax-settings-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.5rem;
-        }
-        @media (max-width: 1024px) {
-            .tax-settings-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .tax-card {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1.5px solid #DFC387;
-            border-radius: 18px;
-            box-shadow: 0 10px 30px -10px rgba(160, 120, 30, 0.12);
-            backdrop-filter: blur(16px);
-            padding: 1.5rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.2s ease;
-        }
-        .tax-card:hover {
-            box-shadow: 0 14px 35px -8px rgba(160, 120, 30, 0.18);
-        }
-        .tax-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding-bottom: 1rem;
-            border-bottom: 1.5px solid #F3E8CE;
-            gap: 1rem;
-        }
-        .tax-card-title {
-            font-family: var(--font-serif);
-            font-size: 1.15rem;
-            font-weight: 800;
-            color: #1F170D;
-            line-height: 1.2;
-        }
-        .tax-card-sub {
-            font-size: 0.75rem;
-            color: #7A643E;
-            margin-top: 0.25rem;
-            line-height: 1.4;
-        }
-        /* Modern Switch Toggle */
-        .tax-toggle-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 0.65rem;
-            cursor: pointer;
-            user-select: none;
-        }
-        .tax-toggle-label {
-            font-size: 0.75rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .tax-toggle-active {
-            color: #15803D;
-        }
-        .tax-toggle-inactive {
-            color: #6B7280;
-        }
-        .tax-switch {
-            position: relative;
-            width: 48px;
-            height: 26px;
-            background: #E5E7EB;
-            border-radius: 9999px;
-            transition: background-color 0.2s ease;
-            border: 1px solid #D1D5DB;
-        }
-        .tax-switch.on {
-            background: #16A34A;
-            border-color: #15803D;
-        }
-        .tax-switch-knob {
-            position: absolute;
-            top: 2px;
-            left: 2px;
-            width: 20px;
-            height: 20px;
-            background: #FFFFFF;
-            border-radius: 50%;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .tax-switch.on .tax-switch-knob {
-            transform: translateX(22px);
-        }
-        /* Custom Field Styles */
-        .tax-field-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.4rem;
-        }
-        .tax-label {
-            font-size: 0.725rem;
-            font-weight: 800;
-            color: #4A3A22;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .tax-hint {
-            font-size: 0.6875rem;
-            color: #8C754E;
-            margin-top: 0.15rem;
-        }
-        .tax-input {
-            width: 100%;
-            background: #FFFDF9;
-            border: 1.5px solid #DFC387;
-            border-radius: 10px;
-            padding: 0.6rem 0.85rem;
-            font-size: 0.875rem;
-            color: #1F170D;
-            font-weight: 600;
-            outline: none;
-            transition: border-color 0.15s, box-shadow 0.15s;
-        }
-        .tax-input:focus {
-            border-color: #B38622;
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
-            background: #FFFFFF;
-        }
-        .tax-select {
-            width: 100%;
-            background: #FFFDF9;
-            border: 1.5px solid #DFC387;
-            border-radius: 10px;
-            padding: 0.6rem 0.85rem;
-            font-size: 0.875rem;
-            color: #1F170D;
-            font-weight: 600;
-            outline: none;
-            cursor: pointer;
-            transition: border-color 0.15s;
-        }
-        .tax-select:focus {
-            border-color: #B38622;
-            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
-        }
-        /* Segmented Radio Buttons */
-        .tax-seg-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-        }
-        .tax-seg-btn {
-            padding: 0.6rem 0.5rem;
-            border-radius: 9px;
-            border: 1.5px solid #E5E7EB;
-            background: #F9FAFB;
-            color: #4B5563;
-            font-size: 0.75rem;
-            font-weight: 700;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .tax-seg-btn:hover {
-            background: #FAF5E8;
-            border-color: #DFC387;
-            color: #8C6418;
-        }
-        .tax-seg-btn.active {
-            background: #FAF2DE;
-            border-color: #D4AF37;
-            color: #7A5818;
-            font-weight: 800;
-            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.15);
-        }
-        /* Notice box when disabled */
-        .tax-disabled-notice {
-            background: #F9FAFB;
-            border: 1.5px dashed #D1D5DB;
-            border-radius: 12px;
-            padding: 2rem 1.5rem;
-            text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        /* Simulator Panel */
-        .tax-sim-panel {
-            background: rgba(255, 255, 255, 0.96);
-            border: 1.5px solid #D4AF37;
-            border-radius: 20px;
-            box-shadow: 0 12px 35px -10px rgba(160, 120, 30, 0.15);
-            backdrop-filter: blur(16px);
-            padding: 1.5rem 1.75rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1.25rem;
-        }
-        .tax-sim-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            padding-bottom: 1rem;
-            border-bottom: 1.5px solid #F3E8CE;
-        }
-        .tax-sim-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.25rem;
-        }
-        @media (max-width: 768px) {
-            .tax-sim-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        .tax-slip-card {
-            background: #FFFDF9;
-            border: 1.5px solid #DFC387;
-            border-radius: 14px;
-            padding: 1.25rem;
-            box-shadow: 0 4px 15px rgba(180, 130, 20, 0.06);
-            display: flex;
-            flex-direction: column;
-            gap: 0.85rem;
-        }
-        .tax-slip-badge {
-            display: inline-block;
-            padding: 0.2rem 0.6rem;
-            border-radius: 6px;
-            font-size: 0.65rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .tax-slip-badge-online {
-            background: #FEF3C7;
-            border: 1px solid #FCD34D;
-            color: #92400E;
-        }
-        .tax-slip-badge-pos {
-            background: #E0F2FE;
-            border: 1px solid #BAE6FD;
-            color: #0369A1;
-        }
-        .tax-slip-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.8125rem;
-            color: #5C410F;
-            padding: 0.35rem 0;
-            border-bottom: 1px dashed rgba(223, 195, 135, 0.4);
-        }
-        .tax-slip-total {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            font-size: 0.9375rem;
-            font-weight: 900;
-            color: #1F170D;
-            padding-top: 0.5rem;
-            border-top: 1.5px solid #DFC387;
-        }
-        .tax-quick-btn {
-            padding: 0.35rem 0.75rem;
-            border-radius: 7px;
-            border: 1px solid #DFC387;
-            background: #FFFFFF;
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: #7A5818;
-            cursor: pointer;
-            transition: all 0.1s;
-        }
-        .tax-quick-btn:hover {
-            background: #FAF2DE;
-            border-color: #D4AF37;
-            transform: translateY(-1px);
-        }
-        /* Sticky Save Bar */
-        .tax-save-banner {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(253, 249, 240, 0.96) 100%);
-            border: 2px solid #D4AF37;
-            border-radius: 18px;
-            padding: 1.25rem 1.75rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 1rem;
-            box-shadow: 0 10px 30px -5px rgba(180, 130, 20, 0.2);
-        }
-        .tax-save-btn {
-            padding: 0.75rem 2rem;
-            border-radius: 12px;
-            background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%);
-            border: 1px solid #FBF0CE;
-            color: #281A05;
-            font-weight: 900;
-            font-size: 0.875rem;
-            cursor: pointer;
-            box-shadow: 0 4px 15px rgba(184, 134, 11, 0.3);
-            transition: all 0.15s ease;
-            letter-spacing: 0.03em;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .tax-save-btn:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(184, 134, 11, 0.4);
-            background: linear-gradient(180deg, #F5E5BE 0%, #DFC387 35%, #9E741B 100%);
-        }
+        .bp-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.25rem; align-items: start; }
+        @media (max-width: 1024px) { .bp-grid { grid-template-columns: 1fr; } }
+        .bp-card-head { align-items: flex-start; flex-wrap: nowrap; }
+        .bp-card-head > div:first-child { min-width: 0; }
+        .bp-body { display: flex; flex-direction: column; gap: 1.1rem; }
+        .bp-body .c61-label { margin-bottom: 0.4rem; }
+
+        /* Toggle aktif/nonaktif */
+        .bp-toggle { display: inline-flex; align-items: center; gap: 0.6rem; cursor: pointer; user-select: none; flex-shrink: 0; padding: 0.3rem 0.35rem 0.3rem 0.7rem; border-radius: 999px; border: 1px solid var(--c-line); background: var(--c-paper); }
+        .bp-toggle:hover { border-color: #D8C6A4; }
+        .bp-toggle-label { font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+        .bp-toggle-on { color: #047857; }
+        .bp-toggle-off { color: var(--c-faint); }
+        .bp-switch { position: relative; width: 44px; height: 24px; border-radius: 999px; background: #E7DFD0; border: 1px solid #D8CDB8; transition: background-color 0.2s ease, border-color 0.2s ease; }
+        .bp-switch.on { background: #059669; border-color: #047857; }
+        .bp-switch-knob { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(42, 20, 16, 0.25); transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .bp-switch.on .bp-switch-knob { transform: translateX(20px); }
+
+        /* Pilihan metode (2 kolom sama lebar) */
+        .bp-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 12px; }
+        .bp-seg-btn { height: 36px; padding: 0 0.6rem; border-radius: 9px; border: none; background: transparent; color: var(--c-muted); font-size: 0.8125rem; font-weight: 700; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 0.15s, color 0.15s; }
+        .bp-seg-btn:hover { color: var(--c-terra); background: #FFFFFF; }
+        .bp-seg-btn.active { background: var(--c-terra); color: var(--c-cream); }
+
+        /* Input angka dengan satuan */
+        .bp-affix { position: relative; }
+        .bp-affix .c61-input { height: 46px; padding-right: 3.5rem; font-family: var(--font-mono); font-size: 1.05rem; font-weight: 800; color: var(--c-terra); }
+        .bp-affix-unit { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); min-width: 40px; height: 28px; padding: 0 0.45rem; border-radius: 7px; background: var(--c-cream); color: var(--c-terra); font-size: 0.75rem; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; pointer-events: none; }
+
+        /* Kotak saat nonaktif */
+        .bp-off { border: 1px dashed var(--c-line); border-radius: 14px; background: var(--c-paper); padding: 2rem 1.25rem; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+        .bp-off-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--c-brown); }
+        .bp-off-text { font-size: 0.75rem; color: var(--c-muted); max-width: 340px; line-height: 1.5; }
+
+        /* Simulator */
+        .bp-sim-head { align-items: flex-end; }
+        .bp-sim-head .c61-pill { margin-bottom: 0.45rem; }
+        .bp-sim-ctrl { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
+        .bp-sim-ctrl-label { font-size: 0.75rem; font-weight: 700; color: var(--c-muted); margin-right: 0.15rem; }
+        .bp-sim-input { display: inline-flex; align-items: center; height: 32px; border: 1px solid var(--c-line); border-radius: 8px; background: var(--c-paper); overflow: hidden; padding-left: 0.6rem; }
+        .bp-sim-input:focus-within { border-color: var(--c-terra); box-shadow: 0 0 0 3px rgba(102, 39, 33, 0.12); background: #FFFFFF; }
+        .bp-sim-input span { font-size: 0.6875rem; font-weight: 800; color: var(--c-terra); }
+        .bp-sim-input input { width: 110px; height: 100%; padding: 0 0.5rem; border: none; outline: none; background: transparent; box-shadow: none; font-family: var(--font-mono); font-weight: 800; font-size: 0.8125rem; color: var(--c-brown); }
+        .bp-sim-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+        @media (max-width: 900px) { .bp-sim-grid { grid-template-columns: 1fr; } }
+
+        .bp-slip { background: var(--c-paper); border: 1px solid var(--c-line); border-radius: 14px; padding: 1.1rem 1.15rem; display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+        .bp-slip-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+        .bp-slip-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--c-brown); }
+        .bp-slip-row { display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem; font-size: 0.8125rem; color: var(--c-brown); padding: 0.5rem 0; border-bottom: 1px dashed var(--c-line); }
+        .bp-slip-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+        .bp-rate { font-size: 0.6875rem; font-weight: 700; }
+        .bp-rate-tax { color: #047857; }
+        .bp-rate-fee { color: var(--c-terra); }
+        .bp-amt { font-family: var(--font-mono); font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--c-brown); }
+        .bp-amt.is-tax { color: #047857; }
+        .bp-amt.is-fee { color: var(--c-terra); }
+        .bp-amt.is-off { color: var(--c-faint); font-weight: 700; }
+        .bp-slip-total { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-top: auto; padding: 0.85rem 1rem; border-radius: 12px; background: #FFFFFF; border: 1px solid var(--c-line); }
+        .bp-slip-total-k { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.04em; color: var(--c-brown); }
+        .bp-slip-total-s { font-size: 0.6875rem; color: var(--c-muted); margin-top: 0.15rem; }
+        .bp-slip-total-v { font-family: var(--font-serif); font-size: 1.4rem; font-weight: 600; line-height: 1.1; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--c-terra); }
+        .bp-slip-total-v.is-pos { color: #1D4ED8; }
+
+        .bp-precision { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; flex-wrap: wrap; }
+        .bp-precision > div { flex: 1 1 320px; min-width: 0; }
+
+        /* Bar simpan bawah */
+        .bp-savebar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 1.1rem 1.25rem; background: var(--c-paper); }
+        .bp-savebar-title { font-family: var(--font-serif); font-size: 1.0625rem; font-weight: 600; color: var(--c-brown); }
+        .bp-savebar-sub { font-size: 0.75rem; color: var(--c-muted); margin-top: 0.2rem; }
     </style>
 
     {{-- HEADER BANNER --}}
-    <div class="adm-banner">
+    <div class="c61-hero">
         <div>
-            <div class="adm-pill adm-pill-gold" style="margin-bottom:0.4rem;">
-                <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:#D4AF37;"></span>
-                <span>Konfigurasi Keuangan &bull; Sentral Finansial</span>
-            </div>
-            <div class="adm-banner-title">
-                Pengaturan Biaya Layanan &amp; Pajak Daerah
-            </div>
-            <div class="adm-banner-sub">
+            <div class="c61-eyebrow"><span class="dot"></span>Konfigurasi Keuangan &bull; Sentral Finansial</div>
+            <div class="c61-hero-title">Pengaturan Biaya Layanan &amp; Pajak Daerah</div>
+            <div class="c61-hero-sub">
                 Atur tarif Pajak Daerah (PB1 / PPh) dan Biaya Layanan Transaksi (Admin Fee). Perubahan di sini otomatis berlaku untuk seluruh transaksi booking online (Midtrans), kasir walk-in POS, dan modul klub lainnya.
             </div>
         </div>
 
-        <div style="display:flex; align-items:center; gap:0.5rem;">
-            <button type="button" wire:click="saveSettings" class="tax-save-btn">
+        <div class="c61-hero-actions">
+            <button type="button" wire:click="saveSettings" class="c61-btn c61-btn-cream c61-btn-lg">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
                 <span>Simpan Pengaturan</span>
             </button>
         </div>
     </div>
 
     {{-- DUA KARTU PENGATURAN UTAMA --}}
-    <div class="tax-settings-grid">
+    <div class="bp-grid">
 
         {{-- ================= KARTU 1: PAJAK DAERAH ================= --}}
-        <div class="tax-card">
-            <div class="tax-card-header">
+        <div class="c61-card">
+            <div class="c61-card-head bp-card-head">
                 <div>
-                    <div class="tax-card-title">1. Pajak (PB1 / PPh / PPN)</div>
-                    <div class="tax-card-sub">Pajak resmi atas fasilitas sewa lapangan padel &amp; layanan klub.</div>
+                    <div class="c61-card-title">1. Pajak (PB1 / PPh / PPN)</div>
+                    <div class="c61-card-sub">Pajak resmi atas fasilitas sewa lapangan padel &amp; layanan klub.</div>
                 </div>
 
                 {{-- Toggle Switch --}}
-                <div class="tax-toggle-wrapper" wire:click="toggleTax">
-                    <span class="tax-toggle-label {{ $isTaxEnabled ? 'tax-toggle-active' : 'tax-toggle-inactive' }}">
+                <div class="bp-toggle" wire:click="toggleTax">
+                    <span class="bp-toggle-label {{ $isTaxEnabled ? 'bp-toggle-on' : 'bp-toggle-off' }}">
                         {{ $isTaxEnabled ? 'AKTIF' : 'NONAKTIF' }}
                     </span>
-                    <div class="tax-switch {{ $isTaxEnabled ? 'on' : '' }}">
-                        <div class="tax-switch-knob"></div>
+                    <div class="bp-switch {{ $isTaxEnabled ? 'on' : '' }}">
+                        <div class="bp-switch-knob"></div>
                     </div>
                 </div>
             </div>
 
+            <div class="c61-card-body bp-body">
             @if($isTaxEnabled)
                 {{-- Nama Label Pajak --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Label Nama Pajak di Struk &amp; Invoice</label>
-                    <input type="text" wire:model="taxName" class="tax-input" placeholder="Contoh: PB1 Pajak Daerah (10%)">
-                    <div class="tax-hint">Nama ini akan tercetak jelas di struk kasir termal dan invoice digital pelanggan.</div>
+                <div>
+                    <label class="c61-label">Label Nama Pajak di Struk &amp; Invoice</label>
+                    <input type="text" wire:model="taxName" class="c61-input" placeholder="Contoh: PB1 Pajak Daerah (10%)">
+                    <div class="c61-hint">Nama ini akan tercetak jelas di struk kasir termal dan invoice digital pelanggan.</div>
                 </div>
 
                 {{-- Metode Hitung: Persentase vs Nominal Tetap --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Metode Perhitungan Pajak</label>
-                    <div class="tax-seg-grid">
+                <div>
+                    <label class="c61-label">Metode Perhitungan Pajak</label>
+                    <div class="bp-seg">
                         <button type="button" wire:click="setTaxType('PERCENTAGE')"
-                            class="tax-seg-btn {{ $taxType === 'PERCENTAGE' ? 'active' : '' }}">
+                            class="bp-seg-btn {{ $taxType === 'PERCENTAGE' ? 'active' : '' }}">
                             Persentase (%)
                         </button>
                         <button type="button" wire:click="setTaxType('FIXED')"
-                            class="tax-seg-btn {{ $taxType === 'FIXED' ? 'active' : '' }}">
+                            class="bp-seg-btn {{ $taxType === 'FIXED' ? 'active' : '' }}">
                             Nominal Tetap (Rp)
                         </button>
                     </div>
                 </div>
 
                 {{-- Nilai Tarif --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">
+                <div>
+                    <label class="c61-label">
                         {{ $taxType === 'PERCENTAGE' ? 'Besar Tarif Pajak (%)' : 'Nominal Pajak per Transaksi (Rp)' }}
                     </label>
-                    <div style="position:relative;">
-                        <input type="number" step="{{ $taxType === 'PERCENTAGE' ? '0.5' : '1000' }}" wire:model.live="taxRate" class="tax-input" style="padding-right:3rem; font-family:var(--font-mono); font-weight:800; font-size:1.1rem; color:#8C6418;">
-                        <span style="position:absolute; right:1rem; top:50%; transform:translateY(-50%); font-weight:900; color:#8C6418; font-size:0.875rem;">
+                    <div class="bp-affix">
+                        <input type="number" step="{{ $taxType === 'PERCENTAGE' ? '0.5' : '1000' }}" wire:model.live="taxRate" class="c61-input">
+                        <span class="bp-affix-unit">
                             {{ $taxType === 'PERCENTAGE' ? '%' : 'IDR' }}
                         </span>
                     </div>
-                    <div class="tax-hint">
+                    <div class="c61-hint">
                         {{ $taxType === 'PERCENTAGE' ? 'Pajak dihitung otomatis dari total subtotal sewa lapangan dan peralatan.' : 'Nominal tetap yang ditambahkan ke setiap transaksi tanpa melihat durasi main.' }}
                     </div>
                 </div>
 
                 {{-- Target Kanal --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Saluran Transaksi yang Dikenakan Pajak</label>
-                    <select wire:model.live="taxChannels" class="tax-select">
+                <div>
+                    <label class="c61-label">Saluran Transaksi yang Dikenakan Pajak</label>
+                    <select wire:model.live="taxChannels" class="c61-select">
                         <option value="ALL">Semua Transaksi (Booking Online &amp; Kasir Frontdesk POS)</option>
                         <option value="ONLINE_ONLY">Hanya Booking Online (Website / Mobile via Midtrans)</option>
                         <option value="POS_ONLY">Hanya Transaksi Langsung di Kasir POS Venue</option>
                     </select>
                 </div>
             @else
-                <div class="tax-disabled-notice">
-                    <div style="font-weight:800; color:#4B5563; font-size:0.875rem;">Pajak Sedang Dinonaktifkan</div>
-                    <div style="font-size:0.75rem; color:#6B7280; max-width:320px; line-height:1.4;">
+                <div class="bp-off">
+                    <div class="bp-off-title">Pajak Sedang Dinonaktifkan</div>
+                    <div class="bp-off-text">
                         Pelanggan tidak akan dikenakan biaya pajak. Klik toggle di pojok kanan atas untuk mengaktifkan tarif PB1 / PPh.
                     </div>
                 </div>
             @endif
+            </div>
         </div>
 
         {{-- ================= KARTU 2: BIAYA LAYANAN / ADMIN ================= --}}
-        <div class="tax-card">
-            <div class="tax-card-header">
+        <div class="c61-card">
+            <div class="c61-card-head bp-card-head">
                 <div>
-                    <div class="tax-card-title">2. Biaya Layanan / Admin Fee</div>
-                    <div class="tax-card-sub">Biaya pemrosesan transaksi, sistem administrasi, atau payment gateway.</div>
+                    <div class="c61-card-title">2. Biaya Layanan / Admin Fee</div>
+                    <div class="c61-card-sub">Biaya pemrosesan transaksi, sistem administrasi, atau payment gateway.</div>
                 </div>
 
                 {{-- Toggle Switch --}}
-                <div class="tax-toggle-wrapper" wire:click="toggleAdminFee">
-                    <span class="tax-toggle-label {{ $isAdminFeeEnabled ? 'tax-toggle-active' : 'tax-toggle-inactive' }}">
+                <div class="bp-toggle" wire:click="toggleAdminFee">
+                    <span class="bp-toggle-label {{ $isAdminFeeEnabled ? 'bp-toggle-on' : 'bp-toggle-off' }}">
                         {{ $isAdminFeeEnabled ? 'AKTIF' : 'NONAKTIF' }}
                     </span>
-                    <div class="tax-switch {{ $isAdminFeeEnabled ? 'on' : '' }}">
-                        <div class="tax-switch-knob"></div>
+                    <div class="bp-switch {{ $isAdminFeeEnabled ? 'on' : '' }}">
+                        <div class="bp-switch-knob"></div>
                     </div>
                 </div>
             </div>
 
+            <div class="c61-card-body bp-body">
             @if($isAdminFeeEnabled)
                 {{-- Nama Label Biaya --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Label Nama Biaya di Struk &amp; Invoice</label>
-                    <input type="text" wire:model="adminFeeName" class="tax-input" placeholder="Contoh: Biaya Layanan / Admin">
-                    <div class="tax-hint">Nama item rincian biaya yang akan terlihat oleh pelanggan saat checkout.</div>
+                <div>
+                    <label class="c61-label">Label Nama Biaya di Struk &amp; Invoice</label>
+                    <input type="text" wire:model="adminFeeName" class="c61-input" placeholder="Contoh: Biaya Layanan / Admin">
+                    <div class="c61-hint">Nama item rincian biaya yang akan terlihat oleh pelanggan saat checkout.</div>
                 </div>
 
                 {{-- Metode Hitung: Nominal Tetap vs Persentase --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Metode Perhitungan Biaya</label>
-                    <div class="tax-seg-grid">
+                <div>
+                    <label class="c61-label">Metode Perhitungan Biaya</label>
+                    <div class="bp-seg">
                         <button type="button" wire:click="setAdminFeeType('FIXED')"
-                            class="tax-seg-btn {{ $adminFeeType === 'FIXED' ? 'active' : '' }}">
+                            class="bp-seg-btn {{ $adminFeeType === 'FIXED' ? 'active' : '' }}">
                             Nominal Tetap (Rp)
                         </button>
                         <button type="button" wire:click="setAdminFeeType('PERCENTAGE')"
-                            class="tax-seg-btn {{ $adminFeeType === 'PERCENTAGE' ? 'active' : '' }}">
+                            class="bp-seg-btn {{ $adminFeeType === 'PERCENTAGE' ? 'active' : '' }}">
                             Persentase (%)
                         </button>
                     </div>
                 </div>
 
                 {{-- Nilai Biaya --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">
+                <div>
+                    <label class="c61-label">
                         {{ $adminFeeType === 'FIXED' ? 'Nominal Biaya Admin per Transaksi (Rp)' : 'Persentase Biaya Admin (%)' }}
                     </label>
-                    <div style="position:relative;">
-                        <input type="number" step="{{ $adminFeeType === 'FIXED' ? '500' : '0.5' }}" wire:model.live="adminFeeAmount" class="tax-input" style="padding-right:3rem; font-family:var(--font-mono); font-weight:800; font-size:1.1rem; color:#8C6418;">
-                        <span style="position:absolute; right:1rem; top:50%; transform:translateY(-50%); font-weight:900; color:#8C6418; font-size:0.875rem;">
+                    <div class="bp-affix">
+                        <input type="number" step="{{ $adminFeeType === 'FIXED' ? '500' : '0.5' }}" wire:model.live="adminFeeAmount" class="c61-input">
+                        <span class="bp-affix-unit">
                             {{ $adminFeeType === 'FIXED' ? 'IDR' : '%' }}
                         </span>
                     </div>
-                    <div class="tax-hint">
+                    <div class="c61-hint">
                         {{ $adminFeeType === 'FIXED' ? 'Contoh: Rp 2.500 per booking untuk menutupi biaya payment gateway online.' : 'Biaya admin dihitung proporsional dari nilai transaksi.' }}
                     </div>
                 </div>
 
                 {{-- Target Kanal --}}
-                <div class="tax-field-group">
-                    <label class="tax-label">Saluran Transaksi yang Dikenakan Biaya</label>
-                    <select wire:model.live="adminFeeChannels" class="tax-select">
+                <div>
+                    <label class="c61-label">Saluran Transaksi yang Dikenakan Biaya</label>
+                    <select wire:model.live="adminFeeChannels" class="c61-select">
                         <option value="ONLINE_ONLY">Hanya Booking Online (Midtrans QRIS / Virtual Account)</option>
                         <option value="POS_ONLY">Hanya Transaksi di Kasir Frontdesk POS</option>
                         <option value="ALL">Semua Transaksi (Online &amp; Kasir POS)</option>
                     </select>
                 </div>
             @else
-                <div class="tax-disabled-notice">
-                    <div style="font-weight:800; color:#4B5563; font-size:0.875rem;">Biaya Layanan Sedang Dinonaktifkan</div>
-                    <div style="font-size:0.75rem; color:#6B7280; max-width:320px; line-height:1.4;">
+                <div class="bp-off">
+                    <div class="bp-off-title">Biaya Layanan Sedang Dinonaktifkan</div>
+                    <div class="bp-off-text">
                         Pelanggan tidak dibebankan biaya layanan/admin tambahan. Aktifkan toggle di atas jika ingin menambahkan biaya per transaksi.
                     </div>
                 </div>
             @endif
+            </div>
         </div>
 
     </div>
@@ -506,155 +261,158 @@
         $sim = $this->simulationResult;
     @endphp
 
-    <div class="tax-sim-panel">
-        <div class="tax-sim-head">
+    <div class="c61-card">
+        <div class="c61-card-head bp-sim-head">
             <div>
-                <div style="display:inline-flex; align-items:center; gap:0.35rem; font-size:0.6875rem; font-weight:900; color:#8C6418; text-transform:uppercase; letter-spacing:0.08em; background:#FAF2DE; border:1px solid #D9BE84; border-radius:999px; padding:0.2rem 0.65rem; margin-bottom:0.3rem;">
-                    <span>Pratinjau Hasil Nyata</span>
-                </div>
-                <div style="font-family:var(--font-serif); font-size:1.15rem; font-weight:800; color:#1F170D;">
+                <span class="c61-pill c61-pill-terra">Pratinjau Hasil Nyata</span>
+                <div class="c61-card-title">
                     Simulasi Rincian Tagihan Pelanggan (Live Calculator)
                 </div>
-                <div style="font-size:0.75rem; color:#7A643E; margin-top:0.2rem;">
+                <div class="c61-card-sub">
                     Lihat persis bagaimana angka tagihan dihitung pada layar pelanggan dan kasir dengan pengaturan saat ini.
                 </div>
             </div>
 
             {{-- Pengontrol Nominal Uji Coba --}}
-            <div style="display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap;">
-                <span style="font-size:0.75rem; font-weight:800; color:#5C410F;">Pilih Contoh Sewa:</span>
-                <button type="button" wire:click="setSimulationSubtotal(200000)" class="tax-quick-btn">Rp 200.000</button>
-                <button type="button" wire:click="setSimulationSubtotal(300000)" class="tax-quick-btn">Rp 300.000</button>
-                <button type="button" wire:click="setSimulationSubtotal(500000)" class="tax-quick-btn">Rp 500.000</button>
-                <div style="display:inline-flex; align-items:center; border:1px solid #DFC387; border-radius:8px; background:#FFF; overflow:hidden; padding-left:0.5rem;">
-                    <span style="font-size:0.7rem; color:#8C6418; font-weight:800;">Rp</span>
-                    <input type="number" step="10000" wire:model.live="simulationSubtotal" style="width:110px; padding:0.35rem 0.5rem; border:none; outline:none; font-family:var(--font-mono); font-weight:800; font-size:0.8125rem; color:#1F170D;">
+            <div class="bp-sim-ctrl">
+                <span class="bp-sim-ctrl-label">Pilih Contoh Sewa:</span>
+                <button type="button" wire:click="setSimulationSubtotal(200000)" class="c61-btn c61-btn-ghost c61-btn-sm">Rp 200.000</button>
+                <button type="button" wire:click="setSimulationSubtotal(300000)" class="c61-btn c61-btn-ghost c61-btn-sm">Rp 300.000</button>
+                <button type="button" wire:click="setSimulationSubtotal(500000)" class="c61-btn c61-btn-ghost c61-btn-sm">Rp 500.000</button>
+                <div class="bp-sim-input">
+                    <span>Rp</span>
+                    <input type="number" step="10000" wire:model.live="simulationSubtotal">
                 </div>
             </div>
         </div>
 
-        {{-- 2 Komparasi Kartu Struk: Online vs Kasir POS --}}
-        <div class="tax-sim-grid">
+        <div class="c61-card-body bp-body">
+            {{-- 2 Komparasi Kartu Struk: Online vs Kasir POS --}}
+            <div class="bp-sim-grid">
 
-            {{-- Kolom Kiri: Booking Online --}}
-            <div class="tax-slip-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:900; font-size:0.875rem; color:#1F170D;">Kanal Booking Online</div>
-                    <span class="tax-slip-badge tax-slip-badge-online">Website &bull; Mobile &bull; Midtrans</span>
-                </div>
+                {{-- Kolom Kiri: Booking Online --}}
+                <div class="bp-slip">
+                    <div class="bp-slip-head">
+                        <div class="bp-slip-title">Kanal Booking Online</div>
+                        <span class="c61-pill c61-pill-warn">Website &bull; Mobile &bull; Midtrans</span>
+                    </div>
 
-                <div>
-                    <div class="tax-slip-row">
-                        <span>Sewa Lapangan &amp; Peralatan</span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:#1F170D;">Rp {{ number_format($sim['subtotal'], 0, ',', '.') }}</span>
-                    </div>
-                    <div class="tax-slip-row">
-                        <span>
-                            {{ $isTaxEnabled ? $taxName : 'Pajak Daerah' }}
-                            @if($isTaxEnabled && $sim['online']['tax'] > 0)
-                                <span style="font-size:0.65rem; color:#15803D; font-weight:700;">({{ $taxType === 'PERCENTAGE' ? $taxRate.'%' : 'Tetap' }})</span>
-                            @endif
-                        </span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:{{ $sim['online']['tax'] > 0 ? '#15803D' : '#9CA3AF' }};">
-                            {{ $sim['online']['tax'] > 0 ? '+ Rp '.number_format($sim['online']['tax'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
-                        </span>
-                    </div>
-                    <div class="tax-slip-row">
-                        <span>
-                            {{ $isAdminFeeEnabled ? $adminFeeName : 'Biaya Layanan' }}
-                            @if($isAdminFeeEnabled && $sim['online']['admin'] > 0)
-                                <span style="font-size:0.65rem; color:#8C6418; font-weight:700;">({{ $adminFeeType === 'PERCENTAGE' ? $adminFeeAmount.'%' : 'Tetap' }})</span>
-                            @endif
-                        </span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:{{ $sim['online']['admin'] > 0 ? '#8C6418' : '#9CA3AF' }};">
-                            {{ $sim['online']['admin'] > 0 ? '+ Rp '.number_format($sim['online']['admin'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="tax-slip-total">
                     <div>
-                        <div style="font-size:0.875rem; font-weight:900; color:#1F170D;">TOTAL BAYAR CUSTOMER:</div>
-                        <div style="font-size:0.65rem; color:#6B7280; font-weight:600; margin-top:0.1rem;">Nominal yang dipotong dari saldo / QRIS Midtrans</div>
+                        <div class="bp-slip-row">
+                            <span>Sewa Lapangan &amp; Peralatan</span>
+                            <span class="bp-amt">Rp {{ number_format($sim['subtotal'], 0, ',', '.') }}</span>
+                        </div>
+                        <div class="bp-slip-row">
+                            <span>
+                                {{ $isTaxEnabled ? $taxName : 'Pajak Daerah' }}
+                                @if($isTaxEnabled && $sim['online']['tax'] > 0)
+                                    <span class="bp-rate bp-rate-tax">({{ $taxType === 'PERCENTAGE' ? $taxRate.'%' : 'Tetap' }})</span>
+                                @endif
+                            </span>
+                            <span class="bp-amt {{ $sim['online']['tax'] > 0 ? 'is-tax' : 'is-off' }}">
+                                {{ $sim['online']['tax'] > 0 ? '+ Rp '.number_format($sim['online']['tax'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
+                            </span>
+                        </div>
+                        <div class="bp-slip-row">
+                            <span>
+                                {{ $isAdminFeeEnabled ? $adminFeeName : 'Biaya Layanan' }}
+                                @if($isAdminFeeEnabled && $sim['online']['admin'] > 0)
+                                    <span class="bp-rate bp-rate-fee">({{ $adminFeeType === 'PERCENTAGE' ? $adminFeeAmount.'%' : 'Tetap' }})</span>
+                                @endif
+                            </span>
+                            <span class="bp-amt {{ $sim['online']['admin'] > 0 ? 'is-fee' : 'is-off' }}">
+                                {{ $sim['online']['admin'] > 0 ? '+ Rp '.number_format($sim['online']['admin'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
+                            </span>
+                        </div>
                     </div>
-                    <span style="font-family:var(--font-serif); font-size:1.35rem; font-weight:900; color:#8C6418;">
-                        Rp {{ number_format($sim['online']['grand_total'], 0, ',', '.') }}
-                    </span>
-                </div>
-            </div>
 
-            {{-- Kolom Kanan: Kasir Frontdesk POS --}}
-            <div class="tax-slip-card">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:900; font-size:0.875rem; color:#1F170D;">Kanal Kasir Frontdesk POS</div>
-                    <span class="tax-slip-badge tax-slip-badge-pos">Walk-In &bull; Struk Termal POS</span>
-                </div>
-
-                <div>
-                    <div class="tax-slip-row">
-                        <span>Sewa Lapangan &amp; Peralatan</span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:#1F170D;">Rp {{ number_format($sim['subtotal'], 0, ',', '.') }}</span>
-                    </div>
-                    <div class="tax-slip-row">
-                        <span>
-                            {{ $isTaxEnabled ? $taxName : 'Pajak Daerah' }}
-                            @if($isTaxEnabled && $sim['pos']['tax'] > 0)
-                                <span style="font-size:0.65rem; color:#15803D; font-weight:700;">({{ $taxType === 'PERCENTAGE' ? $taxRate.'%' : 'Tetap' }})</span>
-                            @endif
-                        </span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:{{ $sim['pos']['tax'] > 0 ? '#15803D' : '#9CA3AF' }};">
-                            {{ $sim['pos']['tax'] > 0 ? '+ Rp '.number_format($sim['pos']['tax'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
-                        </span>
-                    </div>
-                    <div class="tax-slip-row">
-                        <span>
-                            {{ $isAdminFeeEnabled ? $adminFeeName : 'Biaya Layanan' }}
-                            @if($isAdminFeeEnabled && $sim['pos']['admin'] > 0)
-                                <span style="font-size:0.65rem; color:#8C6418; font-weight:700;">({{ $adminFeeType === 'PERCENTAGE' ? $adminFeeAmount.'%' : 'Tetap' }})</span>
-                            @endif
-                        </span>
-                        <span style="font-family:var(--font-mono); font-weight:800; color:{{ $sim['pos']['admin'] > 0 ? '#8C6418' : '#9CA3AF' }};">
-                            {{ $sim['pos']['admin'] > 0 ? '+ Rp '.number_format($sim['pos']['admin'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
+                    <div class="bp-slip-total">
+                        <div>
+                            <div class="bp-slip-total-k">TOTAL BAYAR CUSTOMER:</div>
+                            <div class="bp-slip-total-s">Nominal yang dipotong dari saldo / QRIS Midtrans</div>
+                        </div>
+                        <span class="bp-slip-total-v">
+                            Rp {{ number_format($sim['online']['grand_total'], 0, ',', '.') }}
                         </span>
                     </div>
                 </div>
 
-                <div class="tax-slip-total">
+                {{-- Kolom Kanan: Kasir Frontdesk POS --}}
+                <div class="bp-slip">
+                    <div class="bp-slip-head">
+                        <div class="bp-slip-title">Kanal Kasir Frontdesk POS</div>
+                        <span class="c61-pill c61-pill-info">Walk-In &bull; Struk Termal POS</span>
+                    </div>
+
                     <div>
-                        <div style="font-size:0.875rem; font-weight:900; color:#1F170D;">TOTAL DITERIMA KASIR:</div>
-                        <div style="font-size:0.65rem; color:#6B7280; font-weight:600; margin-top:0.1rem;">Nominal yang wajib dibayar di mesin EDC / Tunai</div>
+                        <div class="bp-slip-row">
+                            <span>Sewa Lapangan &amp; Peralatan</span>
+                            <span class="bp-amt">Rp {{ number_format($sim['subtotal'], 0, ',', '.') }}</span>
+                        </div>
+                        <div class="bp-slip-row">
+                            <span>
+                                {{ $isTaxEnabled ? $taxName : 'Pajak Daerah' }}
+                                @if($isTaxEnabled && $sim['pos']['tax'] > 0)
+                                    <span class="bp-rate bp-rate-tax">({{ $taxType === 'PERCENTAGE' ? $taxRate.'%' : 'Tetap' }})</span>
+                                @endif
+                            </span>
+                            <span class="bp-amt {{ $sim['pos']['tax'] > 0 ? 'is-tax' : 'is-off' }}">
+                                {{ $sim['pos']['tax'] > 0 ? '+ Rp '.number_format($sim['pos']['tax'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
+                            </span>
+                        </div>
+                        <div class="bp-slip-row">
+                            <span>
+                                {{ $isAdminFeeEnabled ? $adminFeeName : 'Biaya Layanan' }}
+                                @if($isAdminFeeEnabled && $sim['pos']['admin'] > 0)
+                                    <span class="bp-rate bp-rate-fee">({{ $adminFeeType === 'PERCENTAGE' ? $adminFeeAmount.'%' : 'Tetap' }})</span>
+                                @endif
+                            </span>
+                            <span class="bp-amt {{ $sim['pos']['admin'] > 0 ? 'is-fee' : 'is-off' }}">
+                                {{ $sim['pos']['admin'] > 0 ? '+ Rp '.number_format($sim['pos']['admin'], 0, ',', '.') : 'Rp 0 (Nonaktif)' }}
+                            </span>
+                        </div>
                     </div>
-                    <span style="font-family:var(--font-serif); font-size:1.35rem; font-weight:900; color:#0284C7;">
-                        Rp {{ number_format($sim['pos']['grand_total'], 0, ',', '.') }}
-                    </span>
+
+                    <div class="bp-slip-total">
+                        <div>
+                            <div class="bp-slip-total-k">TOTAL DITERIMA KASIR:</div>
+                            <div class="bp-slip-total-s">Nominal yang wajib dibayar di mesin EDC / Tunai</div>
+                        </div>
+                        <span class="bp-slip-total-v is-pos">
+                            Rp {{ number_format($sim['pos']['grand_total'], 0, ',', '.') }}
+                        </span>
+                    </div>
                 </div>
+
             </div>
 
-        </div>
-
-        {{-- Info Banner Garansi Pembulatan Eksak --}}
-        <div style="background:#FAF8F2; border:1px solid #DFC387; border-radius:10px; padding:0.65rem 0.9rem; font-size:0.75rem; color:#7A5818; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem;">
-            <div>
-                <strong>Garansi Presisi Rupiah:</strong> Seluruh perhitungan menggunakan pembulatan bilangan bulat Rupiah murni tanpa desimal sen, sehingga nilai item Midtrans dan kasir dipastikan cocok 100%.
+            {{-- Info Banner Garansi Pembulatan Eksak --}}
+            <div class="c61-note bp-precision">
+                <div>
+                    <strong>Garansi Presisi Rupiah:</strong> Seluruh perhitungan menggunakan pembulatan bilangan bulat Rupiah murni tanpa desimal sen, sehingga nilai item Midtrans dan kasir dipastikan cocok 100%.
+                </div>
+                <span class="c61-pill c61-pill-cream">
+                    Mata Uang: IDR (Rupiah)
+                </span>
             </div>
-            <span style="font-size:0.7rem; font-weight:800; color:#8C6418; background:#FFF; border:1px solid #DFC387; border-radius:6px; padding:0.2rem 0.5rem;">
-                Mata Uang: IDR (Rupiah)
-            </span>
         </div>
     </div>
 
     {{-- BOTTOM SAVE BAR --}}
-    <div class="tax-save-banner">
-        <div>
-            <div style="font-weight:900; font-size:0.9375rem; color:#1F170D;">Simpan dan Terapkan Konfigurasi</div>
-            <div style="font-size:0.75rem; color:#7A643E; margin-top:0.15rem;">
-                Pastikan seluruh tarif sudah sesuai sebelum mengaktifkan ke sistem operasional venue.
+    <div class="c61-card">
+        <div class="bp-savebar">
+            <div>
+                <div class="bp-savebar-title">Simpan dan Terapkan Konfigurasi</div>
+                <div class="bp-savebar-sub">
+                    Pastikan seluruh tarif sudah sesuai sebelum mengaktifkan ke sistem operasional venue.
+                </div>
             </div>
-        </div>
 
-        <button type="button" wire:click="saveSettings" class="tax-save-btn">
-            <span>Simpan Pengaturan Finansial</span>
-        </button>
+            <button type="button" wire:click="saveSettings" class="c61-btn c61-btn-primary c61-btn-lg">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M5 13l4 4L19 7"/></svg>
+                <span>Simpan Pengaturan Finansial</span>
+            </button>
+        </div>
     </div>
 
 </div>

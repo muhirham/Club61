@@ -1,62 +1,53 @@
-<div class="adm-wrap">
-    <!-- Header Banner -->
-    <div class="adm-banner">
+<div class="c61">
+    @include('filament.partials.c61-admin-style')
+    <style>
+        .mk-code { font-family: var(--font-mono); font-size: 1.25rem; font-weight: 800; color: var(--c-terra); letter-spacing: 0.02em; margin-top: 0.35rem; word-break: break-all; }
+        .mk-name { font-size: 0.8125rem; font-weight: 700; color: var(--c-brown); }
+    </style>
+
+    <div class="c61-hero">
         <div>
-            <div class="adm-pill adm-pill-gold">
-                <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:#D4AF37;"></span>
-                <span>Modul Marketing &bull; Campaign &amp; Vouchers</span>
-            </div>
-            <div class="adm-banner-title">
-                Marketing, Voucher &amp; Promo
-            </div>
-            <div class="adm-banner-sub">
+            <div class="c61-eyebrow"><span class="dot"></span>Modul Marketing &bull; Campaign &amp; Vouchers</div>
+            <div class="c61-hero-title">Marketing, Voucher &amp; Promo</div>
+            <div class="c61-hero-sub">
                 Atur kode kupon diskon lapangan padel, promo happy hour, paket bundling wellness, dan broadcast push notification aplikasi.
             </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button type="button" class="adm-btn-sec" style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE;">
+        <div class="c61-hero-actions">
+            <button type="button" class="c61-btn c61-btn-cream c61-btn-lg">
                 <span>+ Buat Kode Voucher</span>
             </button>
         </div>
     </div>
 
-    <!-- Active Vouchers Grid -->
-    <div class="adm-metrics-grid">
-        <div class="adm-card" style="padding: 1.25rem;">
-            <span class="adm-pill adm-pill-green">Aktif &bull; Diskon 20%</span>
-            <div style="font-family: var(--font-mono); font-size: 1.25rem; font-weight: 900; color: #8C6418; margin-top: 0.5rem;">
-                CLUB61
-            </div>
-            <div style="font-size: 0.75rem; color: #1F170D; font-weight: 700; margin-top: 0.25rem;">Promo Welcome New Member</div>
-            <div style="font-size: 0.6875rem; color: #7A643E; margin-top: 0.5rem;">Terpakai: 48 / 100 Kuota &bull; Exp: 31 Des 2026</div>
+    <div class="c61-kpis">
+        <div class="c61-kpi">
+            <div class="c61-kpi-top"><span class="c61-pill c61-pill-ok">Aktif &bull; Diskon 20%</span></div>
+            <div class="mk-code">CLUB61</div>
+            <div class="mk-name">Promo Welcome New Member</div>
+            <div class="c61-kpi-foot"><span>Terpakai: 48 / 100 Kuota &bull; Exp: 31 Des 2026</span></div>
         </div>
 
-        <div class="adm-card" style="padding: 1.25rem;">
-            <span class="adm-pill adm-pill-gold">Aktif &bull; Potongan Rp 50rb</span>
-            <div style="font-family: var(--font-mono); font-size: 1.25rem; font-weight: 900; color: #8C6418; margin-top: 0.5rem;">
-                HAPPYHOUR
-            </div>
-            <div style="font-size: 0.75rem; color: #1F170D; font-weight: 700; margin-top: 0.25rem;">Khusus Jam 14:00 - 17:00 WIB</div>
-            <div style="font-size: 0.6875rem; color: #7A643E; margin-top: 0.5rem;">Terpakai: 112 Kali &bull; Senin s/d Jumat</div>
+        <div class="c61-kpi">
+            <div class="c61-kpi-top"><span class="c61-pill c61-pill-terra">Aktif &bull; Potongan Rp 50rb</span></div>
+            <div class="mk-code">HAPPYHOUR</div>
+            <div class="mk-name">Khusus Jam 14:00 - 17:00 WIB</div>
+            <div class="c61-kpi-foot"><span>Terpakai: 112 Kali &bull; Senin s/d Jumat</span></div>
         </div>
 
-        <div class="adm-card" style="padding: 1.25rem;">
-            <span class="adm-pill adm-pill-green">Aktif &bull; Free Sauna</span>
-            <div style="font-family: var(--font-mono); font-size: 1.25rem; font-weight: 900; color: #8C6418; margin-top: 0.5rem;">
-                WELLNESSPACK
-            </div>
-            <div style="font-size: 0.75rem; color: #1F170D; font-weight: 700; margin-top: 0.25rem;">Bundling Main Padel 2 Jam</div>
-            <div style="font-size: 0.6875rem; color: #7A643E; margin-top: 0.5rem;">Terpakai: 35 Kali &bull; Recovery Reward</div>
+        <div class="c61-kpi">
+            <div class="c61-kpi-top"><span class="c61-pill c61-pill-ok">Aktif &bull; Free Sauna</span></div>
+            <div class="mk-code">WELLNESSPACK</div>
+            <div class="mk-name">Bundling Main Padel 2 Jam</div>
+            <div class="c61-kpi-foot"><span>Terpakai: 35 Kali &bull; Recovery Reward</span></div>
         </div>
 
-        <div class="adm-card" style="padding: 1.25rem;">
-            <span class="adm-pill adm-pill-gold">Referral 10%</span>
-            <div style="font-family: var(--font-mono); font-size: 1.25rem; font-weight: 900; color: #8C6418; margin-top: 0.5rem;">
-                MEMBERGETMEMBER
-            </div>
-            <div style="font-size: 0.75rem; color: #1F170D; font-weight: 700; margin-top: 0.25rem;">Ajak Teman Gabung VIP</div>
-            <div style="font-size: 0.6875rem; color: #7A643E; margin-top: 0.5rem;">Dapat Ekstra Diskon per Member Baru</div>
+        <div class="c61-kpi">
+            <div class="c61-kpi-top"><span class="c61-pill c61-pill-terra">Referral 10%</span></div>
+            <div class="mk-code">MEMBERGETMEMBER</div>
+            <div class="mk-name">Ajak Teman Gabung VIP</div>
+            <div class="c61-kpi-foot"><span>Dapat Ekstra Diskon per Member Baru</span></div>
         </div>
     </div>
 </div>

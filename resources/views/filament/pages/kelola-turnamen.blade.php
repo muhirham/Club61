@@ -1,86 +1,60 @@
-<div class="adm-wrap">
-    <!-- Header Banner -->
-    <div class="adm-banner">
+<div class="c61">
+    @include('filament.partials.c61-admin-style')
+    <style>
+        .tn-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 1.25rem; }
+        .tn-kv { grid-template-columns: 1fr 1fr; }
+        .tn-kv .v.money { font-family: var(--font-mono); font-size: 1rem; color: var(--c-terra); }
+    </style>
+
+    <div class="c61-hero">
         <div>
-            <div class="adm-pill adm-pill-gold">
-                <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:#D4AF37;"></span>
-                <span>Modul Turnamen &bull; Event Management</span>
-            </div>
-            <div class="adm-banner-title">
-                Kelola Turnamen &amp; Kejuaraan Padel
-            </div>
-            <div class="adm-banner-sub">
+            <div class="c61-eyebrow"><span class="dot"></span>Modul Turnamen &bull; Event Management</div>
+            <div class="c61-hero-title">Kelola Turnamen &amp; Kejuaraan Padel</div>
+            <div class="c61-hero-sub">
                 Susun bagan pertandingan (bracket), pendaftaran tim ganda (doubles), penetapan prize pool, dan sponsor turnamen.
             </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <button type="button" class="adm-btn-sec" style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE;">
+        <div class="c61-hero-actions">
+            <button type="button" class="c61-btn c61-btn-cream c61-btn-lg">
                 <span>+ Buat Turnamen Baru</span>
             </button>
         </div>
     </div>
 
-    <!-- Active Tournaments Cards -->
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem;">
-        <div class="adm-card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div class="tn-grid">
+        <div class="c61-card">
+            <div class="c61-card-head">
                 <div>
-                    <span class="adm-pill adm-pill-gold">Pendaftaran Dibuka</span>
-                    <div style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 900; color: #1F170D; margin-top: 0.5rem;">
-                        Club 61 Open Championship 2026
-                    </div>
-                    <div style="font-size: 0.75rem; color: #8C6418; font-weight: 600;">Kategori: Men's Doubles &bull; Open Grade A</div>
+                    <span class="c61-pill c61-pill-terra">Pendaftaran Dibuka</span>
+                    <div class="c61-card-title" style="margin-top: 0.5rem;">Club 61 Open Championship 2026</div>
+                    <div class="c61-card-sub">Kategori: Men's Doubles &bull; Open Grade A</div>
                 </div>
             </div>
-            
-            <div style="margin-top: 1.25rem; padding: 1rem; background: #FAF5E8; border-radius: 14px; font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                <div>
-                    <div style="color: #8C7A58;">Total Hadiah (Prize Pool):</div>
-                    <div style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #B8860B;">Rp 25.000.000</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Slot Peserta:</div>
-                    <div style="font-weight: 800; font-size: 1rem; color: #1F170D;">24 / 32 Pasang</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Tanggal Tanding:</div>
-                    <div style="font-weight: 700; color: #1F170D;">15 - 17 Juni 2026</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Biaya Registrasi:</div>
-                    <div style="font-weight: 700; color: #1F170D;">Rp 500.000 / Tim</div>
+            <div class="c61-card-body">
+                <div class="c61-kv tn-kv">
+                    <div><div class="k">Total Hadiah (Prize Pool):</div><div class="v money">Rp 25.000.000</div></div>
+                    <div><div class="k">Slot Peserta:</div><div class="v">24 / 32 Pasang</div></div>
+                    <div><div class="k">Tanggal Tanding:</div><div class="v">15 - 17 Juni 2026</div></div>
+                    <div><div class="k">Biaya Registrasi:</div><div class="v">Rp 500.000 / Tim</div></div>
                 </div>
             </div>
         </div>
 
-        <div class="adm-card">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="c61-card">
+            <div class="c61-card-head">
                 <div>
-                    <span class="adm-pill adm-pill-green">Segera Hadir</span>
-                    <div style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 900; color: #1F170D; margin-top: 0.5rem;">
-                        Club 61 Invitational Mixed Doubles
-                    </div>
-                    <div style="font-size: 0.75rem; color: #8C6418; font-weight: 600;">Kategori: Mixed Doubles &bull; Member Only</div>
+                    <span class="c61-pill c61-pill-ok">Segera Hadir</span>
+                    <div class="c61-card-title" style="margin-top: 0.5rem;">Club 61 Invitational Mixed Doubles</div>
+                    <div class="c61-card-sub">Kategori: Mixed Doubles &bull; Member Only</div>
                 </div>
             </div>
-            
-            <div style="margin-top: 1.25rem; padding: 1rem; background: #FAF5E8; border-radius: 14px; font-size: 0.75rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                <div>
-                    <div style="color: #8C7A58;">Total Hadiah (Prize Pool):</div>
-                    <div style="font-family: var(--font-mono); font-weight: 800; font-size: 1rem; color: #B8860B;">Rp 10.000.000</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Slot Peserta:</div>
-                    <div style="font-weight: 800; font-size: 1rem; color: #1F170D;">16 Pasang</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Tanggal Tanding:</div>
-                    <div style="font-weight: 700; color: #1F170D;">10 Juli 2026</div>
-                </div>
-                <div>
-                    <div style="color: #8C7A58;">Biaya Registrasi:</div>
-                    <div style="font-weight: 700; color: #1F170D;">Gratis (Khusus Member VIP)</div>
+            <div class="c61-card-body">
+                <div class="c61-kv tn-kv">
+                    <div><div class="k">Total Hadiah (Prize Pool):</div><div class="v money">Rp 10.000.000</div></div>
+                    <div><div class="k">Slot Peserta:</div><div class="v">16 Pasang</div></div>
+                    <div><div class="k">Tanggal Tanding:</div><div class="v">10 Juli 2026</div></div>
+                    <div><div class="k">Biaya Registrasi:</div><div class="v">Gratis (Khusus Member VIP)</div></div>
                 </div>
             </div>
         </div>

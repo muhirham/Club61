@@ -10,7 +10,7 @@
         @include($view, $data)
     </div>
     <button type="button" x-on:click="print()"
-        style="padding:0.5rem 1.1rem; border-radius:10px; background:#D4AF37; color:#1F170D; font-weight:800; font-size:0.8rem; border:1.5px solid #B8932A;">
+        style="padding:0.5rem 1.1rem; border-radius:10px; background:#662721; color:#F7F0DB; font-weight:800; font-size:0.8rem; border:1.5px solid #B8932A;">
         Cetak Salinan
     </button>
 </div>

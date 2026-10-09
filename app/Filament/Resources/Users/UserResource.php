@@ -29,6 +29,10 @@ class UserResource extends Resource
 
     protected static ?string $navigationLabel = 'Kelola Pengguna';
 
+    protected static ?string $modelLabel = 'Pengguna';
+
+    protected static ?string $pluralModelLabel = 'Kelola Pengguna';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Karyawan & Akses';
 
     protected static ?int $navigationSort = 2;

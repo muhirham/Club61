@@ -8,50 +8,40 @@
     <!-- Google Fonts: Luxury Serif, Athletic Sans, and Monospace -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=JetBrains+Mono:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@87.5..125,400..800&family=Source+Serif+4:opsz,wght@8..60,400..700&family=JetBrains+Mono:wght@600;700;800&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="h-full font-sans antialiased text-[#1F170D] bg-[#FBF9F5] selection:bg-[#D4AF37] selection:text-[#1E160A] flex flex-col relative overflow-hidden"
-      style="background-image: url('{{ asset('images/white-gold-marble.jpg') }}'); background-size: cover; background-position: center; background-repeat: no-repeat; background-attachment: fixed;">
+<body class="h-full font-brand antialiased text-[#4F2F2A] bg-[#F7F0DB] selection:bg-[#662721] selection:text-[#F7F0DB] flex flex-col relative overflow-hidden">
 
-    <!-- Ambient Warm Gold Luxury Lighting -->
-    <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div class="absolute -top-32 left-1/4 w-[850px] h-[550px] bg-gradient-to-b from-amber-300/20 via-yellow-500/10 to-transparent blur-3xl rounded-full"></div>
-        <div class="absolute -bottom-32 right-1/4 w-[700px] h-[500px] bg-[#D4AF37]/15 blur-3xl rounded-full"></div>
-    </div>
-
-    <!-- Top KDS Bar: Frosted White Marble Glass with Polished Gold Trim -->
-    <header class="relative z-20 bg-white/90 backdrop-blur-xl border-b border-[#D4AF37]/40 px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
+    <!-- Top KDS Bar: pita terakota brand (sama dengan header POS kasir) -->
+    <header class="relative z-20 bg-[#662721] px-6 py-3 flex items-center justify-between shadow-sm shrink-0">
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl flex items-center justify-center shadow-md overflow-hidden p-1"
-                     style="background: linear-gradient(135deg, #2D210F 0%, #171006 100%); border: 1.5px solid #E5C378;">
-                    <img src="{{ asset('images/club61-logo.png') }}" alt="Club 61 Logo" class="w-full h-full object-contain">
-                </div>
+                <img src="{{ asset('images/identity/monogram-cream.png') }}" alt="Club 61 Logo" class="w-10 h-10 object-contain">
                 <div>
-                    <div class="font-serif font-black text-[#1F170D] text-base tracking-wider flex items-center gap-2">
+                    <div class="font-display font-bold text-[#F7F0DB] text-lg tracking-wide flex items-center gap-2 whitespace-nowrap">
                         <span>CLUB 61 KDS</span>
                         <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm"
-                              style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                              style="background: rgba(247,240,219,0.12); border: 1px solid rgba(247,240,219,0.35); color: #F7F0DB;">
                             Live Monitor
                         </span>
                     </div>
-                    <div class="text-[11px] text-[#7A643E] font-medium -mt-0.5">Kitchen &amp; Barista Order Dispatch System &bull; Club 61 Medan</div>
+                    <div class="text-[11px] text-[#F7F0DB]/70 font-medium -mt-0.5">Kitchen &amp; Barista Order Dispatch System &bull; Club 61 Medan</div>
                 </div>
             </div>
 
             <!-- Station Filters -->
-            <div class="hidden sm:flex items-center gap-2 pl-6 border-l border-[#DFC387]/60">
+            <div class="hidden sm:flex items-center gap-2 pl-6 border-l border-[#F7F0DB]/25">
                 <button class="px-3.5 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all shadow-md transform active:scale-95 cursor-pointer"
-                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1.5px solid #FBF0CE; color: #281A05; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.3);">
+                        style="background: #F7F0DB; border: 1.5px solid #F7F0DB; color: #662721;">
                     Semua Stasiun (3)
                 </button>
-                <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:bg-white cursor-pointer"
-                        style="background: rgba(255, 255, 255, 0.85); border: 1.5px solid #DFC387; color: #5C410F;">
+                <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:bg-white/10 cursor-pointer"
+                        style="background: transparent; border: 1.5px solid rgba(247,240,219,0.4); color: #F7F0DB;">
                     Bar Kopi (2)
                 </button>
-                <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:bg-white cursor-pointer"
-                        style="background: rgba(255, 255, 255, 0.85); border: 1.5px solid #DFC387; color: #5C410F;">
+                <button class="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:bg-white/10 cursor-pointer"
+                        style="background: transparent; border: 1.5px solid rgba(247,240,219,0.4); color: #F7F0DB;">
                     Dapur Masak (1)
                 </button>
             </div>
@@ -60,9 +50,9 @@
         <!-- Operator & Logout -->
         <div class="flex items-center gap-4">
             <div class="text-right hidden sm:block">
-                <div class="text-xs font-bold text-[#1F170D]">{{ Auth::user()->name ?? 'Barista Cafe Club 61' }}</div>
+                <div class="text-xs font-bold text-[#F7F0DB]">{{ Auth::user()->name ?? 'Barista Cafe Club 61' }}</div>
                 <div class="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full inline-block mt-0.5 shadow-sm"
-                     style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                     style="background: rgba(247,240,219,0.12); border: 1px solid rgba(247,240,219,0.35); color: #F7F0DB;">
                     Peran: {{ Auth::user()->role ?? 'KITCHEN' }}
                 </div>
             </div>
@@ -70,7 +60,7 @@
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" 
-                        class="p-2 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-sm" 
+                        class="p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-[#F7F0DB]/30 text-[#F7F0DB] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer" 
                         title="Keluar">
                     <svg class="w-4 h-4 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -88,28 +78,28 @@
             <!-- TICKET 1: In Progress (Polished Gold Luxury) -->
             <div id="ticket-1" class="rounded-3xl p-5 flex flex-col justify-between relative overflow-hidden transition-all duration-300"
                  style="background: linear-gradient(135deg, rgba(255, 255, 255, 0.96) 0%, rgba(253, 249, 240, 0.92) 100%);
-                        border: 2px solid #D4AF37;
+                        border: 2px solid #662721;
                         border-radius: 26px;
                         box-shadow: 0 16px 36px -10px rgba(160, 120, 30, 0.22), 0 0 15px rgba(212, 175, 55, 0.15);
                         backdrop-filter: blur(16px);">
-                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: linear-gradient(90deg, #F0DB9D, #D4AF37, #B38622);"></div>
+                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: #662721;"></div>
                 
                 <div>
                     <!-- Ticket Header -->
-                    <div class="flex items-center justify-between pb-3 border-b border-[#DFC387]/60">
+                    <div class="flex items-center justify-between pb-3 border-b border-[#E6DAC0]/60">
                         <div>
-                            <span class="font-mono text-base font-black text-[#1F170D]">#TKT-041</span>
-                            <div class="text-xs font-bold text-[#8C6418] flex items-center gap-1 mt-0.5">
+                            <span class="font-mono text-base font-black text-[#4F2F2A]">#TKT-041</span>
+                            <div class="text-xs font-bold text-[#662721] flex items-center gap-1 mt-0.5">
                                 <span>Meja 01 (Table 01)</span>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="font-mono text-sm font-extrabold text-[#B8860B] flex items-center justify-end gap-1.5">
-                                <span class="w-2 h-2 rounded-full animate-ping" style="background-color: #D4AF37;"></span>
+                            <div class="font-mono text-sm font-extrabold text-[#662721] flex items-center justify-end gap-1.5">
+                                <span class="w-2 h-2 rounded-full animate-ping" style="background-color: #662721;"></span>
                                 <span>03:45</span>
                             </div>
                             <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block shadow-sm"
-                                  style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                                  style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">
                                 Sedang Dibuat
                             </span>
                         </div>
@@ -119,12 +109,12 @@
                     <div class="py-4 space-y-3">
                         <div class="flex items-start justify-between">
                             <div>
-                                <div class="text-sm font-extrabold text-[#1F170D] flex items-center gap-2">
+                                <div class="text-sm font-extrabold text-[#4F2F2A] flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shadow-sm"
-                                          style="background: linear-gradient(135deg, #FAF2DE 0%, #F5E5BE 100%); border: 1px solid #D9BE84; color: #5C410F;">2x</span>
+                                          style="background: linear-gradient(135deg, #F7F0DB 0%, #F7F0DB 100%); border: 1px solid #E6DAC0; color: #4F2F2A;">2x</span>
                                     <span>Iced Spanish Latte</span>
                                 </div>
-                                <div class="text-xs text-[#6B5738] pl-8 space-y-0.5 font-medium mt-1">
+                                <div class="text-xs text-[#7A5A52] pl-8 space-y-0.5 font-medium mt-1">
                                     <div>&bull; Less Sugar (50%)</div>
                                     <div>&bull; Normal Ice</div>
                                 </div>
@@ -133,12 +123,12 @@
 
                         <div class="flex items-start justify-between">
                             <div>
-                                <div class="text-sm font-extrabold text-[#1F170D] flex items-center gap-2">
+                                <div class="text-sm font-extrabold text-[#4F2F2A] flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shadow-sm"
-                                          style="background: linear-gradient(135deg, #FAF2DE 0%, #F5E5BE 100%); border: 1px solid #D9BE84; color: #5C410F;">1x</span>
+                                          style="background: linear-gradient(135deg, #F7F0DB 0%, #F7F0DB 100%); border: 1px solid #E6DAC0; color: #4F2F2A;">1x</span>
                                     <span>Ceremonial Oat Matcha</span>
                                 </div>
-                                <div class="text-xs text-[#6B5738] pl-8 font-medium mt-1">
+                                <div class="text-xs text-[#7A5A52] pl-8 font-medium mt-1">
                                     <div>&bull; Extra Oatside Milk</div>
                                 </div>
                             </div>
@@ -149,7 +139,7 @@
                 <!-- Ticket Action Button -->
                 <button onclick="serveTicket('ticket-1')" 
                         class="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 transform active:scale-95 hover:brightness-105 flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
-                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1.5px solid #FBF0CE; color: #281A05; box-shadow: 0 6px 20px rgba(184, 134, 11, 0.35);">
+                        style="background: #662721; border: 1.5px solid #662721; color: #F7F0DB; box-shadow: 0 6px 20px rgba(102,39,33,0.25);">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                     </svg>
@@ -170,7 +160,7 @@
                     <!-- Ticket Header -->
                     <div class="flex items-center justify-between pb-3 border-b border-rose-200">
                         <div>
-                            <span class="font-mono text-base font-black text-[#1F170D]">#TKT-042</span>
+                            <span class="font-mono text-base font-black text-[#4F2F2A]">#TKT-042</span>
                             <div class="text-xs font-bold text-rose-700 flex items-center gap-1 mt-0.5">
                                 <span>Lapangan 02 (Court 2)</span>
                             </div>
@@ -190,11 +180,11 @@
                     <div class="py-4 space-y-3">
                         <div class="flex items-start justify-between">
                             <div>
-                                <div class="text-sm font-extrabold text-[#1F170D] flex items-center gap-2">
+                                <div class="text-sm font-extrabold text-[#4F2F2A] flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg bg-rose-100 text-rose-800 font-mono text-xs flex items-center justify-center font-bold border border-rose-200">2x</span>
                                     <span>Smashed Avocado Toast</span>
                                 </div>
-                                <div class="text-xs text-[#6B5738] pl-8 space-y-0.5 font-medium mt-1">
+                                <div class="text-xs text-[#7A5A52] pl-8 space-y-0.5 font-medium mt-1">
                                     <div>&bull; Telur Poached Setengah Matang</div>
                                     <div>&bull; Extra Feta Cheese</div>
                                 </div>
@@ -221,24 +211,24 @@
                         border-radius: 26px;
                         box-shadow: 0 16px 36px -10px rgba(160, 120, 30, 0.2), 0 0 15px rgba(212, 175, 55, 0.12);
                         backdrop-filter: blur(16px);">
-                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: linear-gradient(90deg, #D4AF37, #B38622);"></div>
+                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: #662721;"></div>
 
                 <div>
                     <!-- Ticket Header -->
-                    <div class="flex items-center justify-between pb-3 border-b border-[#DFC387]/60">
+                    <div class="flex items-center justify-between pb-3 border-b border-[#E6DAC0]/60">
                         <div>
-                            <span class="font-mono text-base font-black text-[#1F170D]">#TKT-043</span>
-                            <div class="text-xs font-bold text-[#8C6418] flex items-center gap-1 mt-0.5">
+                            <span class="font-mono text-base font-black text-[#4F2F2A]">#TKT-043</span>
+                            <div class="text-xs font-bold text-[#662721] flex items-center gap-1 mt-0.5">
                                 <span>VIP Lounge 1</span>
                             </div>
                         </div>
                         <div class="text-right">
-                            <div class="font-mono text-sm font-extrabold text-[#8C6418] flex items-center justify-end gap-1.5">
-                                <span class="w-2 h-2 rounded-full" style="background-color: #D4AF37;"></span>
+                            <div class="font-mono text-sm font-extrabold text-[#662721] flex items-center justify-end gap-1.5">
+                                <span class="w-2 h-2 rounded-full" style="background-color: #662721;"></span>
                                 <span>01:15</span>
                             </div>
                             <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block shadow-sm"
-                                  style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                                  style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">
                                 Pesanan Baru
                             </span>
                         </div>
@@ -248,12 +238,12 @@
                     <div class="py-4 space-y-3">
                         <div class="flex items-start justify-between">
                             <div>
-                                <div class="text-sm font-extrabold text-[#1F170D] flex items-center gap-2">
+                                <div class="text-sm font-extrabold text-[#4F2F2A] flex items-center gap-2">
                                     <span class="w-6 h-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shadow-sm"
-                                          style="background: linear-gradient(135deg, #FAF2DE 0%, #F5E5BE 100%); border: 1px solid #D9BE84; color: #5C410F;">1x</span>
+                                          style="background: linear-gradient(135deg, #F7F0DB 0%, #F7F0DB 100%); border: 1px solid #E6DAC0; color: #4F2F2A;">1x</span>
                                     <span>Single Origin Americano</span>
                                 </div>
-                                <div class="text-xs text-[#6B5738] pl-8 font-medium mt-1">
+                                <div class="text-xs text-[#7A5A52] pl-8 font-medium mt-1">
                                     <div>&bull; Hot / Chilled Double Shot</div>
                                 </div>
                             </div>
@@ -264,7 +254,7 @@
                 <!-- Ticket Action Button -->
                 <button onclick="serveTicket('ticket-3')" 
                         class="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 transform active:scale-95 hover:brightness-105 flex items-center justify-center gap-2 cursor-pointer shadow-lg mt-2"
-                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1.5px solid #FBF0CE; color: #281A05; box-shadow: 0 6px 20px rgba(184, 134, 11, 0.35);">
+                        style="background: #662721; border: 1.5px solid #662721; color: #F7F0DB; box-shadow: 0 6px 20px rgba(102,39,33,0.25);">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                     </svg>
@@ -284,36 +274,36 @@
             ticket.innerHTML = `
                 <div class="p-8 text-center my-auto">
                     <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-emerald-100 border border-emerald-300 flex items-center justify-center text-emerald-700 font-bold text-lg">OK</div>
-                    <div class="font-serif font-black text-base text-[#1F170D]">Pesanan Selesai Disajikan!</div>
-                    <div class="text-xs text-[#7A643E] font-medium mt-1">Status KDS terupdate otomatis ke kasir POS.</div>
+                    <div class="font-display font-black text-base text-[#4F2F2A]">Pesanan Selesai Disajikan!</div>
+                    <div class="text-xs text-[#7A5A52] font-medium mt-1">Status KDS terupdate otomatis ke kasir POS.</div>
                 </div>
             `;
         }
 
         function startCook(id) {
             const ticket = document.getElementById(id);
-            ticket.style.border = '2px solid #D4AF37';
+            ticket.style.border = '2px solid #662721';
             ticket.style.boxShadow = '0 16px 36px -10px rgba(160, 120, 30, 0.22), 0 0 15px rgba(212, 175, 55, 0.15)';
             ticket.innerHTML = `
-                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: linear-gradient(90deg, #F0DB9D, #D4AF37, #B38622);"></div>
-                <div class="pb-3 border-b border-[#DFC387]/60 flex items-center justify-between">
+                <div class="absolute top-0 left-0 right-0 h-1.5" style="background: #662721;"></div>
+                <div class="pb-3 border-b border-[#E6DAC0]/60 flex items-center justify-between">
                     <div>
-                        <span class="font-mono text-base font-black text-[#1F170D]">#TKT-042</span>
-                        <div class="text-xs font-bold text-[#8C6418] mt-0.5">Lapangan 02</div>
+                        <span class="font-mono text-base font-black text-[#4F2F2A]">#TKT-042</span>
+                        <div class="text-xs font-bold text-[#662721] mt-0.5">Lapangan 02</div>
                     </div>
                     <span class="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full inline-block shadow-sm"
-                          style="background: #FAF2DE; border: 1px solid #D9BE84; color: #7A5818;">
+                          style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">
                         Sedang Dimasak
                     </span>
                 </div>
-                <div class="py-5 text-sm text-[#1F170D] font-extrabold flex items-center gap-2">
+                <div class="py-5 text-sm text-[#4F2F2A] font-extrabold flex items-center gap-2">
                     <span class="w-6 h-6 rounded-lg font-mono text-xs flex items-center justify-center font-bold shadow-sm"
-                          style="background: linear-gradient(135deg, #FAF2DE 0%, #F5E5BE 100%); border: 1px solid #D9BE84; color: #5C410F;">2x</span>
+                          style="background: linear-gradient(135deg, #F7F0DB 0%, #F7F0DB 100%); border: 1px solid #E6DAC0; color: #4F2F2A;">2x</span>
                     <span>Smashed Avocado Toast</span>
                 </div>
                 <button onclick="serveTicket('${id}')" 
                         class="w-full py-3 rounded-2xl font-black text-xs uppercase tracking-wider transition-all duration-200 transform active:scale-95 hover:brightness-105 flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); border: 1.5px solid #FBF0CE; color: #281A05; box-shadow: 0 6px 20px rgba(184, 134, 11, 0.35);">
+                        style="background: #662721; border: 1.5px solid #662721; color: #F7F0DB; box-shadow: 0 6px 20px rgba(102,39,33,0.25);">
                     <span>Selesai &amp; Siap Sajikan</span>
                 </button>
             `;
