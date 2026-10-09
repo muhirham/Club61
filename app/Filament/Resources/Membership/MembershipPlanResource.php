@@ -39,6 +39,10 @@ class MembershipPlanResource extends Resource
 
     protected static ?string $navigationLabel = 'Paket Membership';
 
+    protected static ?string $modelLabel = 'Paket Membership';
+
+    protected static ?string $pluralModelLabel = 'Paket Membership';
+
     protected static string|UnitEnum|null $navigationGroup = 'Customer & Membership';
 
     protected static ?int $navigationSort = 2;

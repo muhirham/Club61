@@ -159,6 +159,97 @@
         box-shadow: 0 0 0 2px rgba(247, 240, 219, 0.35) !important;
     }
 
+    /* ===== Halaman resource Filament bawaan yang sudah dimigrasi ke brand =====
+       Daftar halaman ada di :is(...) — tambah class halaman di sini saat resource berikutnya dimigrasi. */
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header {
+        position: relative;
+        overflow: hidden;
+        background: var(--c61-terra);
+        border-radius: 20px;
+        padding: 1.5rem 1.75rem;
+        color: var(--c61-cream);
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header::after {
+        content: '';
+        position: absolute;
+        right: -40px;
+        top: 50%;
+        width: 240px;
+        height: 240px;
+        transform: translateY(-50%);
+        background: url('{{ asset('images/identity/monogram-cream.png') }}') center / contain no-repeat;
+        opacity: 0.07;
+        pointer-events: none;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header-heading {
+        font-family: var(--font-serif) !important;
+        font-weight: 600 !important;
+        font-size: 1.75rem !important;
+        letter-spacing: 0 !important;
+        color: var(--c61-cream) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header-subheading,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-breadcrumbs,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-breadcrumbs * {
+        color: rgba(247, 240, 219, 0.75) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn {
+        background: var(--c61-cream) !important;
+        color: var(--c61-terra) !important;
+        box-shadow: none !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn:hover {
+        background: #FFFFFF !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn .fi-icon {
+        color: var(--c61-terra) !important;
+    }
+
+    /* Tabel & kartu form: border krem tipis, header kolom kecil kapital (sama dengan tabel .c61-table). */
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-ctn,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-section {
+        border: 1px solid var(--c61-line) !important;
+        border-radius: 18px !important;
+        box-shadow: none !important;
+        overflow: hidden;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-selection-cell:is(th) {
+        background: var(--c61-paper) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell .fi-ta-header-cell-sort-btn {
+        font-size: 0.625rem !important;
+        font-weight: 800 !important;
+        letter-spacing: 0.08em !important;
+        text-transform: uppercase !important;
+        color: var(--c61-muted) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-row:hover {
+        background: #FDFAF2 !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-section-header-heading {
+        font-family: var(--font-serif) !important;
+        font-size: 1.1875rem !important;
+        font-weight: 600 !important;
+        color: var(--c61-brown) !important;
+    }
+
     /* Hide default filament page header so custom banner takes its place seamlessly */
     .fi-page-header {
         display: none !important;
