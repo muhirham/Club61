@@ -161,7 +161,7 @@
 
     /* ===== Halaman resource Filament bawaan yang sudah dimigrasi ke brand =====
        Daftar halaman ada di :is(...) — tambah class halaman di sini saat resource berikutnya dimigrasi. */
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header {
         position: relative;
         overflow: hidden;
         background: var(--c61-terra);
@@ -170,7 +170,7 @@
         color: var(--c61-cream);
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header::after {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header::after {
         content: '';
         position: absolute;
         right: -40px;
@@ -183,12 +183,12 @@
         pointer-events: none;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header > * {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header > * {
         position: relative;
         z-index: 1;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header-heading {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header-heading {
         font-family: var(--font-serif) !important;
         font-weight: 600 !important;
         font-size: 1.75rem !important;
@@ -196,42 +196,57 @@
         color: var(--c61-cream) !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header-subheading,
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-breadcrumbs,
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-breadcrumbs * {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header-subheading,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-breadcrumbs,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-breadcrumbs * {
         color: rgba(247, 240, 219, 0.75) !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn {
         background: var(--c61-cream) !important;
         color: var(--c61-terra) !important;
         box-shadow: none !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn:hover {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn:hover {
         background: #FFFFFF !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-header .fi-btn .fi-icon {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn .fi-icon {
         color: var(--c61-terra) !important;
     }
 
+    /* Tombol header selain warna utama (mis. aksi khusus super admin) = garis cream, supaya satu tombol utama menonjol. */
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn:not(.fi-color-primary) {
+        background: transparent !important;
+        color: var(--c61-cream) !important;
+        box-shadow: inset 0 0 0 1px rgba(247, 240, 219, 0.45) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn:not(.fi-color-primary):hover {
+        background: rgba(247, 240, 219, 0.1) !important;
+    }
+
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-header .fi-btn:not(.fi-color-primary) .fi-icon {
+        color: var(--c61-cream) !important;
+    }
+
     /* Tabel & kartu form: border krem tipis, header kolom kecil kapital (sama dengan tabel .c61-table). */
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-ctn,
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-section {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-ctn,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-section {
         border: 1px solid var(--c61-line) !important;
         border-radius: 18px !important;
         box-shadow: none !important;
         overflow: hidden;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell,
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-selection-cell:is(th) {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-header-cell,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-selection-cell:is(th) {
         background: var(--c61-paper) !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell,
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-header-cell .fi-ta-header-cell-sort-btn {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-header-cell,
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-header-cell .fi-ta-header-cell-sort-btn {
         font-size: 0.625rem !important;
         font-weight: 800 !important;
         letter-spacing: 0.08em !important;
@@ -239,11 +254,11 @@
         color: var(--c61-muted) !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-ta-row:hover {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-ta-row:hover {
         background: #FDFAF2 !important;
     }
 
-    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities) .fi-section-header-heading {
+    :is(.fi-resource-membership-membership-plans, .fi-resource-membership-facilities-membership-facilities, .fi-resource-sponsor-sponsor-organizations, .fi-resource-sponsor-sponsor-access-schedules, .fi-page:has(.sd-root)) .fi-section-header-heading {
         font-family: var(--font-serif) !important;
         font-size: 1.1875rem !important;
         font-weight: 600 !important;

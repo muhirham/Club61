@@ -41,6 +41,10 @@ class SponsorOrganizationResource extends Resource
 
     protected static ?string $navigationLabel = 'Kelola Sponsor';
 
+    protected static ?string $modelLabel = 'Sponsor';
+
+    protected static ?string $pluralModelLabel = 'Kelola Sponsor';
+
     protected static string|UnitEnum|null $navigationGroup = 'Sponsor';
 
     protected static ?int $navigationSort = 1;
