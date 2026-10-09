@@ -1,203 +1,83 @@
-<div class="adm-wrap">
+<div class="c61">
+    @include('filament.partials.c61-admin-style')
     <style>
-        .adm-table-dimmed {
-            opacity: 0.5;
-            pointer-events: none;
-            transition: opacity 0.12s ease;
-        }
-
-        @keyframes spin {
-            from {
-                transform: rotate(0deg);
-            }
-
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .adm-btn-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
-            border-radius: 8px;
-            border: 1px solid #D4AF37;
-            background: #FFFFFF;
-            color: #1F170D;
-            font-size: 0.875rem;
-            cursor: pointer;
-            transition: all 0.15s ease;
-            padding: 0;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            flex-shrink: 0;
-        }
-
-        .adm-btn-icon:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(212, 175, 55, 0.25);
-            background: #FFFDF5;
-        }
-
-        .adm-btn-icon:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .adm-btn-icon-danger {
-            color: #DC2626;
-            border-color: #FECACA;
-            background: #FEF2F2;
-        }
-
-        .adm-btn-icon-danger:hover {
-            background: #FEE2E2;
-            border-color: #F87171;
-            box-shadow: 0 3px 8px rgba(220, 38, 38, 0.25);
-        }
-
-        .adm-btn-icon-settle {
-            background: #DC2626;
-            color: #FFFFFF;
-            border-color: #B91C1C;
-        }
-
-        .adm-btn-icon-settle:hover {
-            background: #B91C1C;
-            box-shadow: 0 3px 8px rgba(185, 28, 28, 0.35);
-        }
-
-        .adm-table-wrap-static {
-            overflow-x: hidden !important;
-            border-radius: 0;
-            border: none;
-            background: #FFFFFF;
-            width: 100%;
-            box-sizing: border-box;
-            margin-top: 0;
-        }
-
-        .adm-table-static {
-            width: 100% !important;
-            table-layout: fixed !important;
-            border-collapse: collapse;
-        }
-
-        .adm-table-static th,
-        .adm-table-static td {
-            box-sizing: border-box;
-            padding: 0.75rem 0.65rem;
-            vertical-align: middle;
-        }
-
-        .adm-table-static th:first-child,
-        .adm-table-static td:first-child {
-            padding-left: 1.25rem !important;
-        }
-
-        .adm-table-static th:last-child,
-        .adm-table-static td:last-child {
-            padding-right: 1.25rem !important;
-            padding-left: 0.5rem !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-        }
-
-        .adm-truncate-cell {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+        .kp-dimmed { opacity: 0.5; pointer-events: none; transition: opacity 0.12s ease; }
+        /* Tabel lebar tetap; di layar sempit (tablet) digeser ke samping, kolom tidak saling menimpa. */
+        .kp-table { table-layout: fixed; min-width: 980px; }
+        .kp-table th:first-child, .kp-table td:first-child { padding-left: 1.25rem; }
+        .kp-table th:last-child, .kp-table td:last-child { padding-right: 1.25rem; text-align: center; white-space: nowrap; }
+        .kp-table th, .kp-table td { padding-left: 0.7rem; padding-right: 0.7rem; }
+        .kp-note { border-radius: 8px; padding: 0.35rem 0.55rem; font-size: 0.71875rem; font-weight: 600; line-height: 1.35; word-break: break-word; }
+        .kp-spin { width: 14px; height: 14px; }
     </style>
 
-    <!-- Header Banner -->
-    <div class="adm-banner">
+    <!-- Header -->
+    <div class="c61-hero">
         <div>
-            <div class="adm-pill adm-pill-gold">
-                <span
-                    style="display:inline-block; width:6px; height:6px; border-radius:50%; background-color:#D4AF37;"></span>
-                <span>Modul Kelola Pemesanan &bull; Order Management System</span>
-            </div>
-            <div class="adm-banner-title">
-                Kelola Pemesanan &amp; Booking
-            </div>
-            <div class="adm-banner-sub">
+            <div class="c61-eyebrow"><span class="dot"></span>Modul Kelola Pemesanan &bull; Order Management</div>
+            <div class="c61-hero-title">Kelola Pemesanan &amp; Booking</div>
+            <div class="c61-hero-sub">
                 Daftar transaksi reservasi customer, verifikasi QR Code check-in, penyesuaian jadwal (reschedule), dan
                 proses refund kasir.
             </div>
         </div>
 
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
+        <div class="c61-hero-actions">
             @if ($this->canCheckIn)
-            <button type="button" wire:click="openCheckInModal()" class="adm-btn-sec"
-                style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE; font-weight: 800; cursor: pointer; box-shadow: 0 4px 12px rgba(184, 134, 11, 0.25);">
+            <button type="button" wire:click="openCheckInModal()" class="c61-btn c61-btn-cream c61-btn-lg">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
                 <span>Scan QR / Check-In Gate</span>
             </button>
             @endif
-            <a href="/admin/booking-system" class="adm-btn-sec">
+            <a href="/admin/booking-system" class="c61-btn c61-btn-outline-cream c61-btn-lg">
                 <span>Lihat Matriks Lapangan</span>
             </a>
         </div>
     </div>
 
-    <!-- Filter Tabs -->
-    <div class="adm-tabs">
-        <button type="button" wire:click="setTab('ALL')" wire:loading.attr="disabled"
-            class="adm-tab-btn {{ $activeTab === 'ALL' ? 'active' : '' }}">
-            Semua Reservasi ({{ $counts['ALL'] }})
-        </button>
-        <button type="button" wire:click="setTab('CONFIRMED')" wire:loading.attr="disabled"
-            class="adm-tab-btn {{ $activeTab === 'CONFIRMED' ? 'active' : '' }}">
-            Konfirmasi / Lunas ({{ $counts['CONFIRMED'] }})
-        </button>
-        <button type="button" wire:click="setTab('COMPLETED')" wire:loading.attr="disabled"
-            class="adm-tab-btn {{ $activeTab === 'COMPLETED' ? 'active' : '' }}">
-            Selesai ({{ $counts['COMPLETED'] }})
-        </button>
-        <button type="button" wire:click="setTab('CANCELLED')" wire:loading.attr="disabled"
-            class="adm-tab-btn {{ $activeTab === 'CANCELLED' ? 'active' : '' }}">
-            Dibatalkan / Refund ({{ $counts['CANCELLED'] }})
-        </button>
+    <!-- Tab status -->
+    <div>
+        <div class="c61-seg">
+            <button type="button" wire:click="setTab('ALL')" wire:loading.attr="disabled"
+                class="c61-seg-btn {{ $activeTab === 'ALL' ? 'is-active' : '' }}">
+                Semua Reservasi <span class="count">{{ $counts['ALL'] }}</span>
+            </button>
+            <button type="button" wire:click="setTab('CONFIRMED')" wire:loading.attr="disabled"
+                class="c61-seg-btn {{ $activeTab === 'CONFIRMED' ? 'is-active' : '' }}">
+                Konfirmasi / Lunas <span class="count">{{ $counts['CONFIRMED'] }}</span>
+            </button>
+            <button type="button" wire:click="setTab('COMPLETED')" wire:loading.attr="disabled"
+                class="c61-seg-btn {{ $activeTab === 'COMPLETED' ? 'is-active' : '' }}">
+                Selesai <span class="count">{{ $counts['COMPLETED'] }}</span>
+            </button>
+            <button type="button" wire:click="setTab('CANCELLED')" wire:loading.attr="disabled"
+                class="c61-seg-btn {{ $activeTab === 'CANCELLED' ? 'is-active' : '' }}">
+                Dibatalkan / Refund <span class="count">{{ $counts['CANCELLED'] }}</span>
+            </button>
+        </div>
     </div>
 
-    <!-- Bookings Table Card -->
-    <div class="adm-card" style="padding: 0; overflow: hidden; border-radius: 16px;">
-        <!-- Card Header with Search & Per-Page Controls -->
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.25rem; border-bottom: 1px solid #F0DB9D; background: #FFFDF9; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="display: flex; align-items: center; gap: 0.75rem;">
-                <div style="font-weight: 800; font-size: 0.9375rem; color: #1F170D;">
-                    Daftar Transaksi Reservasi
-                </div>
-                <span
-                    style="font-size: 0.7rem; color: #8C6418; background: #FAF5E8; border: 1px solid #DFC387; padding: 0.15rem 0.6rem; border-radius: 9999px; font-weight: 700;">
-                    Total: {{ $bookings->total() }} Data
-                </span>
+    <!-- Tabel reservasi -->
+    <div class="c61-card">
+        <div class="c61-card-head">
+            <div class="c61-row" style="gap: 0.75rem;">
+                <div class="c61-card-title">Daftar Transaksi Reservasi</div>
+                <span class="c61-pill c61-pill-cream">Total: {{ $bookings->total() }} Data</span>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
-                <!-- Search Box with Clear Button -->
-                <div style="position: relative; width: 320px;">
+            <div class="c61-row" style="gap: 0.75rem;">
+                <div class="c61-search" style="width: 320px;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                     <input type="text" wire:model.live.debounce.300ms="search"
-                        placeholder="Cari nama cust, no tiket, email, lapangan..." class="adm-search-input"
-                        style="padding-left: 0.85rem; padding-right: 2rem; width: 100%; max-width: 100%;" />
+                        placeholder="Cari nama cust, no tiket, email, lapangan..." class="c61-input" />
                     @if ($search)
-                        <button type="button" wire:click="$set('search', '')" title="Hapus filter pencarian"
-                            style="position: absolute; right: 0.65rem; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 0.75rem; color: #9CA3AF; cursor: pointer; padding: 2px 4px; font-weight: bold;">
-                            X
-                        </button>
+                        <button type="button" wire:click="$set('search', '')" title="Hapus filter pencarian" class="c61-search-clear">&times;</button>
                     @endif
                 </div>
 
-                <!-- Per Page Selector -->
-                <div
-                    style="display: flex; align-items: center; gap: 0.35rem; font-size: 0.75rem; color: #785A1D; font-weight: 700;">
+                <div class="c61-row" style="gap: 0.4rem; font-size: 0.75rem; color: var(--c-muted); font-weight: 700;">
                     <span>Tampil:</span>
-                    <select wire:model.live="perPage"
-                        style="background: #FAF5E8; border: 1.5px solid #DFC387; border-radius: 8px; padding: 0.35rem 0.5rem; font-size: 0.75rem; font-weight: 700; color: #1F170D; cursor: pointer; outline: none;">
+                    <select wire:model.live="perPage" class="c61-select" style="width: auto; height: 36px;">
                         <option value="5">5</option>
                         <option value="10">10</option>
                         <option value="25">25</option>
@@ -208,10 +88,9 @@
             </div>
         </div>
 
-        <!-- Static Table (No Horizontal Scroll) -->
-        <div class="adm-table-wrap-static" wire:loading.class="adm-table-dimmed"
+        <div class="c61-table-wrap" wire:loading.class="kp-dimmed"
             wire:target="setTab, gotoPage, nextPage, previousPage, search, perPage">
-            <table class="adm-table adm-table-static">
+            <table class="c61-table kp-table">
                 <thead>
                     <tr>
                         <th style="width: {{ $activeTab === 'CANCELLED' ? '12%' : '13%' }};">No Tiket</th>
@@ -243,71 +122,64 @@
                                     : 0);
                         @endphp
                         <tr>
-                            <td style="font-family: var(--font-mono, monospace); font-weight: 700; color: #8C6418;">
-                                <div class="adm-truncate-cell" title="{{ $b->booking_code }}">{{ $b->booking_code }}
+                            <td class="code">
+                                <div class="c61-truncate" title="{{ $b->booking_code }}">{{ $b->booking_code }}
                                 </div>
                                 @if ($b->reschedule_count > 0)
-                                    <div style="font-size: 0.625rem; color: #B45309; font-weight: 600;">Reschedule
+                                    <div class="sub" style="color: #B45309; font-family: var(--font-sans); font-weight: 600;">Reschedule
                                         ({{ $b->reschedule_count }}x)</div>
                                 @endif
                             </td>
                             <td>
-                                <div class="adm-truncate-cell" style="font-weight: 800; color: #1F170D;"
+                                <div class="c61-truncate strong"
                                     title="{{ $b->user?->name ?? 'Guest User' }}">
                                     {{ $b->user?->name ?? 'Guest User' }}</div>
-                                <div class="adm-truncate-cell" style="font-size: 0.625rem; color: #8C7A58;"
+                                <div class="c61-truncate sub"
                                     title="{{ $b->user?->email ?? '-' }}">{{ $b->user?->email ?? '-' }}</div>
                             </td>
                             <td>
-                                <div class="adm-truncate-cell" style="font-weight: 700; color: #1F170D;"
+                                <div class="c61-truncate strong"
                                     title="{{ $b->court?->name ?? '-' }}">{{ $b->court?->name ?? '-' }}</div>
-                                <div style="font-size: 0.625rem; color: #78350F; font-weight: 600;">Sesi:
+                                <div class="sub">Sesi:
                                     {{ $duration }} Jam</div>
                             </td>
                             <td>
-                                <div style="font-weight: 600; color: #1F170D;">{{ $b->booking_date->format('d M Y') }}
+                                <div class="strong" style="font-weight: 600;">{{ $b->booking_date->format('d M Y') }}
                                 </div>
-                                <div style="font-size: 0.625rem; color: #8C7A58;">{{ $b->start_time->format('H:i') }} -
+                                <div class="sub">{{ $b->start_time->format('H:i') }} -
                                     {{ $b->end_time->format('H:i') }} WIB</div>
                             </td>
                             <td>
                                 @if ($b->status === 'PAID')
-                                    <span class="adm-pill adm-pill-green">Confirmed / Lunas</span>
+                                    <span class="c61-pill c61-pill-ok">Confirmed / Lunas</span>
                                 @elseif($b->status === 'PENDING_PAYMENT')
-                                    <span class="adm-pill"
-                                        style="background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; font-weight: 700;">Pending
+                                    <span class="c61-pill c61-pill-warn">Pending
                                         Payment</span>
                                 @elseif($b->status === 'LOCKED' && $b->reschedule_count > 0 && $pendingAmount > 0)
-                                    <span class="adm-pill"
-                                        style="background: #FEF3C7; color: #92400E; border: 1px solid #FCD34D; font-weight: 700;"
+                                    <span class="c61-pill c61-pill-warn" style="white-space: normal; height: auto; padding: 0.2rem 0.6rem;"
                                         title="Jadwal sudah dipindah, QR ditahan sampai selisih lunas">Tagihan Selisih Rp {{ number_format($pendingAmount, 0, ',', '.') }}</span>
                                 @elseif($b->status === 'LOCKED')
-                                    <span class="adm-pill adm-pill-gold">Locked / Waiting</span>
+                                    <span class="c61-pill c61-pill-cream">Locked / Waiting</span>
                                 @elseif($b->status === 'CHECKED_IN')
-                                    <span class="adm-pill adm-pill-gold">Checked In</span>
+                                    <span class="c61-pill c61-pill-terra">Checked In</span>
                                 @elseif($b->status === 'COMPLETED')
-                                    <span class="adm-pill"
-                                        style="background: #ECFDF5; color: #065F46; border: 1px solid #A7F3D0; font-weight: 700;">Completed</span>
+                                    <span class="c61-pill c61-pill-ok">Completed</span>
                                 @elseif($b->status === 'REFUNDED')
-                                    <span class="adm-pill"
-                                        style="background: #F3F4F6; color: #374151; border: 1px solid #D1D5DB; font-weight: 700;">Refunded</span>
+                                    <span class="c61-pill c61-pill-gray">Refunded</span>
                                 @elseif($b->status === 'REFUND_PENDING')
-                                    <span class="adm-pill" title="Booking sudah batal, refund menunggu persetujuan di Antrian Refund"
-                                        style="background: #FFF7ED; color: #9A3412; border: 1px solid #FED7AA; font-weight: 700;">Menunggu Refund</span>
+                                    <span class="c61-pill c61-pill-orange" title="Booking sudah batal, refund menunggu persetujuan di Antrian Refund">Menunggu Refund</span>
                                 @elseif($b->status === 'CANCELLED')
-                                    <span class="adm-pill"
-                                        style="background: #FEE2E2; color: #DC2626; border: 1px solid #FECACA; font-weight: 700;">Cancelled</span>
+                                    <span class="c61-pill c61-pill-danger">Cancelled</span>
                                 @elseif($b->status === 'EXPIRED')
-                                    <span class="adm-pill"
-                                        style="background: #FEF2F2; color: #991B1B; border: 1px solid #FCA5A5; font-weight: 700;">Expired</span>
+                                    <span class="c61-pill c61-pill-danger">Expired</span>
                                 @else
-                                    <span class="adm-pill">{{ $b->status }}</span>
+                                    <span class="c61-pill c61-pill-gray">{{ $b->status }}</span>
                                 @endif
                             </td>
                             @if ($activeTab === 'CANCELLED')
-                                <td style="font-size: 0.75rem; color: #374151;">
+                                <td style="font-size: 0.75rem;">
                                     @if ($b->cancel_reason)
-                                        <div style="background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; border-radius: 6px; padding: 0.35rem 0.55rem; font-size: 0.71875rem; font-weight: 600; line-height: 1.35; word-break: break-word;"
+                                        <div class="kp-note" style="background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA;"
                                             title="{{ $b->cancel_reason }}">
                                             {{ $b->cancel_reason }}
                                         </div>
@@ -320,43 +192,37 @@
                                                     $b->order->payments->where('status', 'SUCCESS')->isNotEmpty());
                                         @endphp
                                         @if ($isPaidNoShow)
-                                            <div
-                                                style="background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA; border-radius: 6px; padding: 0.35rem 0.55rem; font-size: 0.71875rem; font-weight: 600; line-height: 1.35;">
+                                            <div class="kp-note" style="background: #FEF2F2; color: #991B1B; border: 1px solid #FECACA;">
                                                 Lewat Jadwal Main (No-Show / Lunas)
                                             </div>
                                         @else
-                                            <div
-                                                style="background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A; border-radius: 6px; padding: 0.35rem 0.55rem; font-size: 0.71875rem; font-weight: 600; line-height: 1.35;">
+                                            <div class="kp-note" style="background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A;">
                                                 Kedaluwarsa Pembayaran (Lewat Batas Bayar {{ app(\App\Services\Padel\BookingTimeService::class)->paymentWindowMinutes() }} Menit)
                                             </div>
                                         @endif
                                     @else
-                                        <span style="color: #9CA3AF; font-size: 0.75rem; font-style: italic;">Tidak ada
+                                        <span style="color: var(--c-faint); font-size: 0.75rem; font-style: italic;">Tidak ada
                                             catatan</span>
                                     @endif
                                 </td>
                             @endif
-                            <td style="font-family: var(--font-mono, monospace); font-weight: 800; color: #1F170D;">
+                            <td class="num" style="text-align: left;">
                                 Rp {{ number_format($b->total_amount, 0, ',', '.') }}
                             </td>
-                            <td style="text-align: center; white-space: nowrap;">
-                                <div
-                                    style="display: inline-flex; gap: 0.4rem; align-items: center; justify-content: center;">
+                            <td>
+                                <div class="c61-actions">
                                     @if ($this->canSettle && $b->order_id && ($b->status === 'PENDING_PAYMENT' || ($b->status === 'LOCKED' && $pendingAmount > 0)))
                                         <button type="button" wire:click="checkMidtransPayment('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Cek Status Pembayaran ke Midtrans"
-                                            class="adm-btn-icon" style="color: #1D4ED8;">
+                                            class="c61-icon-btn is-info">
                                             <span wire:loading.remove wire:target="checkMidtransPayment('{{ $b->id }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </span>
                                             <span wire:loading wire:target="checkMidtransPayment('{{ $b->id }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;" fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -365,8 +231,8 @@
                                         {{-- Pembayaran tidak dieksekusi di sini: buka POS Walk-In langsung di tagihan ini. --}}
                                         <a href="{{ \App\Filament\Pages\BookOfflineCourt::getUrl(['tagihan' => $b->id]) }}"
                                             title="Bayar di POS Walk-In (Rp {{ number_format($pendingAmount ?: $b->total_amount, 0, ',', '.') }})"
-                                            class="adm-btn-icon adm-btn-icon-settle">
-                                            <svg style="width: 15px; height: 15px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            class="c61-icon-btn is-solid">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                     d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                             </svg>
@@ -377,28 +243,17 @@
                                         <button type="button"
                                             wire:click="openCheckInModal('{{ $b->booking_code }}')"
                                             wire:loading.attr="disabled" title="Check-In Customer (Scan QR)"
-                                            class="adm-btn-icon"
-                                            style="background: #ECFDF5; border-color: #A7F3D0; color: #065F46;">
+                                            class="c61-icon-btn is-ok">
                                             <span wire:loading.remove
                                                 wire:target="openCheckInModal('{{ $b->booking_code }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
                                                 </svg>
                                             </span>
                                             <span wire:loading
                                                 wire:target="openCheckInModal('{{ $b->booking_code }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;"
-                                                    fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4"
-                                                        style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                        style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -406,27 +261,16 @@
                                     @if ($this->canCheckIn && $b->status === 'CHECKED_IN')
                                         <button type="button" x-on:click="$dispatch('club61-confirm', { title: 'Tandai Sesi Selesai?', message: @js('Sesi bermain tiket '.$b->booking_code.' akan ditandai selesai (COMPLETED).'), confirmLabel: 'Ya, Selesai', onConfirm: () => $wire.executeComplete(@js($b->id)) })"
                                             wire:loading.attr="disabled" title="Tandai Selesai (Complete)"
-                                            class="adm-btn-icon"
-                                            style="background: #FEF3C7; border-color: #FDE68A; color: #92400E;">
+                                            class="c61-icon-btn is-warn">
                                             <span wire:loading.remove
                                                 wire:target="executeComplete('{{ $b->id }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                 </svg>
                                             </span>
                                             <span wire:loading wire:target="executeComplete('{{ $b->id }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;"
-                                                    fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4"
-                                                        style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                        style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -442,28 +286,17 @@
                                     @if ($this->canCheckIn && in_array($b->status, ['CHECKED_IN', 'COMPLETED']) && $hasPendingEquipmentReturn)
                                         <button type="button" x-on:click="$dispatch('club61-confirm', { title: 'Alat Sewa Sudah Kembali?', message: @js('Raket/handuk tiket '.$b->booking_code.' akan ditandai sudah dikembalikan ke frontdesk dan stoknya bertambah lagi.'), confirmLabel: 'Ya, Sudah Kembali', onConfirm: () => $wire.executeReturnEquipment(@js($b->id)) })"
                                             wire:loading.attr="disabled" title="Retur Alat Sewa (Restock)"
-                                            class="adm-btn-icon"
-                                            style="background: #EFF6FF; border-color: #BFDBFE; color: #1D4ED8;">
+                                            class="c61-icon-btn is-info">
                                             <span wire:loading.remove
                                                 wire:target="executeReturnEquipment('{{ $b->id }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1" />
                                                 </svg>
                                             </span>
                                             <span wire:loading
                                                 wire:target="executeReturnEquipment('{{ $b->id }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;"
-                                                    fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4"
-                                                        style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                        style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -472,27 +305,17 @@
                                         <button type="button"
                                             wire:click="openRescheduleModal('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Pindah Jadwal (Reschedule)"
-                                            class="adm-btn-icon" style="color: #8C6418;">
+                                            class="c61-icon-btn">
                                             <span wire:loading.remove
                                                 wire:target="openRescheduleModal('{{ $b->id }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
                                             </span>
                                             <span wire:loading
                                                 wire:target="openRescheduleModal('{{ $b->id }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;"
-                                                    fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4"
-                                                        style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                        style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -501,26 +324,16 @@
                                         <button type="button"
                                             wire:click="openCancelRefundModal('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Ajukan Pembatalan &amp; Refund"
-                                            class="adm-btn-icon adm-btn-icon-danger">
+                                            class="c61-icon-btn is-danger">
                                             <span wire:loading.remove
                                                 wire:target="openCancelRefundModal('{{ $b->id }}')">
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                                 </svg>
                                             </span>
                                             <span wire:loading
                                                 wire:target="openCancelRefundModal('{{ $b->id }}')">
-                                                <svg style="width: 13px; height: 13px; animation: spin 1s linear infinite;"
-                                                    fill="none" viewBox="0 0 24 24">
-                                                    <circle cx="12" cy="12" r="10"
-                                                        stroke="currentColor" stroke-width="4"
-                                                        style="opacity: 0.25;"></circle>
-                                                    <path fill="currentColor"
-                                                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                                                        style="opacity: 0.75;"></path>
-                                                </svg>
+                                                <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
                                         </button>
                                     @endif
@@ -528,18 +341,14 @@
                                     @if (in_array($b->status, ['REFUNDED', 'REFUND_PENDING', 'CANCELLED', 'EXPIRED', 'COMPLETED']))
                                         <span
                                             title="{{ $b->status === 'COMPLETED' ? 'Sesi Telah Selesai' : 'Tiket Telah Dinonaktifkan' }}"
-                                            style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: #F3F4F6; border: 1px solid #D1D5DB; color: #6B7280; cursor: help;">
+                                            class="c61-icon-btn is-muted">
                                             @if ($b->status === 'COMPLETED')
-                                                <svg style="width: 15px; height: 15px; color: #059669;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2.5" d="M5 13l4 4L19 7" />
+                                                <svg style="color: #047857;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
                                                 </svg>
                                             @else
-                                                <svg style="width: 15px; height: 15px;" fill="none"
-                                                    stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                                        stroke-width="2"
+                                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                                 </svg>
                                             @endif
@@ -550,15 +359,13 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $activeTab === 'CANCELLED' ? 8 : 7 }}"
-                                style="text-align: center; padding: 2.5rem 1rem; color: #8C7A58;">
+                            <td colspan="{{ $activeTab === 'CANCELLED' ? 8 : 7 }}" class="c61-empty">
                                 @if ($search)
-                                    <div style="font-weight: 700; color: #1F170D; margin-bottom: 0.25rem;">Tidak ada reservasi yang cocok</div>
-                                    <div style="font-size: 0.75rem; color: #8C7A58; margin-bottom: 0.75rem;">
+                                    <div style="font-weight: 700; color: var(--c-brown); margin-bottom: 0.25rem;">Tidak ada reservasi yang cocok</div>
+                                    <div style="font-size: 0.75rem; margin-bottom: 0.75rem;">
                                         Tidak ditemukan hasil untuk kata kunci "<strong>{{ $search }}</strong>".
                                     </div>
-                                    <button type="button" wire:click="$set('search', '')" class="adm-btn-sec"
-                                        style="font-size: 0.75rem; padding: 0.35rem 0.85rem;">
+                                    <button type="button" wire:click="$set('search', '')" class="c61-btn c61-btn-ghost c61-btn-sm">
                                         Hapus Filter Pencarian
                                     </button>
                                 @else
@@ -571,40 +378,34 @@
             </table>
         </div>
 
-        <!-- Custom Luxury Gold Pagination Bar -->
-        <div
-            style="display: flex; justify-content: space-between; align-items: center; padding: 0.85rem 1.25rem; border-top: 1px solid #F0DB9D; background: #FCFAF5; flex-wrap: wrap; gap: 0.75rem;">
-            <div style="font-size: 0.75rem; color: #785A1D; font-weight: 600;">
-                Menampilkan <strong style="color: #1F170D;">{{ $bookings->firstItem() ?? 0 }}</strong> - <strong
-                    style="color: #1F170D;">{{ $bookings->lastItem() ?? 0 }}</strong> dari <strong
-                    style="color: #1F170D;">{{ $bookings->total() }}</strong> reservasi
+        <!-- Pagination -->
+        <div class="c61-card-foot">
+            <div style="font-size: 0.75rem; color: var(--c-muted); font-weight: 600;">
+                Menampilkan <strong style="color: var(--c-brown);">{{ $bookings->firstItem() ?? 0 }}</strong> - <strong
+                    style="color: var(--c-brown);">{{ $bookings->lastItem() ?? 0 }}</strong> dari <strong
+                    style="color: var(--c-brown);">{{ $bookings->total() }}</strong> reservasi
                 @if ($search)
-                    <span style="color: #B45309;">(difilter)</span>
+                    <span style="color: var(--c-terra);">(difilter)</span>
                 @endif
             </div>
 
             @if ($bookings->hasPages())
-                <div style="display: flex; align-items: center; gap: 0.35rem;">
-                    {{-- Previous Page Button --}}
+                <div class="c61-pages">
                     <button type="button" wire:click="previousPage" wire:loading.attr="disabled"
-                        @if ($bookings->onFirstPage()) disabled @endif class="adm-btn-sec"
-                        style="padding: 0.25rem 0.65rem; font-size: 0.75rem; {{ $bookings->onFirstPage() ? 'opacity: 0.35; cursor: not-allowed;' : '' }}">
+                        @if ($bookings->onFirstPage()) disabled @endif class="c61-page">
                         &larr; Prev
                     </button>
 
-                    {{-- Page Numbers --}}
                     @foreach ($bookings->getUrlRange(1, $bookings->lastPage()) as $page => $url)
                         <button type="button" wire:click="gotoPage({{ $page }})"
                             wire:loading.attr="disabled"
-                            style="min-width: 28px; height: 28px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; border: 1px solid {{ $page == $bookings->currentPage() ? '#D4AF37' : '#E5E7EB' }}; background: {{ $page == $bookings->currentPage() ? 'linear-gradient(180deg, #F0DB9D 0%, #D4AF37 100%)' : '#FFFFFF' }}; color: {{ $page == $bookings->currentPage() ? '#1F170D' : '#4B5563' }}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                            class="c61-page {{ $page == $bookings->currentPage() ? 'is-active' : '' }}">
                             {{ $page }}
                         </button>
                     @endforeach
 
-                    {{-- Next Page Button --}}
                     <button type="button" wire:click="nextPage" wire:loading.attr="disabled"
-                        @if (!$bookings->hasMorePages()) disabled @endif class="adm-btn-sec"
-                        style="padding: 0.25rem 0.65rem; font-size: 0.75rem; {{ !$bookings->hasMorePages() ? 'opacity: 0.35; cursor: not-allowed;' : '' }}">
+                        @if (!$bookings->hasMorePages()) disabled @endif class="c61-page">
                         Next &rarr;
                     </button>
                 </div>
@@ -614,60 +415,42 @@
 
     <!-- MODAL 1: PINDAH JADWAL (ADMIN OVERRIDE) -->
     @if ($showRescheduleModal && $selectedBookingData)
-        <div
-            style="position: fixed; inset: 0; z-index: 99999; background: rgba(15, 10, 5, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
-            <div
-                style="background: #FFFFFF; border-radius: 16px; width: 100%; max-width: 600px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid #D4AF37; overflow: hidden; max-height: 90vh; display: flex; flex-direction: column;">
-                <!-- Header Modal -->
-                <div
-                    style="background: linear-gradient(135deg, #2B1D0E 0%, #170E04 100%); padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #D4AF37;">
+        <div class="c61-modal-backdrop" style="z-index: 99999;">
+            <div class="c61-modal" style="max-width: 600px;">
+                <div class="c61-modal-head">
                     <div>
-                        <div
-                            style="color: #D4AF37; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;">
-                            Admin Override &bull; Concierge Backdoor</div>
-                        <div style="color: #FFFFFF; font-size: 1.125rem; font-weight: 800; margin-top: 0.25rem;">Pindah
-                            Jadwal Reservasi</div>
+                        <div class="c61-modal-eyebrow">Admin Override &bull; Concierge</div>
+                        <div class="c61-modal-title">Pindah Jadwal Reservasi</div>
                     </div>
-                    <button type="button" wire:click="$set('showRescheduleModal', false)"
-                        style="background: none; border: none; color: #D4AF37; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</button>
+                    <button type="button" wire:click="$set('showRescheduleModal', false)" class="c61-modal-close">&times;</button>
                 </div>
 
-                <!-- Body Modal -->
-                <div style="padding: 1.5rem; overflow-y: auto; flex: 1;">
-                    <!-- Context Card -->
-                    <div
-                        style="background: #FAF5E8; border: 1px solid #F0DB9D; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
+                <div class="c61-modal-body" style="gap: 0;">
+                    <div class="c61-note" style="margin-bottom: 1.25rem;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="font-size: 0.75rem; color: #8C6418; font-weight: 600;">Customer &amp;
+                            <span style="color: var(--c-muted); font-weight: 600;">Customer &amp;
                                 Tiket</span>
-                            <span
-                                style="font-family: var(--font-mono, monospace); font-weight: 800; color: #8C6418;">#{{ $selectedBookingData['booking_code'] }}</span>
+                            <span class="c61-mono" style="font-weight: 800; color: var(--c-terra);">#{{ $selectedBookingData['booking_code'] }}</span>
                         </div>
-                        <div style="font-size: 0.9375rem; font-weight: 800; color: #1F170D;">
+                        <div style="font-size: 0.9375rem; font-weight: 800;">
                             {{ $selectedBookingData['customer_name'] }}</div>
-                        <div style="font-size: 0.75rem; color: #7A643E; margin-top: 0.25rem;">
+                        <div style="color: var(--c-muted); margin-top: 0.25rem;">
                             Jadwal Asli: {{ $selectedBookingData['court_name'] }} &bull;
                             {{ $selectedBookingData['original_date'] }}, {{ $selectedBookingData['original_time'] }}
                         </div>
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.6875rem;">
-                            <span
-                                style="background: #EAF7EC; color: #1E7E34; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 700;">
+                        <div class="c61-row" style="gap: 0.4rem; margin-top: 0.6rem;">
+                            <span class="c61-pill c61-pill-ok">
                                 Durasi Terkunci: {{ $rescheduleDurationHours }} Jam
                             </span>
-                            <span
-                                style="background: #F3F4F6; color: #4B5563; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight: 600;">
+                            <span class="c61-pill c61-pill-gray">
                                 Sewa Raket: Terikut Otomatis (Order ID)
                             </span>
                         </div>
                     </div>
 
-                    <!-- Input Lapangan Baru -->
-                    <div style="margin-bottom: 1rem;">
-                        <label
-                            style="display: block; font-size: 0.75rem; font-weight: 700; color: #1F170D; margin-bottom: 0.35rem;">Pilih
-                            Lapangan Tujuan</label>
-                        <select wire:model.live="rescheduleCourtId" wire:loading.attr="disabled"
-                            style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;">
+                    <div class="c61-field">
+                        <label class="c61-label">Pilih Lapangan Tujuan</label>
+                        <select wire:model.live="rescheduleCourtId" wire:loading.attr="disabled" class="c61-select">
                             @foreach ($courts as $court)
                                 <option value="{{ $court->id }}">{{ $court->name }} ({{ $court->type }})
                                 </option>
@@ -675,40 +458,32 @@
                         </select>
                     </div>
 
-                    <!-- Input Tanggal Baru (Anti Tanggal Lampau) -->
-                    <div style="margin-bottom: 1rem;">
-                        <label
-                            style="display: block; font-size: 0.75rem; font-weight: 700; color: #1F170D; margin-bottom: 0.35rem;">
-                            Tanggal Baru <span style="color: #DC2626; font-size: 0.6875rem;">(Hanya Hari Ini atau Masa
-                                Depan)</span>
+                    <div class="c61-field">
+                        <label class="c61-label">
+                            Tanggal Baru <small>(Hanya Hari Ini atau Masa Depan)</small>
                         </label>
                         <input type="date" min="{{ now()->format('Y-m-d') }}"
-                            wire:model.live.debounce.250ms="rescheduleDate" wire:loading.attr="disabled"
-                            style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;">
+                            wire:model.live.debounce.250ms="rescheduleDate" wire:loading.attr="disabled" class="c61-input">
                     </div>
 
-                    <!-- Input Jam Mulai Baru (Slot Durasi Penuh) -->
-                    <div style="margin-bottom: 1rem;">
-                        <div
-                            style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
-                            <label style="font-size: 0.75rem; font-weight: 700; color: #1F170D;">
+                    <div class="c61-field">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.35rem;">
+                            <label class="c61-label" style="margin-bottom: 0;">
                                 Pilih Jam Main Baru (Blok Kontigu {{ $rescheduleDurationHours }} Jam)
                             </label>
                             <span wire:loading wire:target="rescheduleDate, rescheduleCourtId"
-                                style="font-size: 0.6875rem; color: #8C6418; font-weight: 700;">
+                                style="font-size: 0.6875rem; color: var(--c-terra); font-weight: 700;">
                                 Memeriksa ketersediaan...
                             </span>
                         </div>
                         @if (empty($availableSlots))
-                            <div
-                                style="padding: 0.75rem; background: #FEE2E2; border: 1px solid #F87171; border-radius: 8px; color: #991B1B; font-size: 0.75rem;">
+                            <div class="c61-note c61-note-danger">
                                 Tidak ada jadwal kosong yang memiliki {{ $rescheduleDurationHours }} jam berturut-turut
                                 pada lapangan dan tanggal ini. Silakan pilih tanggal atau lapangan lain.
                             </div>
                         @else
                             <select wire:model.live="rescheduleStartTime" wire:loading.attr="disabled"
-                                wire:target="rescheduleDate, rescheduleCourtId"
-                                style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;">
+                                wire:target="rescheduleDate, rescheduleCourtId" class="c61-select">
                                 @foreach ($availableSlots as $slot)
                                     <option value="{{ $slot['start_time'] }}">{{ $slot['label'] }}{{ ! empty($slot['benefit_dropped_reason']) ? ' ⚠ benefit gugur, harga normal' : '' }}</option>
                                 @endforeach
@@ -729,7 +504,7 @@
                         @if (! empty($q['benefit_dropped_reason']))
                             {{-- Benefit member / voucher sponsor tidak berlaku di jadwal ini → harga normal. Admin wajib menjelaskan ke customer
                                  sebelum menyimpan; pilih tanggal yang masih berlaku kalau customer tidak mau bayar harga normal. --}}
-                            <div style="border-radius: 12px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; border: 1px solid #F59E0B; background: #FFFBEB; color: #92400E; font-size: 0.75rem; line-height: 1.4;">
+                            <div class="c61-note c61-note-warn" style="margin-bottom: 0.75rem;">
                                 <strong>⚠ Benefit tidak berlaku di jadwal ini.</strong> {{ $q['benefit_dropped_reason'] }}
                                 Kalau customer tetap mau pindah ke jadwal ini, ia membayar selisih harga normal (jam kuota/voucher yang terpakai dikembalikan).
                                 Pilih tanggal yang masih dalam masa berlaku kalau ingin benefitnya tetap dipakai.
@@ -755,7 +530,7 @@
                                 </div>
                             @endif
 
-                            <div style="border-top: 1px dashed {{ $tone[0] }}; padding-top: 0.5rem; margin-top:0.35rem; display: flex; justify-content: space-between; align-items: center;">
+                            <div style="border-top: 1px dashed {{ $tone[0] }}; padding-top: 0.5rem; margin-top:0.35rem; display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;">
                                 <span style="font-size: 0.8125rem; font-weight: 800; color: {{ $tone[2] }};">
                                     @if ($totalDelta > 0)
                                         Total Kurang Bayar (Wajib Ditagih):
@@ -765,21 +540,21 @@
                                         Tidak Ada Selisih Biaya:
                                     @endif
                                 </span>
-                                <span style="font-family: var(--font-mono, monospace); font-size: 1rem; font-weight: 900; color: {{ $tone[2] }};">
+                                <span class="c61-mono" style="font-size: 1.0625rem; font-weight: 900; color: {{ $tone[2] }}; white-space: nowrap;">
                                     {{ $rp($totalDelta > 0 ? $totalDelta : $forfeited) }}
                                 </span>
                             </div>
 
                             @if ($totalDelta > 0)
                                 <div style="margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #FECACA;">
-                                    <label style="display: block; font-size: 0.6875rem; font-weight: 700; color: #991B1B; margin-bottom: 0.25rem;">Customer mau bayar selisihnya lewat:</label>
-                                    <div style="display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.75rem; margin-bottom: 0.5rem;">
-                                        <label style="display: flex; align-items: flex-start; gap: 0.35rem; cursor: pointer;">
-                                            <input type="radio" wire:model.live="rescheduleDeltaChannel" value="CASHIER" style="margin-top: 0.15rem;">
+                                    <label style="display: block; font-size: 0.6875rem; font-weight: 700; color: #991B1B; margin-bottom: 0.35rem;">Customer mau bayar selisihnya lewat:</label>
+                                    <div style="display: flex; flex-direction: column; gap: 0.4rem; font-size: 0.75rem; margin-bottom: 0.5rem; color: var(--c-brown);">
+                                        <label style="display: flex; align-items: flex-start; gap: 0.45rem; cursor: pointer; padding: 0.5rem 0.65rem; border-radius: 10px; background: #FFFFFF; border: 1px solid #FECACA;">
+                                            <input type="radio" wire:model.live="rescheduleDeltaChannel" value="CASHIER" style="margin-top: 0.15rem; accent-color: #662721;">
                                             <span><b>Bayar di Kasir</b>: dilunasi di <b>POS Walk-In</b> (kasir klik slot &quot;Bayar&quot; di grid jadwal), misalnya saat customer datang.</span>
                                         </label>
-                                        <label style="display: flex; align-items: flex-start; gap: 0.35rem; cursor: pointer;">
-                                            <input type="radio" wire:model.live="rescheduleDeltaChannel" value="ONLINE" style="margin-top: 0.15rem;">
+                                        <label style="display: flex; align-items: flex-start; gap: 0.45rem; cursor: pointer; padding: 0.5rem 0.65rem; border-radius: 10px; background: #FFFFFF; border: 1px solid #FECACA;">
+                                            <input type="radio" wire:model.live="rescheduleDeltaChannel" value="ONLINE" style="margin-top: 0.15rem; accent-color: #662721;">
                                             <span><b>Bayar Online (Midtrans)</b>: customer membayar dari halaman invoice-nya.</span>
                                         </label>
                                     </div>
@@ -795,25 +570,17 @@
                         </div>
                     @endif
 
-                    <!-- Alasan Perubahan -->
-                    <div style="margin-bottom: 0.5rem;">
-                        <label
-                            style="display: block; font-size: 0.75rem; font-weight: 700; color: #1F170D; margin-bottom: 0.35rem;">Alasan
-                            Perubahan Jadwal</label>
+                    <div class="c61-field" style="margin-bottom: 0;">
+                        <label class="c61-label">Alasan Perubahan Jadwal</label>
                         <input type="text" wire:model="rescheduleReason"
-                            placeholder="Misal: Customer salah booking via WhatsApp, hujan di lapangan outdoor..."
-                            style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;">
+                            placeholder="Misal: Customer salah booking via WhatsApp, hujan di lapangan outdoor..." class="c61-input">
                     </div>
                 </div>
 
-                <!-- Footer Modal -->
-                <div
-                    style="background: #FAF5E8; border-top: 1px solid #F0DB9D; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
-                    <button type="button" wire:click="$set('showRescheduleModal', false)" class="adm-btn-sec"
-                        style="background: #FFFFFF;">Batal</button>
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="$set('showRescheduleModal', false)" class="c61-btn c61-btn-ghost">Batal</button>
                     <button type="button" wire:click="executeReschedule" wire:loading.attr="disabled"
-                        @if (empty($availableSlots) || !$rescheduleStartTime) disabled @endif class="adm-btn-sec"
-                        style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE; font-weight: 800; cursor: pointer;">
+                        @if (empty($availableSlots) || !$rescheduleStartTime) disabled @endif class="c61-btn c61-btn-primary">
                         <span wire:loading.remove wire:target="executeReschedule">Simpan &amp; Proses Jadwal</span>
                         <span wire:loading wire:target="executeReschedule">Memproses &amp; Mengunci...</span>
                     </button>
@@ -824,42 +591,29 @@
 
     <!-- MODAL 3: CANCEL & REFUND -->
     @if ($showCancelRefundModal)
-        <div
-            style="position: fixed; inset: 0; z-index: 99999; background: rgba(15, 10, 5, 0.7); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
-            <div
-                style="background: #FFFFFF; border-radius: 16px; width: 100%; max-width: 520px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); border: 1px solid #DC2626; overflow: hidden;">
-                <!-- Header -->
-                <div
-                    style="background: #1F170D; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #DC2626;">
+        <div class="c61-modal-backdrop" style="z-index: 99999;">
+            <div class="c61-modal is-danger" style="max-width: 520px;">
+                <div class="c61-modal-head">
                     <div>
-                        <div
-                            style="color: #F87171; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;">
-                            Pengajuan &bull; Disetujui di Antrian Refund</div>
-                        <div style="color: #FFFFFF; font-size: 1.125rem; font-weight: 800; margin-top: 0.25rem;">
-                            Ajukan Pembatalan &amp; Refund</div>
+                        <div class="c61-modal-eyebrow">Pengajuan &bull; Disetujui di Antrian Refund</div>
+                        <div class="c61-modal-title">Ajukan Pembatalan &amp; Refund</div>
                     </div>
-                    <button type="button" wire:click="$set('showCancelRefundModal', false)"
-                        style="background: none; border: none; color: #FFFFFF; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                    <button type="button" wire:click="$set('showCancelRefundModal', false)" class="c61-modal-close">&times;</button>
                 </div>
 
-                <!-- Body -->
-                <div style="padding: 1.5rem;">
-                    <div
-                        style="background: #FAF5E8; border: 1px solid #F0DB9D; border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">
-                        <div style="font-size: 0.75rem; color: #8C6418;">Customer &amp; Tiket:</div>
-                        <div style="font-size: 0.9375rem; font-weight: 800; color: #1F170D;">{{ $cancelCustomerName }}
+                <div class="c61-modal-body" style="gap: 0;">
+                    <div class="c61-note" style="margin-bottom: 1.25rem;">
+                        <div style="color: var(--c-muted);">Customer &amp; Tiket:</div>
+                        <div style="font-size: 0.9375rem; font-weight: 800;">{{ $cancelCustomerName }}
                             (#{{ $cancelBookingCode }})</div>
-                        <div style="margin-top: 0.25rem; font-size: 0.75rem; color: #4B5563;">
-                            Uang yang sudah masuk untuk booking ini: <strong>Rp {{ number_format($originalTotalAmount, 0, ',', '.') }}</strong>
+                        <div style="margin-top: 0.25rem; color: var(--c-muted);">
+                            Uang yang sudah masuk untuk booking ini: <strong style="color: var(--c-brown);">Rp {{ number_format($originalTotalAmount, 0, ',', '.') }}</strong>
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 1rem;">
-                        <label
-                            style="display: block; font-size: 0.75rem; font-weight: 700; color: #1F170D; margin-bottom: 0.35rem;">Kategori
-                            Alasan Pembatalan:</label>
-                        <select wire:model="refundCategory"
-                            style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;">
+                    <div class="c61-field">
+                        <label class="c61-label">Kategori Alasan Pembatalan:</label>
+                        <select wire:model="refundCategory" class="c61-select">
                             <option value="PERMINTAAN_CUSTOMER">Permintaan Customer</option>
                             <option value="KESALAHAN_VENUE">Kesalahan Venue (Lapangan Rusak / Venue Tutup)</option>
                             <option value="FORCE_MAJEURE">Force Majeure (Hujan Badai / Listrik Padam)</option>
@@ -867,15 +621,15 @@
                         </select>
                     </div>
 
-                    <div style="margin-bottom: 1rem; background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 12px; padding: 0.85rem 1rem;">
-                        <div style="font-size: 0.75rem; font-weight: 800; color: #9A3412;">
+                    <div class="c61-note c61-note-orange" style="margin-bottom: 1rem;">
+                        <div style="font-weight: 800;">
                             @if ($originalTotalAmount > 0)
                                 Refund yang diajukan: Rp {{ number_format($originalTotalAmount, 0, ',', '.') }} (penuh)
                             @else
                                 Tidak ada uang yang perlu dikembalikan
                             @endif
                         </div>
-                        <div style="font-size: 0.6875rem; color: #7C2D12; line-height: 1.45; margin-top: 0.25rem;">
+                        <div style="font-size: 0.6875rem; line-height: 1.45; margin-top: 0.25rem;">
                             @if ($originalTotalAmount > 0)
                                 Uang belum keluar dari sini. Pengajuan masuk ke <strong>Antrian Refund</strong> untuk disetujui superadmin / manager.
                                 Kalau ditolak, uangnya otomatis jadi <strong>voucher saldo</strong> di akun customer.
@@ -885,28 +639,20 @@
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 0.5rem;">
-                        <label
-                            style="display: block; font-size: 0.75rem; font-weight: 700; color: #1F170D; margin-bottom: 0.35rem;">Alasan
-                            (wajib, dibaca pemeriksa refund):</label>
-                        <textarea wire:model="refundNotes" rows="2" maxlength="500" placeholder="Contoh: customer sakit, minta uang kembali via transfer BCA a.n. ..."
-                            style="width: 100%; border: 1px solid #D4AF37; border-radius: 8px; padding: 0.5rem; font-size: 0.8125rem;"></textarea>
+                    <div class="c61-field" style="margin-bottom: 0.5rem;">
+                        <label class="c61-label">Alasan (wajib, dibaca pemeriksa refund):</label>
+                        <textarea wire:model="refundNotes" rows="2" maxlength="500" placeholder="Contoh: customer sakit, minta uang kembali via transfer BCA a.n. ..." class="c61-textarea"></textarea>
                     </div>
 
-                    <div style="font-size: 0.6875rem; color: #DC2626; line-height: 1.4; margin-top: 0.5rem;">
+                    <div style="font-size: 0.6875rem; color: #B42318; line-height: 1.4; margin-top: 0.5rem;">
                         Perhatian: QR Code tiket akan langsung DIMATIKAN dan slot lapangan otomatis kembali TERSEDIA
                         untuk publik.
                     </div>
                 </div>
 
-                <!-- Footer -->
-                <div
-                    style="background: #FAF5E8; border-top: 1px solid #F0DB9D; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
-                    <button type="button" wire:click="$set('showCancelRefundModal', false)" class="adm-btn-sec"
-                        style="background: #FFFFFF;">Tutup</button>
-                    <button type="button" wire:click="executeCancelRefund" wire:loading.attr="disabled"
-                        class="adm-btn-sec"
-                        style="background: #DC2626; color: #FFFFFF; border-color: #B91C1C; font-weight: 800;">
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="$set('showCancelRefundModal', false)" class="c61-btn c61-btn-ghost">Tutup</button>
+                    <button type="button" wire:click="executeCancelRefund" wire:loading.attr="disabled" class="c61-btn c61-btn-danger">
                         <span wire:loading.remove wire:target="executeCancelRefund">Batalkan &amp; Ajukan</span>
                         <span wire:loading wire:target="executeCancelRefund">Membatalkan...</span>
                     </button>
@@ -917,102 +663,73 @@
 
     <!-- MODAL CHECK-IN GATE & HANDOVER ALAT -->
     @if ($showCheckInModal)
-        <div
-            style="position: fixed; inset: 0; z-index: 9999; background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 1rem;">
-            <div
-                style="background: #FFFFFF; border: 1.5px solid #DFC387; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(184, 134, 11, 0.35); width: 100%; max-width: 540px; overflow: hidden;">
-                <!-- Header -->
-                <div
-                    style="background: linear-gradient(135deg, #FAF5E8 0%, #F5E8C7 100%); border-bottom: 1.5px solid #DFC387; padding: 1.25rem 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+        <div class="c61-modal-backdrop">
+            <div class="c61-modal">
+                <div class="c61-modal-head">
                     <div>
-                        <div class="adm-pill adm-pill-gold" style="font-size: 0.625rem; padding: 0.2rem 0.6rem;">GATE
-                            ACCESS &bull; CLUB 61 PADEL COURT</div>
-                        <div style="color: #1F170D; font-size: 1.25rem; font-weight: 900; margin-top: 0.25rem;">
-                            Check-In Gate &amp; Scanner</div>
+                        <div class="c61-modal-eyebrow">Gate Access &bull; Club 61 Padel Court</div>
+                        <div class="c61-modal-title">Check-In Gate &amp; Scanner</div>
                     </div>
-                    <button type="button" wire:click="closeCheckInModal"
-                        style="background: none; border: none; color: #78350F; font-size: 1.75rem; cursor: pointer; line-height: 1;">&times;</button>
+                    <button type="button" wire:click="closeCheckInModal" class="c61-modal-close">&times;</button>
                 </div>
 
-                <!-- Body -->
-                <div style="padding: 1.5rem;">
-                    <!-- Input Scan / Tiket -->
-                    <div style="margin-bottom: 1.25rem;">
-                        <label
-                            style="display: block; font-size: 0.8125rem; font-weight: 800; color: #1F170D; margin-bottom: 0.4rem;">
-                            Scan Barcode Gun / Input Kode Tiket:
-                        </label>
+                <div class="c61-modal-body">
+                    <div>
+                        <label class="c61-label">Scan Barcode Gun / Input Kode Tiket:</label>
                         <div style="display: flex; gap: 0.5rem;">
                             <input type="text" wire:model="checkInQuery" wire:keydown.enter="executeCheckIn"
                                 placeholder="Scan QR atau ketik BK-PAD-XXXX..." autocomplete="off"
                                 x-init="$nextTick(() => $el.focus())"
-                                style="flex: 1; border: 1.5px solid #D4AF37; border-radius: 12px; padding: 0.65rem 0.85rem; font-size: 0.875rem; font-family: var(--font-mono, monospace); font-weight: 700; background: #FFFDF5; outline: none;">
-                            <button type="button" wire:click="executeCheckIn" wire:loading.attr="disabled"
-                                class="adm-btn-sec"
-                                style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE; font-weight: 800; padding: 0.65rem 1rem;">
+                                class="c61-input c61-mono" style="flex: 1; height: 46px; font-size: 0.875rem; font-weight: 700;">
+                            <button type="button" wire:click="executeCheckIn" wire:loading.attr="disabled" class="c61-btn c61-btn-primary c61-btn-lg">
                                 <span wire:loading.remove wire:target="executeCheckIn">Verifikasi</span>
                                 <span wire:loading wire:target="executeCheckIn">Memproses...</span>
                             </button>
                         </div>
-                        <div style="font-size: 0.6875rem; color: #8C7A58; margin-top: 0.35rem;">
+                        <div class="c61-hint">
                             Mendukung tembakan Barcode Scanner Gun USB, QR Code Hash, atau input manual kode booking.
                         </div>
                     </div>
 
-                    <!-- HASIL VERIFIKASI & HANDOVER ALAT -->
                     @if ($checkInResult)
-                        <div
-                            style="border-radius: 16px; border: 1.5px solid {{ $checkInResult['already_checked_in'] ? '#FDE68A' : '#A7F3D0' }}; background: {{ $checkInResult['already_checked_in'] ? '#FFFBEB' : '#F0FDF4' }}; padding: 1.25rem; margin-bottom: 1rem;">
-                            <div
-                                style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
-                                <span class="adm-pill"
-                                    style="background: {{ $checkInResult['already_checked_in'] ? '#FEF3C7' : '#DCFCE7' }}; color: {{ $checkInResult['already_checked_in'] ? '#92400E' : '#166534' }}; font-weight: 800;">
+                        <div class="c61-note {{ $checkInResult['already_checked_in'] ? 'c61-note-warn' : 'c61-note-ok' }}" style="padding: 1.1rem 1.25rem;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <span class="c61-pill {{ $checkInResult['already_checked_in'] ? 'c61-pill-warn' : 'c61-pill-ok' }}" style="font-weight: 800;">
                                     {{ $checkInResult['already_checked_in'] ? 'SUDAH PERNAH CHECK-IN' : 'CHECK-IN BERHASIL' }}
                                 </span>
-                                <span
-                                    style="font-size: 0.6875rem; color: #6B7280; font-family: var(--font-mono, monospace);">
+                                <span class="c61-mono" style="font-size: 0.6875rem; color: var(--c-muted);">
                                     Gate Staff: {{ $checkInResult['gate_marshall'] ?? 'Kasir' }}
                                 </span>
                             </div>
 
-                            <div style="font-size: 1.125rem; font-weight: 900; color: #1F170D;">
+                            <div style="font-family: var(--font-serif); font-size: 1.25rem; font-weight: 600; color: var(--c-brown);">
                                 {{ $checkInResult['player_name'] }}
                             </div>
-                            <div style="font-size: 0.8125rem; color: #374151; font-weight: 600; margin-top: 0.2rem;">
+                            <div style="font-size: 0.8125rem; color: var(--c-brown); font-weight: 600; margin-top: 0.2rem;">
                                 {{ $checkInResult['court_name'] }} &bull; {{ $checkInResult['schedule'] }}
                             </div>
-                            <div
-                                style="font-size: 0.75rem; color: #6B7280; margin-top: 0.2rem; font-family: var(--font-mono, monospace);">
+                            <div class="c61-mono" style="font-size: 0.75rem; color: var(--c-muted); margin-top: 0.2rem;">
                                 Tiket: <strong>{{ $checkInResult['booking_code'] }}</strong>
                             </div>
 
-                            <!-- EQUIPMENT HANDOVER CHECKLIST -->
-                            <div
-                                style="margin-top: 1rem; border-top: 1px dashed {{ $checkInResult['already_checked_in'] ? '#FCD34D' : '#86EFAC' }}; padding-top: 0.75rem;">
-                                <div
-                                    style="font-size: 0.75rem; font-weight: 800; color: #1F170D; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;">
+                            <div style="margin-top: 1rem; border-top: 1px dashed {{ $checkInResult['already_checked_in'] ? '#FCD34D' : '#86EFAC' }}; padding-top: 0.75rem;">
+                                <div style="font-size: 0.6875rem; font-weight: 800; color: var(--c-brown); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.45rem;">
                                     Serah-Terima Peralatan (Equipment Handover):
                                 </div>
                                 @if (!empty($checkInResult['equipments']))
                                     <div style="display: flex; flex-direction: column; gap: 0.35rem;">
                                         @foreach ($checkInResult['equipments'] as $eq)
-                                            <div
-                                                style="background: #FFFFFF; border: 1px solid #D1D5DB; border-radius: 8px; padding: 0.5rem 0.75rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8125rem;">
-                                                <span
-                                                    style="font-weight: 700; color: #1F170D;">{{ $eq['name'] }}</span>
-                                                <span
-                                                    style="background: #FAF5E8; border: 1px solid #DFC387; color: #8C6418; font-weight: 800; padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem;">
-                                                    {{ $eq['quantity'] }} Pcs
-                                                </span>
+                                            <div style="background: #FFFFFF; border: 1px solid var(--c-line); border-radius: 10px; padding: 0.5rem 0.75rem; display: flex; align-items: center; justify-content: space-between; font-size: 0.8125rem;">
+                                                <span style="font-weight: 700; color: var(--c-brown);">{{ $eq['name'] }}</span>
+                                                <span class="c61-pill c61-pill-terra">{{ $eq['quantity'] }} Pcs</span>
                                             </div>
                                         @endforeach
                                     </div>
-                                    <div
-                                        style="margin-top: 0.5rem; font-size: 0.6875rem; color: #047857; font-weight: 700;">
+                                    <div style="margin-top: 0.5rem; font-size: 0.6875rem; color: #047857; font-weight: 700;">
                                         Harap serahkan raket &amp; bola di atas kepada pemain sebelum memasuki lapangan.
                                     </div>
                                 @else
-                                    <div style="font-size: 0.75rem; color: #6B7280; font-style: italic;">
+                                    <div style="font-size: 0.75rem; color: var(--c-muted); font-style: italic;">
                                         Tidak ada tambahan sewa raket atau bola pada tiket ini.
                                     </div>
                                 @endif
@@ -1021,16 +738,12 @@
                     @endif
                 </div>
 
-                <!-- Footer -->
-                <div
-                    style="background: #FAF5E8; border-top: 1px solid #DFC387; padding: 1rem 1.5rem; display: flex; justify-content: flex-end; gap: 0.5rem;">
-                    <button type="button" wire:click="closeCheckInModal" class="adm-btn-sec"
-                        style="background: #FFFFFF;">
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="closeCheckInModal" class="c61-btn c61-btn-ghost">
                         Tutup
                     </button>
                     @if ($checkInResult)
-                        <button type="button" wire:click="closeCheckInModal" class="adm-btn-sec"
-                            style="background: linear-gradient(180deg, #F0DB9D 0%, #D4AF37 35%, #B38622 100%); color: #281A05; border: 1px solid #FBF0CE; font-weight: 800;">
+                        <button type="button" wire:click="closeCheckInModal" class="c61-btn c61-btn-primary">
                             Selesai &amp; Buka Akses Gate
                         </button>
                     @endif

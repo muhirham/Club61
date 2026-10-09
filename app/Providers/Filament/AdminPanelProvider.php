@@ -34,7 +34,8 @@ class AdminPanelProvider extends PanelProvider
             // ke /login lewat binding LogoutResponse custom di AppServiceProvider.
             ->darkMode(false)
             ->brandName('Club 61 Padel Court')
-            ->brandLogo(asset('images/club61-logo.png'))
+            // Logo panel: monogram + nama brand (resources/views/filament/brand-logo.blade.php).
+            ->brandLogo(fn () => view('filament.brand-logo'))
             ->brandLogoHeight('2.25rem')
             ->favicon(asset('images/club61-logo.png'))
             ->maxContentWidth('full')
@@ -52,8 +53,13 @@ class AdminPanelProvider extends PanelProvider
                 'Master Data',
                 'Karyawan & Akses',
             ])
+            // Warna utama panel = Terakota brand Club 61 (Pantone 643U). Palet otomatis Filament membuat shade 600
+            // jadi merah terang (#D14D42), jadi shade ditulis manual dengan #662721 sebagai warna tombol (600).
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => array_map(fn (string $hex): string => Color::convertToOklch($hex), [
+                    50 => '#FBF4F2', 100 => '#F6E8E4', 200 => '#EBCDC6', 300 => '#D9A79D', 400 => '#B9786C',
+                    500 => '#8F4A40', 600 => '#662721', 700 => '#5A221D', 800 => '#511D18', 900 => '#3F1713', 950 => '#2A0F0C',
+                ]),
             ])
             ->spa()
             // Link download (export) jangan dibuka lewat navigasi SPA: Livewire mengambil URL-nya dengan fetch lalu
