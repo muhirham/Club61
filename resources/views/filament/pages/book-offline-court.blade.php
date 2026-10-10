@@ -331,9 +331,16 @@
 
                 <div class="pos-terminal-body">
                     {{-- Form metode pembayaran bersama (dipakai juga oleh Kasir F&B) --}}
-                    @if ($appliedVoucherCode && ! $settleBill && $this->grandTotal <= 0)
+                    @if (! $settleBill && $this->grandTotal <= 0)
+                        @php
+                            $coveredBy = collect([
+                                $this->membershipDiscountAmount > 0 ? 'kuota member' : null,
+                                $this->sponsorDiscountAmount > 0 ? 'jam corporate' : null,
+                                $appliedVoucherCode ? 'voucher '.$appliedVoucherCode : null,
+                            ])->filter()->implode(' + ');
+                        @endphp
                         <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:12px; padding:0.9rem 1rem; color:#065F46; font-size:0.875rem; font-weight:700;">
-                            Tagihan lunas penuh dengan voucher {{ $appliedVoucherCode }} &mdash; tidak perlu EDC / QRIS. Langsung selesaikan transaksi.
+                            Tagihan Rp0 &mdash; lunas penuh ditanggung {{ $coveredBy ?: 'benefit' }}. Tidak perlu EDC / QRIS, langsung selesaikan transaksi.
                         </div>
                     @else
                         @include("pos.partials.payment-method-form", ["grandTotal" => $this->grandTotal, "qrisMidtrans" => true])
@@ -467,6 +474,8 @@
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                             <div style="font-size:0.5625rem; color:#9CA3AF;">Nomor HP lama otomatis dikenali — tidak
                                 buat akun ganda.</div>
+                            {{-- Nomor HP akun lama (member / karyawan sponsor): benefitnya langsung dipakai. --}}
+                            @include('filament.partials.walkin-benefit-badges', ['benefitQuote' => $this->benefitQuote])
                         </div>
                     @else
                         @if ($selectedCustomerId)
@@ -477,36 +486,7 @@
                                         {{ $selectedCustomerName }}</div>
                                     <div style="font-size:0.6875rem; color:#662721;">
                                         {{ $selectedCustomerPhone ?? '-' }}</div>
-                                    @if ($activeMembershipInfo)
-                                        <div
-                                            style="margin-top:0.25rem; display:flex; align-items:center; gap:0.35rem; flex-wrap:wrap;">
-                                            <div
-                                                style="display:inline-flex; align-items:center; gap:0.25rem; background:#FEF3C7; border:1px solid #F59E0B; border-radius:4px; padding:0.15rem 0.35rem; font-size:0.65rem; color:#92400E; font-weight:700;">
-                                                <span>{{ $activeMembershipInfo['plan_name'] }}</span>
-                                                <span>•</span>
-                                                <span>
-                                                    @if ($activeMembershipInfo['quota_type'] === 'HOURS')
-                                                        Sisa:
-                                                        {{ number_format($activeMembershipInfo['remaining_quota'], 1) }}
-                                                        Jam
-                                                    @elseif($activeMembershipInfo['discount_percent'] > 0)
-                                                        Diskon {{ $activeMembershipInfo['discount_percent'] }}%
-                                                    @else
-                                                        Member
-                                                    @endif
-                                                </span>
-                                            </div>
-                                            @if ($posStep === 'selection')
-                                                <button type="button" wire:click="toggleMembershipBenefit"
-                                                    style="display:inline-flex; align-items:center; gap:0.3rem; background:{{ $useMembershipBenefit ? '#ECFDF5' : '#F3F4F6' }}; border:1px solid {{ $useMembershipBenefit ? '#6EE7B7' : '#D1D5DB' }}; border-radius:999px; padding:0.15rem 0.5rem 0.15rem 0.3rem; font-size:0.6rem; font-weight:800; color:{{ $useMembershipBenefit ? '#047857' : '#6B7280' }}; cursor:pointer;"
-                                                    title="{{ $useMembershipBenefit ? 'Klik untuk tidak memakai benefit membership' : 'Klik untuk memakai benefit membership' }}">
-                                                    <span
-                                                        style="width:0.55rem; height:0.55rem; border-radius:999px; background:{{ $useMembershipBenefit ? '#10B981' : '#9CA3AF' }};"></span>
-                                                    {{ $useMembershipBenefit ? 'Benefit Dipakai' : 'Benefit Dimatikan' }}
-                                                </button>
-                                            @endif
-                                        </div>
-                                    @endif
+                                    @include('filament.partials.walkin-benefit-badges', ['benefitQuote' => $this->benefitQuote])
                                 </div>
                                 @if ($posStep === 'selection')
                                     <button type="button" wire:click="clearSelectedCustomer"
@@ -689,6 +669,13 @@
                             <span>- Rp {{ number_format($this->membershipDiscountAmount, 0, ',', '.') }}</span>
                         </div>
                     @endif
+                    @if ($this->sponsorDiscountAmount > 0)
+                        <div
+                            style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#047857; font-weight:800; margin-bottom:0.2rem;">
+                            <span>Jam Corporate ({{ $this->benefitQuote['sponsor']['organization_name'] ?? 'Sponsor' }}, {{ rtrim(rtrim(number_format($this->benefitQuote['sponsor']['hours'], 1, ',', '.'), '0'), ',') }} jam):</span>
+                            <span>- Rp {{ number_format($this->sponsorDiscountAmount, 0, ',', '.') }}</span>
+                        </div>
+                    @endif
                     @if ($this->voucherDiscount > 0)
                         <div
                             style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#047857; font-weight:800; margin-bottom:0.2rem;">
@@ -834,6 +821,9 @@
                 'QRIS', 'QRIS_STATIS' => $qrisMode === 'MIDTRANS' ? 'QRIS (QR otomatis)' : 'QRIS Kasir Frontdesk',
                 default => $paymentMethod,
             };
+            if (! $settleBill && $this->grandTotal <= 0) {
+                $confirmMethod = 'Gratis — ditanggung benefit (tanpa pembayaran)';
+            }
             $confirmAddons = collect($equipments)->filter(fn ($eq) => ($rentalQuantities[$eq->id] ?? 0) > 0);
         @endphp
         <x-filament::modal id="walkin-confirm-payment" width="lg" :close-by-clicking-away="false">

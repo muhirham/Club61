@@ -210,12 +210,14 @@
 
             async payNow() {
                 if (!this.currentTicket) return;
-                if (! this.availableMethods.length) {
+                // Tagihan Rp0 tidak memakai metode bayar (server langsung melunasi) — jangan diblokir batas nominal metode.
+                const isFree = Number(this.amountToPay) <= 0;
+                if (! isFree && ! this.availableMethods.length) {
                     this.showNotice('Pembayaran Online Tidak Tersedia', 'Belum ada metode pembayaran online yang bisa dipakai untuk nominal ini. Silakan hubungi frontdesk.', 'error', 'Tutup');
                     return;
                 }
                 // Jangan diam-diam membayar dengan metode lain — beri tahu customer dulu, biar dia yang lanjutkan.
-                if (! this.availableMethods.some(m => m.code === this.selectedMethod.code)) {
+                if (! isFree && ! this.availableMethods.some(m => m.code === this.selectedMethod.code)) {
                     const previous = this.selectedMethod.name;
                     this.ensureSelectedMethodAvailable();
                     this.showNotice('Metode Pembayaran Diganti', `${previous} tidak bisa dipakai untuk nominal ini. Metode diganti ke ${this.selectedMethod.name}. Periksa lagi lalu tekan bayar.`, 'info', 'Oke');
@@ -249,6 +251,10 @@
                         if (json.is_cash) {
                             this.isCashNotice = true;
                             await this.loadTicket(this.currentTicket.id);
+                        } else if (json.is_paid) {
+                            // Tagihan Rp0 (ditanggung kuota member / voucher jam corporate): lunas tanpa Midtrans.
+                            await this.loadTicket(this.currentTicket.id);
+                            this.showNotice('Booking Confirmed', json.message || 'Your booking is fully covered and confirmed.', 'success', 'OK');
                         } else if (json.snap_token) {
                             this.lastSnapToken = json.snap_token;
                             this.openSnap(json.snap_token, json.redirect_url);

@@ -240,6 +240,10 @@ trait ManagesCheckoutAndPayments
                 ];
             }
 
+            // Baris Rp0 (sewa lapangan yang ditanggung penuh kuota member / voucher jam corporate) tidak dikirim ke
+            // Midtrans — tidak ada yang ditagih dari baris itu, dan total item tetap sama dengan gross_amount.
+            $midtransItems = array_values(array_filter($midtransItems, fn (array $item) => (int) $item['price'] !== 0));
+
             // QA DEFENSE 3: Targeted 1-Rupiah Auto-Reconciliation
             $sumItems = 0;
             foreach ($midtransItems as $item) {
@@ -621,9 +625,37 @@ trait ManagesCheckoutAndPayments
                 'grand_total' => $grandTotal,
             ]);
 
-            if ($grandTotal > 0) {
-                $paymentMethod = app(\App\Services\Payment\OnlinePaymentMethodService::class)->assertSelectable($paymentMethod, (float) $grandTotal);
+            // Tagihan Rp0 (seluruhnya ditanggung kuota member / voucher jam corporate / voucher promo): langsung lunas,
+            // jangan buka sesi Midtrans — Midtrans menolak gross_amount 0 dan customer tertahan di halaman invoice.
+            if ($grandTotal <= 0) {
+                $coveredBy = $this->fullyCoveredMethod(
+                    byMembership: $bookings->contains(fn ($b) => (float) $b->member_discount_court > 0),
+                    bySponsor: $bookings->contains(fn ($b) => (float) $b->sponsor_discount_court > 0),
+                    byVoucher: (float) ($order->discount_amount ?? 0) > 0,
+                );
+
+                app(\App\Services\Payment\PaymentOrchestratorService::class)->markOrderAsPaid($order, [
+                    'payment_gateway' => $coveredBy,
+                    'payment_method' => $coveredBy,
+                    'amount' => 0.0,
+                    'user' => $user,
+                    'payload_log' => ['covered_by' => $coveredBy],
+                ]);
+
+                return [
+                    'success' => true,
+                    'is_cash' => false,
+                    'is_paid' => true,
+                    'order_id' => $order->order_number,
+                    'snap_token' => null,
+                    'redirect_url' => null,
+                    'grand_total' => 0.0,
+                    'payment_method' => $coveredBy,
+                    'message' => 'Tagihan Rp0 sudah ditanggung benefit — booking langsung lunas.',
+                ];
             }
+
+            $paymentMethod = app(\App\Services\Payment\OnlinePaymentMethodService::class)->assertSelectable($paymentMethod, (float) $grandTotal);
 
             // On-the-Fly Suffix Logic untuk Midtrans Snap
             $orderNumber = $order->order_number ?: ('ORD-PAD-' . strtoupper(Str::random(8)));
@@ -663,6 +695,10 @@ trait ManagesCheckoutAndPayments
                     'name' => substr($retryFinanceCalc['admin_fee_name'] ?: 'Biaya Layanan', 0, 50),
                 ];
             }
+
+            // Baris Rp0 (sewa lapangan yang ditanggung penuh kuota member / voucher jam corporate) tidak dikirim ke
+            // Midtrans — tidak ada yang ditagih dari baris itu, dan total item tetap sama dengan gross_amount.
+            $midtransItems = array_values(array_filter($midtransItems, fn (array $item) => (int) $item['price'] !== 0));
 
             // QA DEFENSE 3: Targeted 1-Rupiah Auto-Reconciliation
             $sumItems = 0;
@@ -827,6 +863,7 @@ trait ManagesCheckoutAndPayments
             'SPONSOR_VOUCHER' => 'Voucher Jam Corporate (Gratis)',
             'MEMBERSHIP_AND_SPONSOR_VOUCHER' => 'Kuota Membership + Voucher Corporate (Gratis)',
             'PROMO_VOUCHER' => 'Kode Promo (Gratis)',
+            'VOUCHER' => 'Voucher (Gratis)',
             default => $method ?: 'QRIS Instan (GoPay/OVO/BCA)',
         };
     }
@@ -896,7 +933,9 @@ trait ManagesCheckoutAndPayments
         array $paymentMeta = [],
         ?string $membershipBalanceId = null,
         ?string $voucherCode = null,
-        ?float $expectedGrandTotal = null
+        ?float $expectedGrandTotal = null,
+        // null = voucher jam corporate milik customer dipakai otomatis (sama dengan online), 'NONE' = kasir mematikannya.
+        ?string $sponsorVoucherId = null
     ): array {
         // 100% Cashless: pembayaran tunai tidak diperbolehkan sama sekali di loket walk-in.
         if (in_array(strtoupper($paymentMethod), ['CASH', 'TUNAI'])) {
@@ -911,7 +950,7 @@ trait ManagesCheckoutAndPayments
         // ditahan. Dulu slot tetap terkunci selama waktu tahan (sampai 30 menit) dan kasir yang mencoba ulang mendapat
         // "slot sedang di-hold pemain lain".
         try {
-            return DB::transaction(function () use ($customer, $bookingIds, $equipments, $paymentMethod, $cashier, $autoCheckIn, $paymentMeta, $membershipBalanceId, $voucherCode, $expectedGrandTotal) {
+            return DB::transaction(function () use ($customer, $bookingIds, $equipments, $paymentMethod, $cashier, $autoCheckIn, $paymentMeta, $membershipBalanceId, $voucherCode, $expectedGrandTotal, $sponsorVoucherId) {
                 $bookings = PadelBooking::with('court')
                     ->whereIn('id', $bookingIds)
                     ->where('user_id', $customer->id)
@@ -923,7 +962,15 @@ trait ManagesCheckoutAndPayments
                 }
 
                 // Terapkan kuota atau diskon membership jika ada
-                $this->applyMembershipBenefitToCourtBookings($bookings, $customer, $membershipBalanceId);
+                $membershipBenefitResult = $this->applyMembershipBenefitToCourtBookings($bookings, $customer, $membershipBalanceId);
+
+                // Voucher jam corporate (karyawan sponsor yang datang langsung) — urutan sama dengan checkout online:
+                // hanya untuk sisa sewa lapangan yang belum ditanggung membership pribadi.
+                $sponsorBenefitResult = $this->applySponsorVoucherBenefitToCourtBookings(
+                    $bookings->filter(fn ($b) => (float) $b->court_fee > 0),
+                    $customer,
+                    $sponsorVoucherId
+                );
 
                 $courtTotal = (float) $bookings->sum('court_fee');
                 $equipmentTotal = 0;
@@ -995,13 +1042,20 @@ trait ManagesCheckoutAndPayments
                     throw new HttpException(409, 'Total tagihan berubah dari Rp '.number_format($expectedGrandTotal, 0, ',', '.').' menjadi Rp '.number_format((float) $grandTotal, 0, ',', '.').'. Periksa lagi rincian di layar sebelum menagih customer.');
                 }
 
-                // 'VOUCHER' hanya untuk tagihan yang seluruhnya ditutup voucher (tanpa uang masuk = tanpa bukti bayar).
-                $coveredByVoucher = $voucherResult['voucher'] && $grandTotal <= 0;
+                // Tagihan Rp0 (ditanggung kuota membership, voucher jam corporate, dan/atau voucher promo): tidak ada uang
+                // masuk → tanpa metode bayar, tanpa bukti EDC/QRIS, tanpa Midtrans. Dulu hanya voucher promo yang dikenali;
+                // Rp0 karena kuota member memaksa kasir mengetik RRN palsu, dan QRIS Otomatis menolak "Tagihan Rp 0".
+                $coveredByVoucher = $grandTotal <= 0;
                 if (strtoupper($paymentMethod) === 'VOUCHER' && ! $coveredByVoucher) {
                     throw new HttpException(422, 'Voucher tidak menutup seluruh tagihan. Pilih metode pembayaran untuk sisa tagihan.');
                 }
                 if ($coveredByVoucher) {
-                    $paymentMethod = 'VOUCHER';
+                    $paymentMethod = $this->fullyCoveredMethod(
+                        byMembership: $membershipBenefitResult['benefit_type'] !== 'NONE',
+                        bySponsor: $sponsorBenefitResult['benefit_type'] !== 'NONE',
+                        byVoucher: (bool) $voucherResult['voucher'],
+                        voucherCode: 'VOUCHER',
+                    );
                 }
 
                 // Buat Order resmi dengan order_type = 'WALK_IN' dan cashier_id terisi
@@ -1122,8 +1176,8 @@ trait ManagesCheckoutAndPayments
                 if (! $coveredByVoucher) {
                     \App\Services\Pos\PosPaymentProof::assertProofNotReused($payloadLog);
                 } else {
-                    $payloadLog['covered_by'] = 'VOUCHER';
-                    $payloadLog['voucher_code'] = $voucherResult['voucher']->code;
+                    $payloadLog['covered_by'] = $paymentMethod;
+                    $payloadLog['voucher_code'] = $voucherResult['voucher']?->code;
                 }
 
                 // Eksekusi pelunasan langsung via PaymentOrchestratorService sebagai single writer
@@ -1520,6 +1574,157 @@ trait ManagesCheckoutAndPayments
      * dipakai halaman "Payment Details & Checkout" (online) maupun POS walk-in agar customer/kasir
      * tahu ada potongan SEBELUM menekan tombol bayar — bukan baru ketahuan setelah checkout dieksekusi.
      */
+    /**
+     * Potongan benefit untuk layar kasir walk-in SEBELUM slot di-hold — urutan & rumusnya sama persis dengan
+     * processWalkInCheckout(): jam berurutan di lapangan yang sama digabung jadi satu booking (seperti
+     * holdBatchSlots), kuota membership dipotong dulu (kuota jam all-or-nothing per booking), lalu voucher jam
+     * corporate (paling cepat kedaluwarsa dulu, boleh sebagian). Kode promo & pajak dihitung pemanggil.
+     * Dulu layar kasir menghitung kuota per jam terpisah sehingga angkanya bisa beda dengan server
+     * (checkout gagal "Total tagihan berubah").
+     *
+     * @param  array<int, array{court_id: string, start_time: string, end_time: string}>  $slots
+     */
+    public function quoteWalkInBenefits(array $slots, string $bookingDate, ?User $user, ?string $membershipBalanceId = null, ?string $sponsorVoucherId = null): array
+    {
+        usort($slots, fn ($a, $b) => strcmp($a['court_id'], $b['court_id']) ?: strcmp($a['start_time'], $b['start_time']));
+        $merged = [];
+        foreach ($slots as $slot) {
+            $last = array_key_last($merged);
+            if ($last !== null && $merged[$last]['court_id'] === $slot['court_id'] && $merged[$last]['end_time'] === $slot['start_time']) {
+                $merged[$last]['end_time'] = $slot['end_time'];
+
+                continue;
+            }
+            $merged[] = ['court_id' => $slot['court_id'], 'start_time' => $slot['start_time'], 'end_time' => $slot['end_time']];
+        }
+
+        $courts = \App\Models\Padel\PadelCourt::whereIn('id', array_unique(array_column($merged, 'court_id')))->get()->keyBy('id');
+        $peak = app(\App\Services\Padel\PeakHourService::class);
+
+        $lines = [];
+        foreach ($merged as $slot) {
+            $court = $courts[$slot['court_id']] ?? null;
+            if (! $court) {
+                continue;
+            }
+            $start = \Carbon\Carbon::parse("{$bookingDate} {$slot['start_time']}");
+            $end = \Carbon\Carbon::parse("{$bookingDate} {$slot['end_time']}");
+            $fee = (float) $peak->courtFee($court, $start, $end)['fee'];
+
+            $lines[] = [
+                'court_id' => $court->id,
+                'court_name' => $court->name,
+                'start' => $start,
+                'end' => $end,
+                'hours' => max(0.5, round($start->diffInMinutes($end) / 60, 2)),
+                'normal_fee' => $fee,
+                'member_hours' => 0.0,
+                'member_discount' => 0.0,
+                'sponsor_hours' => 0.0,
+                'sponsor_discount' => 0.0,
+                'fee_after' => $fee,
+            ];
+        }
+
+        $membership = ['applies' => false, 'balance_id' => null, 'plan_name' => null, 'hours' => 0.0, 'rejected_reason' => null];
+        $sponsor = ['applies' => false, 'organization_name' => null, 'hours_available' => 0.0, 'hours' => 0.0, 'hours_left' => 0.0];
+
+        if ($user && $lines !== []) {
+            // 1. Membership — deteksi kartu & jendela waktu memakai fungsi checkout yang sama (mode preview).
+            $transient = collect($lines)->map(fn ($l) => (new PadelBooking)->forceFill([
+                'start_time' => $l['start'], 'end_time' => $l['end'], 'court_fee' => $l['normal_fee'], 'total_amount' => $l['normal_fee'],
+            ]));
+            $m = $this->applyMembershipBenefitToCourtBookings($transient, $user, $membershipBalanceId, commit: false);
+            $membership['rejected_reason'] = $m['rejected_reason'];
+            $membership['plan_name'] = $m['plan_name'];
+
+            if ($m['applied_balance'] && ! $m['rejected_reason']) {
+                $balance = $m['applied_balance'];
+                $remaining = (float) $balance->remaining_quota;
+                foreach ($lines as &$l) {
+                    if ($balance->quota_type === 'HOURS' && $remaining >= $l['hours']) {
+                        $l['member_hours'] = $l['hours'];
+                        $l['member_discount'] = $l['fee_after'];
+                        $remaining -= $l['hours'];
+                    } elseif ((float) $balance->discount_percent > 0) {
+                        $l['member_discount'] = round($l['fee_after'] * ((float) $balance->discount_percent / 100), 2);
+                    }
+                    $l['fee_after'] = max(0, round($l['fee_after'] - $l['member_discount'], 2));
+                }
+                unset($l);
+
+                $membership['balance_id'] = $balance->id;
+                $membership['applies'] = array_sum(array_column($lines, 'member_discount')) > 0;
+                $membership['hours'] = (float) array_sum(array_column($lines, 'member_hours'));
+            }
+
+            // 2. Voucher jam corporate — rumus sama dengan applySponsorVoucherBenefitToCourtBookings().
+            $member = $sponsorVoucherId === 'NONE' || $sponsorVoucherId === 'none' ? null
+                : \App\Models\Sponsor\SponsorOrganizationMember::with('organization')->where('user_id', $user->id)->where('status', 'ACTIVE')->first();
+            if ($member) {
+                $voucherQuery = \App\Models\Sponsor\SponsorMemberVoucher::where('sponsor_organization_member_id', $member->id)
+                    ->where('expires_at', '>', now())
+                    ->orderBy('expires_at');
+                if ($sponsorVoucherId) {
+                    $voucherQuery->where('id', $sponsorVoucherId);
+                }
+                $pool = $voucherQuery->get()->map(fn ($v) => $v->remainingHours())->filter(fn ($h) => $h > 0)->values()->all();
+
+                $sponsor['organization_name'] = $member->organization->name ?? null;
+                $sponsor['hours_available'] = round((float) array_sum($pool), 2);
+
+                foreach ($lines as &$l) {
+                    $available = round((float) array_sum($pool), 2);
+                    if ($l['fee_after'] <= 0 || $available <= 0) {
+                        continue;
+                    }
+                    $covered = min($available, $l['hours']);
+                    $toConsume = $covered;
+                    foreach ($pool as $i => $hoursLeft) {
+                        if ($toConsume <= 0) {
+                            break;
+                        }
+                        $take = min($hoursLeft, $toConsume);
+                        $pool[$i] = round($hoursLeft - $take, 2);
+                        $toConsume = round($toConsume - $take, 2);
+                    }
+                    $discount = $covered >= $l['hours'] ? $l['fee_after'] : min($l['fee_after'], round(($l['fee_after'] / $l['hours']) * $covered, 2));
+                    $l['sponsor_hours'] = $covered;
+                    $l['sponsor_discount'] = $discount;
+                    $l['fee_after'] = round($l['fee_after'] - $discount, 2);
+                }
+                unset($l);
+
+                $sponsor['hours'] = (float) array_sum(array_column($lines, 'sponsor_hours'));
+                $sponsor['hours_left'] = round((float) array_sum($pool), 2);
+                $sponsor['applies'] = array_sum(array_column($lines, 'sponsor_discount')) > 0;
+            }
+        }
+
+        return [
+            'lines' => $lines,
+            'court_total' => (float) array_sum(array_column($lines, 'normal_fee')),
+            'membership_discount' => round((float) array_sum(array_column($lines, 'member_discount')), 2),
+            'sponsor_discount' => round((float) array_sum(array_column($lines, 'sponsor_discount')), 2),
+            'court_total_after' => round((float) array_sum(array_column($lines, 'fee_after')), 2),
+            'membership' => $membership,
+            'sponsor' => $sponsor,
+        ];
+    }
+
+    /**
+     * Kode metode untuk tagihan yang 100% ditanggung benefit (tanpa uang masuk) — label sama dengan checkout online.
+     */
+    protected function fullyCoveredMethod(bool $byMembership, bool $bySponsor, bool $byVoucher, string $voucherCode = 'PROMO_VOUCHER'): string
+    {
+        return match (true) {
+            $byMembership && $bySponsor => 'MEMBERSHIP_AND_SPONSOR_VOUCHER',
+            $bySponsor => 'SPONSOR_VOUCHER',
+            $byMembership => 'MEMBERSHIP_QUOTA',
+            default => $voucherCode,
+        };
+    }
+
     public function previewMembershipBenefit(
         array $bookingIds,
         User $user,

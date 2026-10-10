@@ -71,6 +71,12 @@ class BookOfflineCourt extends Page
     // Toggle kasir: pakai/tidak pakai benefit membership customer ini untuk transaksi sekarang.
     public bool $useMembershipBenefit = true;
 
+    /** Voucher jam corporate customer (karyawan sponsor): ['organization_name', 'remaining_hours'] — null kalau tidak punya. */
+    public ?array $sponsorVoucherInfo = null;
+
+    /** Toggle kasir: pakai voucher jam corporate customer untuk transaksi ini. */
+    public bool $useSponsorVoucherBenefit = true;
+
     // Form Walk-In Cepat
     public string $walkInName = '';
 
@@ -232,7 +238,8 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerId = $booking->user_id;
         $this->selectedCustomerName = $booking->user?->name;
         $this->selectedCustomerPhone = $booking->user?->phone;
-        $this->activeMembershipInfo = null;
+        // Pelunasan tagihan: benefit sudah dihitung saat booking dibuat — jangan dipotong lagi.
+        $this->loadBenefitInfo(null);
         $this->bookingDate = $booking->booking_date->format('Y-m-d');
 
         $this->paymentMethod = 'QRIS';
@@ -251,6 +258,7 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
         $this->customerMode = 'quick_create';
+        $this->loadBenefitInfo(null);
         $this->posStep = 'selection';
     }
 
@@ -467,6 +475,7 @@ class BookOfflineCourt extends Page
     public function setCustomerMode(string $mode): void
     {
         $this->customerMode = $mode;
+        $this->loadBenefitInfo($this->benefitCustomer());
         $this->saveDraft();
     }
 
@@ -479,35 +488,7 @@ class BookOfflineCourt extends Page
             $this->selectedCustomerPhone = $user->phone;
             $this->customerSearch = '';
 
-            // Cek keanggotaan aktif dan benefit fasilitas Padel
-            // Tie-break: kartu yang paling cepat kedaluwarsa dipakai lebih dulu, konsisten dengan
-            // auto-detect balance di ManagesCheckoutAndPayments::applyMembershipBenefitToCourtBookings().
-            $activeMbr = \App\Models\Membership\UserMembership::with(['plan', 'balances'])
-                ->where('user_id', $user->id)
-                ->where('status', 'ACTIVE')
-                ->where(function ($q) {
-                    $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
-                })
-                ->orderByRaw('end_date IS NULL, end_date ASC')
-                ->first();
-
-            if ($activeMbr) {
-                $padelBalance = $activeMbr->balanceFor('PADEL');
-                $this->activeMembershipInfo = [
-                    'membership_code' => $activeMbr->membership_code,
-                    'plan_name' => $activeMbr->plan->name,
-                    'facility' => 'PADEL',
-                    'quota_type' => $padelBalance?->quota_type ?? 'NONE',
-                    'remaining_quota' => $padelBalance ? (float) $padelBalance->remaining_quota : 0.00,
-                    'discount_percent' => $padelBalance ? (float) $padelBalance->discount_percent : 0.00,
-                    'balance_id' => $padelBalance?->id,
-                ];
-            } else {
-                $this->activeMembershipInfo = null;
-            }
-
-            // Reset toggle ke default (ON) setiap ganti customer, biar gak kebawa state customer sebelumnya.
-            $this->useMembershipBenefit = true;
+            $this->loadBenefitInfo($user);
 
             $this->saveDraft();
         }
@@ -524,10 +505,85 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerId = null;
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
-        $this->useMembershipBenefit = true;
-        $this->activeMembershipInfo = null;
+        $this->loadBenefitInfo(null);
         $this->customerSearch = '';
         $this->saveDraft();
+    }
+
+    public function toggleSponsorVoucherBenefit(): void
+    {
+        $this->useSponsorVoucherBenefit = ! $this->useSponsorVoucherBenefit;
+        $this->saveDraft();
+    }
+
+    /**
+     * Benefit customer yang tampil di layar kasir: kartu membership aktif (paling cepat kedaluwarsa dulu, sama
+     * dengan auto-detect checkout) dan voucher jam corporate (karyawan sponsor). Toggle kembali ON setiap ganti customer.
+     */
+    protected function loadBenefitInfo(?User $user): void
+    {
+        $this->useMembershipBenefit = true;
+        $this->useSponsorVoucherBenefit = true;
+        $this->activeMembershipInfo = null;
+        $this->sponsorVoucherInfo = null;
+        $this->benefitQuoteCache = null;
+
+        if (! $user) {
+            return;
+        }
+
+        $activeMbr = \App\Models\Membership\UserMembership::with(['plan', 'balances'])
+            ->where('user_id', $user->id)
+            ->where('status', 'ACTIVE')
+            ->where(function ($q) {
+                $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString());
+            })
+            ->orderByRaw('end_date IS NULL, end_date ASC')
+            ->first();
+
+        if ($activeMbr) {
+            $padelBalance = $activeMbr->balanceFor('PADEL');
+            $this->activeMembershipInfo = [
+                'membership_code' => $activeMbr->membership_code,
+                'plan_name' => $activeMbr->plan->name,
+                'facility' => 'PADEL',
+                'quota_type' => $padelBalance?->quota_type ?? 'NONE',
+                'remaining_quota' => $padelBalance ? (float) $padelBalance->remaining_quota : 0.00,
+                'discount_percent' => $padelBalance ? (float) $padelBalance->discount_percent : 0.00,
+                'balance_id' => $padelBalance?->id,
+            ];
+        }
+
+        $member = \App\Models\Sponsor\SponsorOrganizationMember::with('organization')
+            ->where('user_id', $user->id)->where('status', 'ACTIVE')->first();
+        if ($member) {
+            $hours = (float) \App\Models\Sponsor\SponsorMemberVoucher::where('sponsor_organization_member_id', $member->id)
+                ->where('expires_at', '>', now())->get()->sum(fn ($v) => $v->remainingHours());
+            if ($hours > 0) {
+                $this->sponsorVoucherInfo = [
+                    'organization_name' => $member->organization->name ?? 'Corporate',
+                    'remaining_hours' => round($hours, 2),
+                ];
+            }
+        }
+    }
+
+    /**
+     * Customer yang benefitnya dihitung di layar: dipilih lewat "Cari Member", atau — di mode Walk-In Baru — akun
+     * lama dengan nomor HP yang sama (server memakai akun itu juga saat checkout, lihat findOrCreateWalkInCustomer()).
+     */
+    protected function benefitCustomer(): ?User
+    {
+        if ($this->customerMode === 'search') {
+            return $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
+        }
+
+        $digits = preg_replace('/\D/', '', (string) $this->walkInPhone);
+        if (strlen($digits) < 8) {
+            return null;
+        }
+
+        return User::where('phone', app(PadelBookingService::class)->normalizePhoneNumber((string) $this->walkInPhone))->first();
     }
 
     public function updatedWalkInName(): void
@@ -537,8 +593,11 @@ class BookOfflineCourt extends Page
 
     public function updatedWalkInPhone(): void
     {
+        // Nomor HP akun lama (mis. karyawan sponsor / member) → benefitnya langsung tampil & dihitung.
+        $this->loadBenefitInfo($this->benefitCustomer());
         $this->saveDraft();
     }
+
 
     public function updatedWalkInEmail(): void
     {
@@ -578,6 +637,7 @@ class BookOfflineCourt extends Page
     protected ?float $subtotalCache = null;
     protected ?array $financeCalculationCache = null;
     protected ?array $voucherResultCache = null;
+    protected ?array $benefitQuoteCache = null;
 
     public function getCourtTotalProperty(): float
     {
@@ -616,37 +676,48 @@ class BookOfflineCourt extends Page
      */
     public function getMembershipDiscountAmountProperty(): float
     {
-        if ($this->membershipDiscountAmountCache !== null) {
-            return $this->membershipDiscountAmountCache;
+        return $this->membershipDiscountAmountCache ??= min((float) $this->benefitQuote['membership_discount'], $this->courtTotal);
+    }
+
+    /** Potongan voucher jam corporate (karyawan sponsor) atas sisa sewa lapangan setelah membership. */
+    public function getSponsorDiscountAmountProperty(): float
+    {
+        return min((float) $this->benefitQuote['sponsor_discount'], max(0, $this->courtTotal - $this->membershipDiscountAmount));
+    }
+
+    /**
+     * Rincian potongan benefit per booking (jam berurutan digabung) dari PadelBookingService::quoteWalkInBenefits() —
+     * fungsi yang sama dipakai pola potong checkout, jadi angka layar = angka yang dicatat server.
+     */
+    public function getBenefitQuoteProperty(): array
+    {
+        if ($this->benefitQuoteCache !== null) {
+            return $this->benefitQuoteCache;
         }
 
-        if (! $this->useMembershipBenefit || ! $this->activeMembershipInfo) {
-            return $this->membershipDiscountAmountCache = 0.0;
+        $empty = ['lines' => [], 'membership_discount' => 0.0, 'sponsor_discount' => 0.0,
+            'membership' => ['applies' => false, 'balance_id' => null, 'rejected_reason' => null, 'hours' => 0.0, 'plan_name' => null],
+            'sponsor' => ['applies' => false, 'organization_name' => null, 'hours' => 0.0, 'hours_left' => 0.0, 'hours_available' => 0.0]];
+
+        $customer = $this->settleBill || empty($this->selectedSlots) ? null : $this->benefitCustomer();
+        if (! $customer) {
+            return $this->benefitQuoteCache = $empty;
         }
 
-        $info = $this->activeMembershipInfo;
-        $discountTotal = 0.0;
-
-        if ($info['quota_type'] === 'HOURS') {
-            $remaining = (float) $info['remaining_quota'];
-            foreach ($this->selectedSlots as $slot) {
-                $durationMinutes = \Carbon\Carbon::parse($slot['start_time'])->diffInMinutes(\Carbon\Carbon::parse($slot['end_time']));
-                $hoursNeeded = max(0.5, round($durationMinutes / 60, 2));
-                if ($remaining >= $hoursNeeded) {
-                    $discountTotal += (float) $slot['price'];
-                    $remaining -= $hoursNeeded;
-                }
-            }
-        } elseif ((float) $info['discount_percent'] > 0) {
-            $discountTotal = round($this->courtTotal * ((float) $info['discount_percent'] / 100), 2);
-        }
-
-        return $this->membershipDiscountAmountCache = min($discountTotal, $this->courtTotal);
+        return $this->benefitQuoteCache = app(PadelBookingService::class)->quoteWalkInBenefits(
+            array_values(array_map(fn ($slot) => [
+                'court_id' => $slot['court_id'], 'start_time' => $slot['start_time'], 'end_time' => $slot['end_time'],
+            ], $this->selectedSlots)),
+            $this->bookingDate,
+            $customer,
+            $this->useMembershipBenefit ? ($this->activeMembershipInfo['balance_id'] ?? null) : 'NONE',
+            $this->useSponsorVoucherBenefit ? null : 'NONE',
+        );
     }
 
     public function getSubtotalProperty(): float
     {
-        return $this->subtotalCache ??= max(0, $this->courtTotal - $this->membershipDiscountAmount) + $this->equipmentTotal;
+        return $this->subtotalCache ??= max(0, $this->courtTotal - $this->membershipDiscountAmount - $this->sponsorDiscountAmount) + $this->equipmentTotal;
     }
 
     public function getFinanceCalculationProperty(): array
@@ -672,7 +743,7 @@ class BookOfflineCourt extends Page
         $customer = $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
 
         return $this->voucherResultCache = app(\App\Services\Finance\VoucherService::class)
-            ->resolve($this->appliedVoucherCode, $customer, max(0, $this->courtTotal - $this->membershipDiscountAmount) + $this->equipmentTotal);
+            ->resolve($this->appliedVoucherCode, $customer, max(0, $this->courtTotal - $this->membershipDiscountAmount - $this->sponsorDiscountAmount) + $this->equipmentTotal);
     }
 
     public function getVoucherDiscountProperty(): float
@@ -985,6 +1056,8 @@ class BookOfflineCourt extends Page
             'qrisRrn' => $this->qrisRrn,
             'qrisSenderName' => $this->qrisSenderName,
             'isAutoCheckIn' => $this->isAutoCheckIn,
+            'useMembershipBenefit' => $this->useMembershipBenefit,
+            'useSponsorVoucherBenefit' => $this->useSponsorVoucherBenefit,
             'grandTotal' => $this->grandTotal,
             'savedAt' => now('Asia/Jakarta')->format('H:i'),
         ], 7200);
@@ -1022,6 +1095,9 @@ class BookOfflineCourt extends Page
         $this->qrisRrn = $draft['qrisRrn'] ?? '';
         $this->qrisSenderName = $draft['qrisSenderName'] ?? '';
         $this->isAutoCheckIn = $draft['isAutoCheckIn'] ?? false;
+        $this->loadBenefitInfo($this->benefitCustomer());
+        $this->useMembershipBenefit = $draft['useMembershipBenefit'] ?? true;
+        $this->useSponsorVoucherBenefit = $draft['useSponsorVoucherBenefit'] ?? true;
 
         $draftSlots = $draft['selectedSlots'] ?? [];
         $conflicted = false;
@@ -1192,6 +1268,7 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerId = null;
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
+        $this->loadBenefitInfo(null);
         $this->paymentMethod = 'QRIS';
         $this->edcLast4 = '';
         $this->edcApprovalCode = '';
@@ -1316,8 +1393,9 @@ class BookOfflineCourt extends Page
         $grandTotal = $this->grandTotal;
         $paymentMeta = [];
 
-        if ($this->appliedVoucherCode && $grandTotal <= 0) {
-            // Seluruh tagihan ditutup voucher: tidak ada uang masuk, jadi tidak ada bukti EDC / QRIS.
+        if ($grandTotal <= 0) {
+            // Seluruh tagihan ditanggung voucher promo / kuota membership / voucher jam corporate: tidak ada uang
+            // masuk, jadi tanpa bukti EDC / QRIS dan tanpa Midtrans. Server menentukan label sumbernya.
             $method = 'VOUCHER';
         } elseif (in_array($method, ['CASH', 'TUNAI'])) {
             Notification::make()
@@ -1441,7 +1519,10 @@ class BookOfflineCourt extends Page
                 paymentMeta: $paymentMeta,
                 // 'NONE' kalau kasir sengaja matiin toggle benefit membership untuk transaksi ini —
                 // konsisten dengan guard yang sama dipakai di jalur online checkout.
-                membershipBalanceId: $this->useMembershipBenefit ? ($this->activeMembershipInfo['balance_id'] ?? null) : 'NONE',
+                // Benefit yang dihitung di layar (quoteWalkInBenefits) — kartu di luar jendela waktunya dimatikan supaya
+                // checkout tidak gagal; 'NONE' kalau kasir mematikan toggle.
+                membershipBalanceId: $this->useMembershipBenefit && $this->benefitQuote['membership']['applies'] ? $this->benefitQuote['membership']['balance_id'] : 'NONE',
+                sponsorVoucherId: $this->useSponsorVoucherBenefit ? null : 'NONE',
                 // Voucher hanya dikirim kalau di layar memang berlaku — dulu voucher milik customer yang belum dipilih
                 // (mode Walk-In Cepat) tetap dipakai server walau layar tidak menampilkan potongannya.
                 voucherCode: $this->appliedVoucherCode && ! $this->voucherResult['error'] ? $this->appliedVoucherCode : null,
@@ -1468,7 +1549,9 @@ class BookOfflineCourt extends Page
                 'cashier_name' => $cashier->name,
                 'booking_date' => Carbon::parse($this->bookingDate)->translatedFormat('d F Y'),
                 // Pembayaran di kasir: label EDC/QRIS frontdesk, bukan label metode online.
-                'payment_method' => $service->formatPaymentMethodLabel($this->paymentMethod, ['cashier_id' => auth()->id()]),
+                // Metode FINAL dari server: tagihan Rp0 tercatat sebagai "Voucher Jam Corporate (Gratis)" dsb. — dulu struk
+                // tetap menulis pilihan di layar (mis. QRIS) walau tidak ada uang yang dibayar.
+                'payment_method' => $service->formatPaymentMethodLabel($result['payment_method'] ?? $this->paymentMethod, ['cashier_id' => auth()->id()]),
                 'subtotal' => $result['order']->subtotal,
                 'discount_amount' => (float) $result['order']->discount_amount,
                 'voucher_code' => $result['order']->voucher_code,
@@ -1480,16 +1563,8 @@ class BookOfflineCourt extends Page
                 'auto_checked_in' => $result['auto_checked_in'],
                 'created_at' => now()->format('d/m/Y H:i:s'),
                 'payment_meta' => $paymentMeta,
-                'bookings' => $result['bookings']->map(function ($b) {
-                    return [
-                        'booking_code' => $b->booking_code,
-                        'court_name' => $b->court?->name ?? 'Lapangan Padel',
-                        'time_label' => $b->start_time->format('H:i') . ' - ' . $b->end_time->format('H:i'),
-                        'court_fee' => (float) $b->court_fee,
-                        'status' => $b->status,
-                        'qr_code_hash' => $b->qr_code_hash,
-                    ];
-                })->toArray(),
+                'bookings' => $this->receiptBookingLines($result['bookings']),
+                'benefit_notes' => $this->receiptBenefitNotes($customer, $result['bookings']),
                 'equipments' => array_values(array_filter(array_map(function ($item) {
                     $eq = CourtEquipment::find($item['equipment_id']);
                     return ($eq && $eq->is_active) ? [
@@ -1537,6 +1612,60 @@ class BookOfflineCourt extends Page
         }
     }
 
+    /**
+     * Baris lapangan untuk struk: harga normal + potongan kuota member / voucher jam corporate yang dipakai, supaya
+     * struk Rp0 tetap menjelaskan apa yang ditanggung (dulu hanya "Court A … Rp 0").
+     */
+    protected function receiptBookingLines(\Illuminate\Support\Collection $bookings, ?callable $courtDeltaFor = null): array
+    {
+        return $bookings->map(function ($b) use ($courtDeltaFor) {
+            $courtFee = (float) $b->court_fee - ($courtDeltaFor ? $courtDeltaFor($b) : 0);
+            $memberDiscount = (float) $b->member_discount_court;
+            $sponsorDiscount = (float) $b->sponsor_discount_court;
+
+            return [
+                'booking_code' => $b->booking_code,
+                'court_name' => $b->court?->name ?? 'Lapangan Padel',
+                'time_label' => $b->start_time->format('H:i').' - '.$b->end_time->format('H:i'),
+                'court_fee' => $courtFee,
+                'normal_fee' => $courtFee + $memberDiscount + $sponsorDiscount,
+                'member_hours' => (float) $b->member_hours_consumed,
+                'member_discount' => $memberDiscount,
+                'sponsor_hours' => (float) $b->sponsor_hours_consumed,
+                'sponsor_discount' => $sponsorDiscount,
+                'sponsor_org' => $sponsorDiscount > 0 ? $b->sponsorOrganization?->name : null,
+                'status' => $b->status,
+                'qr_code_hash' => $b->qr_code_hash,
+            ];
+        })->values()->all();
+    }
+
+    /** Sisa saldo benefit customer setelah transaksi (hanya di struk penjualan, bukan cetak ulang). */
+    protected function receiptBenefitNotes(?User $customer, \Illuminate\Support\Collection $bookings): array
+    {
+        if (! $customer) {
+            return [];
+        }
+
+        $hours = fn ($h) => rtrim(rtrim(number_format((float) $h, 1, ',', '.'), '0'), ',');
+        $notes = [];
+
+        if ($bookings->contains(fn ($b) => (float) $b->member_hours_consumed > 0)) {
+            $left = \App\Models\Membership\UserMembershipBalance::whereIn('id', $bookings->pluck('membership_balance_id')->filter()->unique())->sum('remaining_quota');
+            $notes[] = 'Sisa kuota member: '.$hours($left).' jam';
+        }
+
+        if ($bookings->contains(fn ($b) => (float) $b->sponsor_hours_consumed > 0)) {
+            $member = \App\Models\Sponsor\SponsorOrganizationMember::where('user_id', $customer->id)->where('status', 'ACTIVE')->first();
+            $left = $member
+                ? \App\Models\Sponsor\SponsorMemberVoucher::where('sponsor_organization_member_id', $member->id)->where('expires_at', '>', now())->get()->sum(fn ($v) => $v->remainingHours())
+                : 0;
+            $notes[] = 'Sisa jam corporate: '.$hours($left).' jam';
+        }
+
+        return $notes;
+    }
+
     /** Kosongkan keranjang & data customer untuk transaksi berikutnya. */
     protected function resetWalkInCart(): void
     {
@@ -1549,6 +1678,7 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerId = null;
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
+        $this->loadBenefitInfo(null);
         $this->qrisRrn = '';
         $this->qrisSenderName = '';
     }
@@ -1853,14 +1983,10 @@ class BookOfflineCourt extends Page
             'created_at' => ($payment->paid_at ?? $payment->updated_at)->setTimezone('Asia/Jakarta')->format('d/m/Y H:i:s'),
             'payment_meta' => $paymentMeta,
             'note' => $atSale && $wasRescheduled ? 'Jadwal di bawah adalah jadwal TERBARU (booking sudah dipindah setelah transaksi ini).' : null,
-            'bookings' => $bookings->map(fn ($b) => [
-                'booking_code' => $b->booking_code,
-                'court_name' => $b->court?->name ?? 'Lapangan Padel',
-                'time_label' => $b->start_time->format('H:i').' - '.$b->end_time->format('H:i'),
-                'court_fee' => (float) $b->court_fee - ($atSale ? $courtDeltaFor($b) : 0),
-                'status' => $b->status,
-                'qr_code_hash' => $b->qr_code_hash,
-            ])->all(),
+            'bookings' => $this->receiptBookingLines($bookings, $atSale ? $courtDeltaFor : null),
+            // Potongan voucher promo ikut tampil di cetak ulang (dulu hilang — hanya struk pertama yang memuatnya).
+            'discount_amount' => (float) $order->discount_amount,
+            'voucher_code' => $order->voucher_code,
             'equipments' => \App\Models\Padel\PadelBookingEquipment::with('equipment')
                 ->where('order_id', $order->id)
                 ->get()
@@ -1886,6 +2012,7 @@ class BookOfflineCourt extends Page
         $this->courtTotalCache = null;
         $this->equipmentTotalCache = null;
         $this->membershipDiscountAmountCache = null;
+        $this->benefitQuoteCache = null;
         $this->subtotalCache = null;
         $this->financeCalculationCache = null;
         $this->voucherResultCache = null;

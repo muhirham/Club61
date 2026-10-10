@@ -52,13 +52,29 @@
                                 @foreach ($receipt['bookings'] as $b)
                                     <div wire:key="receipt-booking-{{ $b['booking_code'] }}"
                                         style="margin-bottom:0.35rem;">
+                                        @php
+                                            $fmtJam = fn ($h) => rtrim(rtrim(number_format((float) $h, 1, ',', '.'), '0'), ',');
+                                        @endphp
                                         <div style="display:flex; justify-content:space-between;">
                                             <span>{{ $b['court_name'] }}</span>
-                                            <span>Rp {{ number_format($b['court_fee'], 0, ',', '.') }}</span>
+                                            {{-- Harga normal; potongan benefit ditulis di bawahnya (struk Rp0 tetap jelas apa yang ditanggung). --}}
+                                            <span>Rp {{ number_format($b['normal_fee'] ?? $b['court_fee'], 0, ',', '.') }}</span>
                                         </div>
                                         <div style="font-size:0.625rem; color:#4B5563;">
                                             {{ $receipt['booking_date'] }} &bull; {{ $b['time_label'] }}
                                             WIB</div>
+                                        @if (($b['member_discount'] ?? 0) > 0)
+                                            <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#047857;">
+                                                <span>&nbsp;&nbsp;{{ ($b['member_hours'] ?? 0) > 0 ? 'Kuota Member ('.$fmtJam($b['member_hours']).' jam)' : 'Diskon Member' }}</span>
+                                                <span>- Rp {{ number_format($b['member_discount'], 0, ',', '.') }}</span>
+                                            </div>
+                                        @endif
+                                        @if (($b['sponsor_discount'] ?? 0) > 0)
+                                            <div style="display:flex; justify-content:space-between; font-size:0.65rem; color:#047857;">
+                                                <span>&nbsp;&nbsp;Jam Corporate{{ ! empty($b['sponsor_org']) ? ' '.$b['sponsor_org'] : '' }} ({{ $fmtJam($b['sponsor_hours'] ?? 0) }} jam)</span>
+                                                <span>- Rp {{ number_format($b['sponsor_discount'], 0, ',', '.') }}</span>
+                                            </div>
+                                        @endif
                                         <div style="font-size:0.625rem; font-weight:800; color:#1F170D;">Kode:
                                             {{ $b['booking_code'] }}</div>
                                     </div>
@@ -131,6 +147,9 @@
                                         <div style="font-size:0.625rem; color:#4B5563; margin-top:0.2rem;">{{ $receipt['note'] }}</div>
                                     @endif
                                 @endif
+                                @foreach ($receipt['benefit_notes'] ?? [] as $benefitNote)
+                                    <div style="font-size:0.65rem; margin-top:0.2rem;">{{ $benefitNote }}</div>
+                                @endforeach
                                 <div style="font-size:0.65rem; margin-top:0.2rem;">
                                     Status: <strong>LUNAS
                                         (PAID){{ ! empty($receipt['auto_checked_in']) ? ' — CHECKED IN' : '' }}</strong>
