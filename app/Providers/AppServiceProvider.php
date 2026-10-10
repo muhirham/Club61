@@ -28,6 +28,7 @@ class AppServiceProvider extends ServiceProvider
             $registry = new \App\Services\Payment\PaymentFulfillmentRegistry();
             $registry->register('PADEL', \App\Services\Padel\Handlers\PadelFulfillmentHandler::class);
             $registry->register('MEMBERSHIP', \App\Services\Membership\MembershipFulfillmentHandler::class);
+            $registry->register('FNB', \App\Services\Fnb\FnbFulfillmentHandler::class);
 
             return $registry;
         });

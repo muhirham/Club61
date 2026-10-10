@@ -75,6 +75,12 @@ class Order extends Model
         return $this->hasMany(Payment::class, 'order_id');
     }
 
+    /** Slip pesanan per stasiun F&B (Kitchen, Bar, ...) — dibuat begitu order F&B lunas. */
+    public function kitchenTickets()
+    {
+        return $this->hasMany(KitchenTicket::class, 'order_id');
+    }
+
     public function refunds()
     {
         return $this->hasMany(Refund::class, 'order_id');

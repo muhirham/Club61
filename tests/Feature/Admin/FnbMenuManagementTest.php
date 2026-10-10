@@ -6,6 +6,7 @@ use App\Filament\Pages\KelolaMenuFnb;
 use App\Models\Fnb\FnbCategory;
 use App\Models\Fnb\FnbMenu;
 use App\Models\Fnb\FnbModifierGroup;
+use App\Models\Fnb\FnbStation;
 use App\Models\Fnb\RawMaterial;
 use App\Models\Fnb\RecipeBom;
 use App\Models\User;
@@ -97,7 +98,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Smashed Avocado Toast',
             'base_price' => 55000,
-            'station' => 'KITCHEN',
             'is_available' => true,
         ]);
 
@@ -135,7 +135,7 @@ class FnbMenuManagementTest extends TestCase
             ->set('menuName', 'Iced Spanish Latte')
             ->set('menuDescription', 'Espresso double shot dengan susu segar dingin.')
             ->set('menuBasePrice', 38000)
-            ->set('menuStation', 'BAR')
+            ->set('menuStationId', '')
             ->set('menuIsAvailable', true)
             ->set('menuPhotoUpload', UploadedFile::fake()->image('latte.jpg', 2400, 1600))
             ->call('saveMenu')
@@ -169,7 +169,7 @@ class FnbMenuManagementTest extends TestCase
             ->set('menuCategoryId', $category->id)
             ->set('menuName', 'Menu Nakal')
             ->set('menuBasePrice', 10000)
-            ->set('menuStation', 'BAR')
+            ->set('menuStationId', '')
             ->set('menuPhotoUpload', UploadedFile::fake()->create('disguised.jpg', 10, 'image/jpeg'))
             ->call('saveMenu');
 
@@ -189,7 +189,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Iced Spanish Latte',
             'base_price' => 38000,
-            'station' => 'BAR',
             'is_available' => true,
             'image_url' => $oldPath,
         ]);
@@ -215,7 +214,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Iced Spanish Latte',
             'base_price' => 38000,
-            'station' => 'BAR',
             'is_available' => true,
             'image_url' => $photoPath,
         ]);
@@ -237,7 +235,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Ceremonial Oat Matcha',
             'base_price' => 45000,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
 
@@ -308,7 +305,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Iced Spanish Latte',
             'base_price' => 38000,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
         $group = FnbModifierGroup::create(['name' => 'Sugar Level', 'is_required' => false, 'max_selection' => 1]);
@@ -339,7 +335,6 @@ class FnbMenuManagementTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Iced Spanish Latte',
             'base_price' => 38000,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
         $rawMaterial = RawMaterial::create([
@@ -420,5 +415,80 @@ class FnbMenuManagementTest extends TestCase
             ->call('requestTabChange', 'menus')
             ->assertSet('activeTab', 'menus')
             ->assertSet('showUnsavedChangesModal', false);
+    }
+
+    public function test_admin_manages_stations_and_assigns_menu_to_a_station(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $category = FnbCategory::create(['name' => 'Toast & Meals', 'sort_order' => 1]);
+
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('requestTabChange', 'stations')
+            ->call('openCreateStationModal')
+            ->set('stationName', 'Kitchen')
+            ->set('stationPrinterHost', 'http://192.168.1.50/print')
+            ->call('saveStation')
+            ->assertHasErrors(['stationPrinterHost' => 'regex'])
+            ->set('stationPrinterHost', ' 192.168.1.50 ')
+            ->call('saveStation')
+            ->assertHasNoErrors()
+            ->assertSee('192.168.1.50:9100');
+
+        $kitchen = FnbStation::where('name', 'Kitchen')->sole();
+        $this->assertSame('192.168.1.50', $kitchen->printer_host);
+        $this->assertTrue($kitchen->is_active);
+
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('openCreateStationModal')
+            ->set('stationName', 'Kitchen')
+            ->call('saveStation')
+            ->assertHasErrors(['stationName' => 'unique']);
+
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('openCreateMenuModal')
+            ->set('menuCategoryId', $category->id)
+            ->set('menuName', 'Smashed Avocado Toast')
+            ->set('menuBasePrice', 55000)
+            ->set('menuStationId', $kitchen->id)
+            ->call('saveMenu')
+            ->assertHasNoErrors();
+
+        $this->assertSame($kitchen->id, FnbMenu::where('name', 'Smashed Avocado Toast')->value('station_id'));
+    }
+
+    public function test_deleting_a_station_moves_its_menus_back_to_the_cashier_and_it_can_be_added_again(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $category = FnbCategory::create(['name' => 'Drinks', 'sort_order' => 1]);
+        $bar = FnbStation::create(['name' => 'Bar', 'printer_host' => '192.168.1.51']);
+        $menu = FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'station_id' => $bar->id, 'is_available' => true]);
+
+        Livewire::test(KelolaMenuFnb::class)->call('deleteStation', $bar->id);
+
+        $this->assertDatabaseMissing('fnb_stations', ['id' => $bar->id]);
+        $this->assertNull($menu->fresh()->station_id);
+
+        // Nanti bar dibuka lagi: tambah stasiun baru, lalu pindahkan menunya.
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('openCreateStationModal')->set('stationName', 'Bar')->set('stationPrinterHost', '192.168.1.52')->call('saveStation')
+            ->call('openEditMenuModal', $menu->id)->assertSet('menuStationId', '')
+            ->set('menuStationId', FnbStation::where('name', 'Bar')->value('id'))->call('saveMenu')->assertHasNoErrors();
+
+        $this->assertSame('Bar', $menu->fresh()->station->name);
+    }
+
+    public function test_staff_without_manage_permission_cannot_change_stations(): void
+    {
+        // Dapur boleh melihat halaman menu, tapi tidak boleh mengubah stasiun / IP printer.
+        $kitchen = User::factory()->kitchen()->create();
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        $this->actingAs($kitchen);
+
+        Livewire::test(KelolaMenuFnb::class)
+            ->set('stationName', 'Bar')
+            ->call('saveStation')
+            ->assertForbidden();
+
+        $this->assertSame(0, FnbStation::count());
     }
 }

@@ -17,7 +17,7 @@ class FnbMenu extends Model
         'description',
         'image_url',
         'base_price',
-        'station',
+        'station_id',
         'is_available',
     ];
 
@@ -52,6 +52,12 @@ class FnbMenu extends Model
     public function category()
     {
         return $this->belongsTo(FnbCategory::class, 'category_id');
+    }
+
+    /** Stasiun yang membuat menu ini; null = dibuat langsung di kasir (tanpa slip). */
+    public function station()
+    {
+        return $this->belongsTo(FnbStation::class, 'station_id');
     }
 
     public function recipes()

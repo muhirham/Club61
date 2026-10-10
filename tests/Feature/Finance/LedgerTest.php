@@ -419,7 +419,7 @@ class LedgerTest extends TestCase
     {
         $this->openShift('FNB_COUNTER');
         $category = FnbCategory::create(['name' => 'Coffee', 'sort_order' => 1]);
-        $latte = FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'station' => 'BAR', 'is_available' => true]);
+        $latte = FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'is_available' => true]);
 
         $result = app(FnbPosService::class)->checkout(
             items: [['menu_id' => $latte->id, 'quantity' => 2]],

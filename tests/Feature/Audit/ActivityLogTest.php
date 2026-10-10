@@ -45,7 +45,6 @@ class ActivityLogTest extends TestCase
             'category_id' => $category->id,
             'name' => 'Iced Latte',
             'base_price' => $price,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
     }

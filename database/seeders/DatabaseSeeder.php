@@ -243,6 +243,8 @@ class DatabaseSeeder extends Seeder
         $catCoffee = FnbCategory::create(['name' => 'Specialty Coffee', 'sort_order' => 1]);
         $catNonCoffee = FnbCategory::create(['name' => 'Matcha & Wellness Drinks', 'sort_order' => 2]);
         $catFood = FnbCategory::create(['name' => 'Artisan Bakery & Toast', 'sort_order' => 3]);
+        // Minuman dibuat langsung di kasir (tanpa slip); makanan → slip ke printer Kitchen (IP diisi di Menu F&B > Stasiun & Printer).
+        $kitchen = \App\Models\Fnb\FnbStation::firstOrCreate(['name' => 'Kitchen'], ['printer_port' => 9100, 'is_active' => true, 'sort_order' => 1]);
 
         $rawBeans = RawMaterial::create(['code' => 'RAW-BEANS', 'name' => 'Single Origin Arabica Beans', 'unit' => 'GRAM', 'current_stock' => 15000.00, 'min_alert_stock' => 2000.00]);
         $rawOatMilk = RawMaterial::create(['code' => 'RAW-OATMILK', 'name' => 'Oatside Barista Blend', 'unit' => 'ML', 'current_stock' => 25000.00, 'min_alert_stock' => 5000.00]);
@@ -254,7 +256,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Iced Spanish Latte',
             'description' => 'Espresso double shot with condensed milk and chilled fresh milk.',
             'base_price' => 38000.00,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
         RecipeBom::create(['menu_id' => $menuSpanishLatte->id, 'raw_material_id' => $rawBeans->id, 'quantity_used' => 18.00]);
@@ -265,7 +266,6 @@ class DatabaseSeeder extends Seeder
             'name' => 'Ceremonial Oat Matcha Latte',
             'description' => 'Stone-ground Uji matcha whisked with Oatside barista milk.',
             'base_price' => 45000.00,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
         RecipeBom::create(['menu_id' => $menuMatcha->id, 'raw_material_id' => $rawMatcha->id, 'quantity_used' => 8.00]);
@@ -276,7 +276,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Smashed Avocado Sourdough',
             'description' => 'Rustic sourdough with poached egg, hass avocado, and feta.',
             'base_price' => 55000.00,
-            'station' => 'KITCHEN',
+            'station_id' => $kitchen->id,
             'is_available' => true,
         ]);
 

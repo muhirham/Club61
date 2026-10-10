@@ -6,6 +6,7 @@ use App\Models\Fnb\FnbCategory;
 use App\Models\Fnb\FnbMenu;
 use App\Models\Fnb\FnbModifierGroup;
 use App\Models\Fnb\FnbModifierOption;
+use App\Models\Fnb\FnbStation;
 use App\Services\Media\SecureImageUploader;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
@@ -33,7 +34,7 @@ class KelolaMenuFnb extends Page
 
     protected string $view = 'filament.pages.kelola-menu-fnb';
 
-    // Tab Aktif: 'categories', 'menus', atau 'modifiers'
+    // Tab Aktif: 'categories', 'menus', 'modifiers', atau 'stations'
     public string $activeTab = 'categories';
 
     // Guard pindah tab kalau ada modal yang lagi kebuka & belum disimpan
@@ -69,7 +70,8 @@ class KelolaMenuFnb extends Page
 
     public int|float|string $menuBasePrice = 0;
 
-    public string $menuStation = 'BAR';
+    /** Stasiun pembuat menu; '' = dibuat langsung di kasir (tanpa slip). */
+    public string $menuStationId = '';
 
     public bool $menuIsAvailable = true;
 
@@ -92,9 +94,22 @@ class KelolaMenuFnb extends Page
 
     public array $modifierOptions = [];
 
+    // --- State Modal Stasiun & Printer ---
+    public bool $showStationModal = false;
+
+    public ?string $editingStationId = null;
+
+    public string $stationName = '';
+
+    public string $stationPrinterHost = '';
+
+    public int|string $stationPrinterPort = 9100;
+
+    public bool $stationIsActive = true;
+
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['categories', 'menus', 'modifiers'], true) ? $tab : 'categories';
+        $this->activeTab = in_array($tab, ['categories', 'menus', 'modifiers', 'stations'], true) ? $tab : 'categories';
     }
 
     public function setMenuCategoryFilter(string $filter): void
@@ -108,7 +123,7 @@ class KelolaMenuFnb extends Page
 
     protected function hasOpenModal(): bool
     {
-        return $this->showCategoryModal || $this->showMenuModal || $this->showModifierGroupModal;
+        return $this->showCategoryModal || $this->showMenuModal || $this->showModifierGroupModal || $this->showStationModal;
     }
 
     public function requestTabChange(string $tab): void
@@ -128,6 +143,7 @@ class KelolaMenuFnb extends Page
         $this->closeCategoryModal();
         $this->closeMenuModal();
         $this->closeModifierGroupModal();
+        $this->closeStationModal();
         $this->showUnsavedChangesModal = false;
 
         if ($this->pendingTab !== null) {
@@ -154,6 +170,8 @@ class KelolaMenuFnb extends Page
             $this->saveMenu();
         } elseif ($this->showModifierGroupModal) {
             $this->saveModifierGroup();
+        } elseif ($this->showStationModal) {
+            $this->saveStation();
         }
 
         // Kalau validasi save gagal, modal masih kebuka (hasOpenModal() masih true) —
@@ -285,7 +303,7 @@ class KelolaMenuFnb extends Page
         $this->existingMenuPhotoPath = null;
         $this->removeMenuPhoto = false;
         $this->menuBasePrice = 0;
-        $this->menuStation = 'BAR';
+        $this->menuStationId = '';
         $this->menuIsAvailable = true;
         $this->menuModifierGroupIds = [];
         $this->showMenuModal = true;
@@ -308,7 +326,7 @@ class KelolaMenuFnb extends Page
         $this->existingMenuPhotoPath = $menu->image_url;
         $this->removeMenuPhoto = false;
         $this->menuBasePrice = (float) $menu->base_price;
-        $this->menuStation = (string) $menu->station;
+        $this->menuStationId = (string) $menu->station_id;
         $this->menuIsAvailable = (bool) $menu->is_available;
         $this->menuModifierGroupIds = $menu->modifierGroups()->pluck('fnb_modifier_groups.id')->all();
         $this->showMenuModal = true;
@@ -336,7 +354,7 @@ class KelolaMenuFnb extends Page
             'menuName' => ['required', 'string', 'max:100'],
             'menuDescription' => ['nullable', 'string', 'max:1000'],
             'menuBasePrice' => ['required', 'numeric', 'min:0'],
-            'menuStation' => ['required', 'in:BAR,KITCHEN'],
+            'menuStationId' => ['nullable', 'exists:fnb_stations,id'],
             'menuPhotoUpload' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ], [
             'menuCategoryId.required' => 'Kategori wajib dipilih.',
@@ -360,7 +378,7 @@ class KelolaMenuFnb extends Page
             'description' => trim($this->menuDescription) ?: null,
             'image_url' => $photoPath,
             'base_price' => max(0, (float) $this->menuBasePrice),
-            'station' => $this->menuStation,
+            'station_id' => $this->menuStationId ?: null,
             'is_available' => $this->menuIsAvailable,
         ];
 
@@ -403,7 +421,7 @@ class KelolaMenuFnb extends Page
 
     public function getMenusProperty(): Collection
     {
-        $query = FnbMenu::query()->with(['category', 'modifierGroups']);
+        $query = FnbMenu::query()->with(['category', 'modifierGroups', 'station']);
 
         if ($this->menuCategoryFilter !== 'ALL') {
             $query->where('category_id', $this->menuCategoryFilter);
@@ -563,6 +581,116 @@ class KelolaMenuFnb extends Page
     public function getModifierGroupsProperty(): Collection
     {
         return FnbModifierGroup::withCount(['options', 'menus'])->orderBy('name')->get();
+    }
+
+    // ==========================================
+    // TAB 4: STASIUN & PRINTER (Kitchen, Bar, ...)
+    // ==========================================
+
+    public function openCreateStationModal(): void
+    {
+        $this->editingStationId = null;
+        $this->stationName = '';
+        $this->stationPrinterHost = '';
+        $this->stationPrinterPort = 9100;
+        $this->stationIsActive = true;
+        $this->resetValidation();
+        $this->showStationModal = true;
+    }
+
+    public function openEditStationModal(string $stationId): void
+    {
+        $station = FnbStation::find($stationId);
+        if (! $station) {
+            Notification::make()->title('Stasiun tidak ditemukan')->danger()->send();
+
+            return;
+        }
+
+        $this->editingStationId = $station->id;
+        $this->stationName = (string) $station->name;
+        $this->stationPrinterHost = (string) $station->printer_host;
+        $this->stationPrinterPort = $station->printer_port;
+        $this->stationIsActive = (bool) $station->is_active;
+        $this->resetValidation();
+        $this->showStationModal = true;
+    }
+
+    public function closeStationModal(): void
+    {
+        $this->showStationModal = false;
+        $this->editingStationId = null;
+    }
+
+    public function saveStation(): void
+    {
+        $this->authorizeManage();
+
+        $this->stationName = trim($this->stationName);
+        $this->stationPrinterHost = trim($this->stationPrinterHost);
+
+        $this->validate([
+            'stationName' => ['required', 'string', 'max:50', \Illuminate\Validation\Rule::unique('fnb_stations', 'name')->ignore($this->editingStationId)],
+            // IP printer LAN (mis. 192.168.1.50) atau nama host lokal — tanpa skema / path.
+            'stationPrinterHost' => ['nullable', 'string', 'max:100', 'regex:/^[A-Za-z0-9](?:[A-Za-z0-9.\-]*[A-Za-z0-9])?$/'],
+            'stationPrinterPort' => ['required', 'integer', 'min:1', 'max:65535'],
+        ], [
+            'stationName.required' => 'Nama stasiun wajib diisi.',
+            'stationName.unique' => 'Nama stasiun sudah dipakai.',
+            'stationPrinterHost.regex' => 'Isi IP printer saja, contoh: 192.168.1.50',
+            'stationPrinterPort.required' => 'Port printer wajib diisi (umumnya 9100).',
+        ]);
+
+        $data = [
+            'name' => $this->stationName,
+            'printer_host' => $this->stationPrinterHost ?: null,
+            'printer_port' => (int) $this->stationPrinterPort,
+            'is_active' => $this->stationIsActive,
+        ];
+
+        if ($this->editingStationId) {
+            $station = FnbStation::find($this->editingStationId);
+            if (! $station) {
+                Notification::make()->title('Stasiun tidak ditemukan')->danger()->send();
+
+                return;
+            }
+
+            $station->update($data);
+            Notification::make()->title('Stasiun Diperbarui')->success()->send();
+        } else {
+            FnbStation::create($data + ['sort_order' => (int) (FnbStation::max('sort_order') ?? 0) + 1]);
+            Notification::make()->title('Stasiun Ditambahkan')->success()->send();
+        }
+
+        $this->closeStationModal();
+    }
+
+    /** Menu stasiun yang dihapus kembali dibuat di kasir (tanpa slip); riwayat slip lama tetap tersimpan. */
+    public function deleteStation(string $stationId): void
+    {
+        $this->authorizeManage();
+
+        DB::transaction(function () use ($stationId) {
+            $station = FnbStation::query()->lockForUpdate()->find($stationId);
+            if (! $station) {
+                return;
+            }
+
+            $moved = FnbMenu::where('station_id', $station->id)->update(['station_id' => null]);
+            $station->delete();
+
+            Notification::make()
+                ->title('Stasiun Dihapus')
+                ->body($moved > 0 ? "{$moved} menu dipindah ke ".FnbStation::CASHIER_LABEL.'.' : null)
+                ->success()
+                ->send();
+        });
+    }
+
+    public function getStationsProperty(): Collection
+    {
+        return FnbStation::withCount('menus')->orderBy('sort_order')->orderBy('name')->get();
     }
 
     protected function authorizeManage(): void

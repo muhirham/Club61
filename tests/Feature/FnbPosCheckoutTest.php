@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Livewire\Pos\FnbCashierTerminal;
 use App\Models\Fnb\FnbCategory;
 use App\Models\Fnb\FnbMenu;
+use App\Models\Fnb\FnbStation;
+use App\Models\Pos\KitchenTicket;
 use App\Models\Pos\Order;
 use App\Models\Pos\Payment;
 use App\Models\Pos\PosCashierShift;
@@ -31,6 +33,8 @@ class FnbPosCheckoutTest extends TestCase
 
     protected FnbMenu $toast;
 
+    protected FnbStation $kitchen;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -46,18 +50,18 @@ class FnbPosCheckoutTest extends TestCase
         ]);
 
         $this->category = FnbCategory::create(['name' => 'Coffee & Drinks', 'sort_order' => 1]);
+        $this->kitchen = FnbStation::create(['name' => 'Kitchen', 'printer_host' => '192.168.1.50', 'printer_port' => 9100]);
         $this->latte = FnbMenu::create([
             'category_id' => $this->category->id,
             'name' => 'Iced Spanish Latte',
             'base_price' => 38000,
-            'station' => 'BAR',
             'is_available' => true,
         ]);
         $this->toast = FnbMenu::create([
             'category_id' => $this->category->id,
             'name' => 'Smashed Avocado Toast',
             'base_price' => 55000,
-            'station' => 'KITCHEN',
+            'station_id' => $this->kitchen->id,
             'is_available' => true,
         ]);
     }
@@ -112,7 +116,6 @@ class FnbPosCheckoutTest extends TestCase
                 'category_id' => $this->category->id,
                 'name' => sprintf('Menu Tambahan %02d', $i),
                 'base_price' => 10000,
-                'station' => 'BAR',
                 'is_available' => true,
             ]);
         }
@@ -195,50 +198,60 @@ class FnbPosCheckoutTest extends TestCase
         $this->assertSame('FNB_COUNTER', PosCashierShift::find($payment->pos_shift_id)->counter);
     }
 
-    public function test_paid_order_prints_kitchen_and_bar_slips_with_item_notes(): void
+    public function test_paid_order_prints_customer_receipt_at_cashier_and_sends_kitchen_slip_to_station_printer(): void
     {
         $this->openFnbShift();
         $this->actingAs($this->cashier);
 
-        $html = null;
+        $receiptHtml = null;
+        $jobs = null;
         Livewire::test(FnbCashierTerminal::class)
             ->call('addToCart', $this->latte->id)
             ->call('addToCart', $this->latte->id)
             ->call('addToCart', $this->toast->id)
             ->set("cart.{$this->latte->id}.notes", '  Less   sugar, tanpa es ')
+            ->set("cart.{$this->toast->id}.notes", 'Tanpa bawang')
             ->set('tableNumber', '7')
             ->call('proceedToPayment')
             ->call('setPaymentMethod', 'QRIS')
             ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789012')
             ->call('submitFnbCheckout')
-            ->assertDispatched('club61-auto-print', function ($event, $params) use (&$html) {
-                $html = $params['html'];
+            ->assertDispatched('club61-auto-print', function ($event, $params) use (&$receiptHtml) {
+                $receiptHtml = $params['html'];
+
+                return true;
+            })
+            ->assertDispatched('club61-station-print', function ($event, $params) use (&$jobs) {
+                $jobs = $params['jobs'];
 
                 return true;
             });
 
         $order = Order::where('order_type', 'DINE_IN')->firstOrFail();
         $this->assertSame('Less sugar, tanpa es', $order->items->firstWhere('reference_id', $this->latte->id)->notes);
-        $this->assertNull($order->items->firstWhere('reference_id', $this->toast->id)->notes);
 
-        // Satu kali cetak: struk customer → slip dapur → slip bar, masing-masing hanya berisi menu stasiunnya, tanpa harga.
-        $receiptAt = strpos($html, 'id="fnbpos-receipt"');
-        $kitchenAt = strpos($html, 'id="fnbpos-kot-kitchen"');
-        $barAt = strpos($html, 'id="fnbpos-kot-bar"');
-        $this->assertTrue($receiptAt !== false && $kitchenAt > $receiptAt && $barAt > $kitchenAt);
-        $kitchen = substr($html, $kitchenAt, $barAt - $kitchenAt);
-        $bar = substr($html, $barAt);
-        $this->assertStringContainsString('PESANAN DAPUR', $kitchen);
-        $this->assertStringContainsString('1x '.$this->toast->name, $kitchen);
-        $this->assertStringNotContainsString($this->latte->name, $kitchen);
-        $this->assertStringContainsString('PESANAN BAR', $bar);
-        $this->assertStringContainsString('2x '.$this->latte->name, $bar);
-        $this->assertStringContainsString('- Less sugar, tanpa es', $bar);
-        $this->assertStringNotContainsString($this->toast->name, $bar);
-        $this->assertStringContainsString('MEJA', $bar);
-        $this->assertStringNotContainsString('Rp ', $kitchen.$bar);
+        // Printer kasir: struk customer saja — tidak ada lagi slip dapur / bar ikut tercetak.
+        $this->assertStringContainsString('id="fnbpos-receipt"', $receiptHtml);
+        $this->assertStringNotContainsString('PESANAN', $receiptHtml);
 
-        // Pesanan hanya minuman → tidak ada slip dapur.
+        // Printer Kitchen: satu slip berisi menu Kitchen saja, tanpa harga. Minuman dibuat di kasir → tanpa slip.
+        $this->assertCount(1, $jobs);
+        $this->assertSame('Kitchen', $jobs[0]['station_name']);
+        $this->assertSame('192.168.1.50', $jobs[0]['host']);
+        $this->assertSame(9100, $jobs[0]['port']);
+        $this->assertStringContainsString('PESANAN KITCHEN', $jobs[0]['html']);
+        $this->assertStringContainsString('1x '.$this->toast->name, $jobs[0]['html']);
+        $this->assertStringContainsString('- Tanpa bawang', $jobs[0]['html']);
+        $this->assertStringContainsString('MEJA', $jobs[0]['html']);
+        $this->assertStringNotContainsString($this->latte->name, $jobs[0]['html']);
+        $this->assertStringNotContainsString('Rp ', $jobs[0]['html']);
+
+        $ticket = KitchenTicket::where('order_id', $order->id)->sole();
+        $this->assertSame($jobs[0]['ticket_id'], $ticket->id);
+        $this->assertSame($this->kitchen->id, $ticket->station_id);
+        $this->assertNull($ticket->printed_at);
+
+        // Pesanan hanya minuman → tidak ada slip stasiun sama sekali.
         Livewire::test(FnbCashierTerminal::class)
             ->call('addToCart', $this->latte->id)
             ->call('setOrderType', 'TAKE_AWAY')
@@ -246,8 +259,78 @@ class FnbPosCheckoutTest extends TestCase
             ->call('setPaymentMethod', 'QRIS')
             ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789013')
             ->call('submitFnbCheckout')
-            ->assertDispatched('club61-auto-print', fn ($event, $params) => str_contains($params['html'], 'PESANAN BAR')
-                && str_contains($params['html'], 'BAWA PULANG') && ! str_contains($params['html'], 'PESANAN DAPUR'));
+            ->assertDispatched('club61-auto-print')
+            ->assertNotDispatched('club61-station-print');
+        $this->assertSame(1, KitchenTicket::count());
+    }
+
+    public function test_station_print_result_is_recorded_and_slip_can_be_resent(): void
+    {
+        $this->openFnbShift();
+        $this->actingAs($this->cashier);
+
+        $component = Livewire::test(FnbCashierTerminal::class)
+            ->call('addToCart', $this->toast->id)
+            ->call('proceedToPayment')
+            ->call('setPaymentMethod', 'QRIS')
+            ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789014')
+            ->call('submitFnbCheckout');
+        $ticket = KitchenTicket::sole();
+
+        // Tablet gagal mengirim → alasan tercatat & tampil di modal struk.
+        $component->call('reportStationPrint', $ticket->id, false, 'Printer Kitchen tidak merespons')
+            ->assertSet('completedOrderData.stations.0.error', 'Printer Kitchen tidak merespons')
+            ->assertSee('Gagal: Printer Kitchen tidak merespons');
+        $this->assertNull($ticket->fresh()->printed_at);
+        $this->assertSame(1, $ticket->fresh()->print_attempts);
+
+        // Kirim ulang → slip yang sama dikirim lagi; berhasil → tercatat terkirim.
+        $component->call('resendStationTickets', $ticket->order_id)
+            ->assertDispatched('club61-station-print', fn ($event, $params) => count($params['jobs']) === 1 && $params['jobs'][0]['ticket_id'] === $ticket->id);
+        $component->call('reportStationPrint', $ticket->id, true, null)
+            ->assertSee('Terkirim');
+        $this->assertNotNull($ticket->fresh()->printed_at);
+        $this->assertNull($ticket->fresh()->last_print_error);
+        $this->assertSame(1, KitchenTicket::count(), 'kirim ulang tidak membuat slip ganda');
+    }
+
+    public function test_midtrans_paid_fnb_order_gets_station_ticket_from_payment_fulfillment(): void
+    {
+        $order = Order::create([
+            'order_number' => 'ORD-FNB-MT1', 'cashier_id' => $this->cashier->id, 'order_type' => 'TAKE_AWAY',
+            'subtotal' => 110000, 'grand_total' => 110000, 'payment_status' => 'UNPAID',
+        ]);
+        $order->items()->create([
+            'item_type' => 'FNB', 'reference_id' => $this->toast->id, 'item_name' => $this->toast->name,
+            'quantity' => 2, 'unit_price' => 55000, 'subtotal' => 110000,
+        ]);
+        Payment::create(['order_id' => $order->id, 'payment_gateway' => 'MIDTRANS', 'transaction_id' => 'ORD-FNB-MT1', 'amount' => 110000, 'payment_method' => 'QRIS', 'status' => 'PENDING']);
+
+        $orchestrator = app(\App\Services\Payment\PaymentOrchestratorService::class);
+        $orchestrator->markOrderAsPaid($order, ['payment_gateway' => 'MIDTRANS', 'transaction_id' => 'ORD-FNB-MT1', 'payment_method' => 'QRIS', 'amount' => 110000]);
+        // Notifikasi Midtrans dobel → tetap satu slip.
+        $orchestrator->markOrderAsPaid($order->fresh(), ['payment_gateway' => 'MIDTRANS', 'transaction_id' => 'ORD-FNB-MT1', 'payment_method' => 'QRIS', 'amount' => 110000]);
+
+        $ticket = KitchenTicket::sole();
+        $this->assertSame('Kitchen', $ticket->station_name);
+        $this->assertSame([['name' => $this->toast->name, 'quantity' => 2, 'notes' => null]], $ticket->items);
+    }
+
+    public function test_inactive_station_menu_gets_no_slip(): void
+    {
+        $this->kitchen->update(['is_active' => false]);
+        $this->openFnbShift();
+        $this->actingAs($this->cashier);
+
+        Livewire::test(FnbCashierTerminal::class)
+            ->call('addToCart', $this->toast->id)
+            ->call('proceedToPayment')
+            ->call('setPaymentMethod', 'QRIS')
+            ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789015')
+            ->call('submitFnbCheckout')
+            ->assertNotDispatched('club61-station-print');
+
+        $this->assertSame(0, KitchenTicket::count());
     }
 
     public function test_cash_payment_is_rejected(): void

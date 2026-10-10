@@ -164,7 +164,7 @@
             return out;
         };
 
-        // el = satu struk atau beberapa (struk customer + slip dapur / bar): dikirim SEKALI, tiap slip diakhiri jarak sobek.
+        // el = satu struk atau beberapa (mis. slip beberapa stasiun): dikirim SEKALI, tiap slip diakhiri jarak sobek.
         window.club61PrintRawBt = function (el) {
             const bytes = [].concat(...(Array.isArray(el) ? el : [el]).map((one) => window.club61LayoutToEscPos(window.club61ReceiptLayout(one))));
             let binary = '';
@@ -316,7 +316,7 @@
             host.style.cssText = 'position:fixed;left:-10000px;top:0;width:420px;pointer-events:none;';
             host.innerHTML = html;
             document.body.appendChild(host);
-            // Beberapa slip ([data-print-slip], mis. struk F&B + slip dapur & bar) dicetak berurutan dalam satu kali cetak.
+            // Beberapa slip ([data-print-slip], mis. slip stasiun yang gagal terkirim) dicetak berurutan dalam satu kali cetak.
             const slips = Array.from(host.querySelectorAll('[data-print-slip]'));
             window.club61PrintReceipt(slips.length ? slips : (host.querySelector('[id^="printable-"], #fnbpos-receipt') || host.firstElementChild));
             setTimeout(() => host.remove(), 20000);
@@ -359,6 +359,123 @@
             window.club61Toast('Pembayaran lunas — struk dicetak');
             // Siapkan layar untuk transaksi berikutnya (alur yang sama dengan tombol Transaksi Baru / Selesai).
             if (detail.next) { setTimeout(() => wire.call(detail.next), 400); }
+        });
+
+        /**
+         * Slip pesanan ke printer LAN stasiun (Kitchen, dst.). Browser tidak bisa membuka koneksi ke IP printer, jadi
+         * aplikasi Android Club61 yang mengirim: pesan { action: 'lan_print', id, host, port, data (ESC/POS base64) }
+         * lewat window.Club61Print.postMessage, lalu aplikasinya memanggil window.club61LanPrintResult(id, ok, error).
+         * Aplikasi yang sudah mendukung memasang window.Club61Caps = { lanPrint: true } (docs/FLUTTER_LAN_PRINT.md).
+         */
+        window.club61LanPending = {};
+        window.club61LanPrintResult = function (id, ok, error) {
+            const done = window.club61LanPending[id];
+            if (done) { delete window.club61LanPending[id]; done({ ok: !! ok, error: error || null }); }
+        };
+
+        /** HTML slip → byte ESC/POS base64 (tata letak yang sama dengan struk RawBT). */
+        window.club61HtmlToEscPosBase64 = function (html) {
+            const host = document.createElement('div');
+            host.setAttribute('aria-hidden', 'true');
+            host.style.cssText = 'position:fixed;left:-10000px;top:0;width:420px;pointer-events:none;';
+            host.innerHTML = html;
+            document.body.appendChild(host);
+            try {
+                const slips = Array.from(host.querySelectorAll('[data-print-slip]'));
+                const bytes = [].concat(...(slips.length ? slips : [host.firstElementChild]).map((one) => window.club61LayoutToEscPos(window.club61ReceiptLayout(one))));
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += 4096) { binary += String.fromCharCode.apply(null, bytes.slice(i, i + 4096)); }
+                return btoa(binary);
+            } finally {
+                host.remove();
+            }
+        };
+
+        /** Satu slip → printer LAN stasiunnya. Selalu selesai dengan { ok, error } (tidak pernah menggantung). */
+        window.club61SendToStation = function (job) {
+            return new Promise((resolve) => {
+                if (! job.host) { resolve({ ok: false, error: 'IP printer stasiun belum diatur (Menu F&B > Stasiun & Printer).' }); return; }
+                if (! window.club61InApp()) { resolve({ ok: false, error: 'Kirim ke printer stasiun hanya bisa dari aplikasi Club61 di tablet kasir.' }); return; }
+                if (! (window.Club61Caps && window.Club61Caps.lanPrint)) { resolve({ ok: false, error: 'Aplikasi Club61 belum versi terbaru (belum bisa kirim ke printer LAN).' }); return; }
+
+                let data;
+                try { data = window.club61HtmlToEscPosBase64(job.html); } catch (e) { resolve({ ok: false, error: 'Slip gagal disiapkan.' }); return; }
+
+                const id = 'lan-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                const timer = setTimeout(() => window.club61LanPrintResult(id, false, 'Printer ' + job.station_name + ' tidak merespons — cek printer menyala & satu WiFi dengan tablet.'), 10000);
+                window.club61LanPending[id] = (result) => { clearTimeout(timer); resolve(result); };
+                try {
+                    window.Club61Print.postMessage(JSON.stringify({ action: 'lan_print', id, host: job.host, port: job.port || 9100, data }));
+                } catch (e) {
+                    window.club61LanPrintResult(id, false, 'Aplikasi Club61 menolak perintah cetak.');
+                }
+            });
+        };
+
+        /** Slip yang gagal terkirim → peringatan tetap di layar sampai ditutup: coba lagi / cetak di printer kasir. */
+        window.club61StationFailed = function (failed, wire, queueNumber) {
+            const old = document.getElementById('club61-station-failed');
+            if (old) { old.remove(); }
+            const box = document.createElement('div');
+            box.id = 'club61-station-failed';
+            box.setAttribute('role', 'alert');
+            box.style.cssText = 'position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);z-index:100001;width:min(92vw,440px);'
+                + 'background:#FFFFFF;border:1.5px solid #FCA5A5;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,0.25);padding:0.9rem 1rem;'
+                + 'font:600 13px/1.45 system-ui,sans-serif;color:#7F1D1D;';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-weight:800;font-size:14px;';
+            title.textContent = 'Slip pesanan' + (queueNumber ? ' antrian ' + String(queueNumber).padStart(3, '0') : '') + ' BELUM tercetak';
+            box.appendChild(title);
+            failed.forEach(({ job, error }) => {
+                const line = document.createElement('div');
+                line.style.cssText = 'margin-top:0.3rem;';
+                line.textContent = job.station_name + ': ' + error;
+                box.appendChild(line);
+            });
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end;flex-wrap:wrap;margin-top:0.7rem;';
+            const button = (label, primary, onClick) => {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.textContent = label;
+                b.style.cssText = 'padding:0.45rem 0.8rem;border-radius:9px;font-weight:700;font-size:12px;cursor:pointer;'
+                    + (primary ? 'background:#7F1D1D;color:#FFFFFF;border:none;' : 'background:#FFFFFF;color:#7F1D1D;border:1px solid #FCA5A5;');
+                b.addEventListener('click', onClick);
+                return b;
+            };
+            actions.appendChild(button('Tutup', false, () => box.remove()));
+            actions.appendChild(button('Cetak di Printer Kasir', false, () => {
+                box.remove();
+                window.club61PrintReceiptHtml(failed.map(({ job }) => job.html).join(''));
+            }));
+            actions.appendChild(button('Coba Lagi', true, () => {
+                box.remove();
+                window.club61SendStationJobs(failed.map(({ job }) => job), wire, queueNumber);
+            }));
+            box.appendChild(actions);
+            document.body.appendChild(box);
+        };
+
+        window.club61SendStationJobs = async function (jobs, wire, queueNumber) {
+            const failed = [];
+            for (const job of jobs) {
+                const result = await window.club61SendToStation(job);
+                try { if (wire) { await wire.reportStationPrint(job.ticket_id, result.ok, result.error); } } catch (e) {}
+                if (! result.ok) { failed.push({ job, error: result.error || 'Gagal mengirim.' }); }
+            }
+            if (failed.length) {
+                window.club61StationFailed(failed, wire, queueNumber);
+            } else if (jobs.length) {
+                window.club61Toast('Slip ' + jobs.map((job) => job.station_name).join(' & ') + ' terkirim');
+            }
+        };
+
+        // Order F&B lunas / tombol "Kirim Ulang ke Stasiun" → { wireId, queueNumber, jobs: [{ ticket_id, station_name, host, port, html }] }.
+        window.addEventListener('club61-station-print', (event) => {
+            const detail = event.detail || {};
+            if (! Array.isArray(detail.jobs) || ! detail.jobs.length) { return; }
+            const wire = window.Livewire && window.Livewire.find(detail.wireId);
+            window.club61SendStationJobs(detail.jobs, wire, detail.queueNumber);
         });
     }
 </script>

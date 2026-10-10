@@ -29,6 +29,28 @@
         .fnbpos-input { width: 100%; padding: 0.65rem 0.85rem; border-radius: 9px; border: 1.5px solid #E6DAC0; font-size: 0.8125rem; background: #FCF8EE; outline: none; }
         .fnbpos-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.65); backdrop-filter: blur(6px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 1.5rem; }
         .fnbpos-modal-dialog { background: #FFFFFF; border: 2px solid #662721; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.35); width: 100%; max-width: 480px; padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem; max-height: 90vh; overflow-y: auto; }
+        /* Popup struk: struk di kiri, judul + status slip + tombol di kanan — muat satu layar (laptop 14"/15", tablet) tanpa scroll. */
+        .fnbpos-receipt-backdrop { padding: 1rem; }
+        .fnbpos-receipt-dialog { max-width: 780px; max-height: calc(100dvh - 2rem); padding: 1.25rem; display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); grid-template-areas: 'paper head' 'paper side'; gap: 0.85rem 1.25rem; overflow: hidden; }
+        .fnbpos-receipt-head { grid-area: head; display: flex; justify-content: space-between; align-items: flex-start; }
+        .fnbpos-receipt-paper { grid-area: paper; min-height: 0; overflow-y: auto; scrollbar-width: thin; }
+        .fnbpos-receipt-side { grid-area: side; min-height: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+        .fnbpos-receipt-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .fnbpos-receipt-summary > div { background: #FFFDF8; border: 1px solid #E6DAC0; border-radius: 12px; padding: 0.55rem 0.75rem; min-width: 0; }
+        .fnbpos-receipt-summary span, .fnbpos-receipt-label { display: block; font-size: 0.625rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: #7A5A52; }
+        .fnbpos-receipt-summary strong { display: block; margin-top: 0.15rem; font-size: 0.875rem; font-weight: 800; color: #4F2F2A; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .fnbpos-receipt-summary strong.is-big { font-size: 1.375rem; font-weight: 900; color: #662721; line-height: 1.2; }
+        .fnbpos-receipt-actions { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+        .fnbpos-receipt-actions .fnbpos-pay-btn { padding: 0.8rem 0.6rem; }
+        /* Jarak baris struk di layar dirapatkan (ukuran huruf tetap — hasil cetak tidak berubah). */
+        .fnbpos-receipt-paper #fnbpos-receipt { padding: 0.9rem 1rem; }
+        .fnbpos-receipt-paper #fnbpos-receipt > :not([hidden]) ~ :not([hidden]) { margin-top: 0.3rem; }
+        .fnbpos-receipt-paper #fnbpos-receipt > .border-dashed { margin-bottom: 0.3rem; }
+        .fnbpos-receipt-paper #fnbpos-receipt .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.15rem; }
+        @media (max-width: 719px) {
+            .fnbpos-receipt-dialog { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; grid-template-areas: 'head' 'paper' 'side'; overflow-y: auto; }
+            .fnbpos-receipt-paper { overflow: visible; }
+        }
         .fnbpos-tab-bar { display: flex; gap: 0.5rem; padding: 0.85rem 1rem; border-bottom: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.9); flex-shrink: 0; }
         .fnbpos-status-badge { display: inline-block; font-size: 0.625rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.15rem 0.55rem; border-radius: 999px; white-space: nowrap; }
         .fnbpos-status-paid { background: #ECFDF5; color: #15803D; border: 1px solid #6EE7B7; }
@@ -82,7 +104,7 @@
                     <div wire:click="addToCart('{{ $menu->id }}')" wire:key="menu-{{ $menu->id }}" class="fnbpos-card">
                         <div class="flex items-center justify-between text-[10px] font-bold mb-1.5 shrink-0">
                             <span class="text-[#7A5A52] truncate pr-2">{{ $menu->category?->name }}</span>
-                            <span class="px-1.5 py-0.5 rounded-md font-mono shrink-0" style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">{{ $menu->station }}</span>
+                            <span class="px-1.5 py-0.5 rounded-md font-mono shrink-0" style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">{{ $menu->station?->name ?? 'Kasir' }}</span>
                         </div>
 
                         {{-- Kotak foto ukurannya SAMA di semua kartu; menu tanpa foto tetap dapat kotak
@@ -327,9 +349,9 @@
     @if($showReceiptModal && $completedOrderData)
         {{-- ================= POPUP: STRUK PEMBAYARAN SUKSES ================= --}}
         {{-- Klik di luar popup / tombol Esc juga menutup. --}}
-        <div class="fnbpos-modal-backdrop" wire:click.self="closeReceiptModal" x-data x-on:keydown.escape.window="$wire.closeReceiptModal()">
-            <div class="fnbpos-modal-dialog" style="max-width:400px; padding:1.25rem; gap:0.85rem;">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div class="fnbpos-modal-backdrop fnbpos-receipt-backdrop" wire:click.self="closeReceiptModal" x-data x-on:keydown.escape.window="$wire.closeReceiptModal()">
+            <div class="fnbpos-modal-dialog fnbpos-receipt-dialog">
+                <div class="fnbpos-receipt-head">
                     <div>
                         {{-- Status mengikuti order — dulu selalu "Transaksi Lunas" walau order batal / belum dibayar. --}}
                         @switch($completedOrderData['payment_status'] ?? 'PAID')
@@ -350,17 +372,58 @@
                     <button type="button" wire:click="closeReceiptModal" aria-label="Tutup" style="background:none; border:none; font-size:1.5rem; color:#662721; cursor:pointer; line-height:1; padding:0.25rem 0.5rem;">&times;</button>
                 </div>
 
-                @include('pos.receipts.fnb', ['receipt' => $completedOrderData])
+                <div class="fnbpos-receipt-paper">
+                    @include('pos.receipts.fnb', ['receipt' => $completedOrderData])
+                </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    {{-- Struk hanya dicetak untuk transaksi lunas. --}}
-                    @if(($completedOrderData['payment_status'] ?? 'PAID') === 'PAID')
-                        <button type="button" onclick="club61PrintReceipt('#fnbpos-receipt')" class="fnbpos-pay-btn flex-1">Cetak Struk</button>
-                        {{-- Cetak ulang slip pesanan bar / dapur (tidak tampil di layar, hanya dicetak). --}}
-                        <template id="fnbpos-kot-template">@include('pos.receipts.fnb-kitchen', ['receipt' => $completedOrderData])</template>
-                        <button type="button" onclick="club61PrintReceiptHtml(document.getElementById('fnbpos-kot-template').innerHTML)" class="fnbpos-pay-btn flex-1">Cetak Pesanan Dapur/Bar</button>
+                <div class="fnbpos-receipt-side">
+                    {{-- Ringkasan untuk memanggil customer (isi lengkapnya di struk sebelah kiri). --}}
+                    <div class="fnbpos-receipt-summary">
+                        <div>
+                            <span>Nomor Antrian</span>
+                            <strong class="is-big">{{ $completedOrderData['queue_number'] ? str_pad((string) $completedOrderData['queue_number'], 3, '0', STR_PAD_LEFT) : '—' }}</strong>
+                        </div>
+                        <div>
+                            <span>Total</span>
+                            <strong class="is-big">Rp {{ number_format($completedOrderData['grand_total'], 0, ',', '.') }}</strong>
+                        </div>
+                        <div>
+                            <span>Pesanan</span>
+                            <strong>{{ ($completedOrderData['order_type'] ?? null) === 'DINE_IN' ? 'Meja '.($completedOrderData['table_number'] ?: '—') : 'Bawa Pulang' }}</strong>
+                        </div>
+                        <div>
+                            <span>Metode</span>
+                            <strong>{{ $completedOrderData['payment_method_label'] ?? $completedOrderData['payment_method'] }}</strong>
+                        </div>
+                    </div>
+
+                    {{-- Slip pesanan per stasiun (Kitchen, dst.): dikirim ke printer stasiunnya, bukan printer kasir. --}}
+                    @if(! empty($completedOrderData['stations']))
+                        <div style="display:flex; flex-direction:column; gap:0.35rem;">
+                            <div class="fnbpos-receipt-label">Slip Stasiun</div>
+                            @foreach($completedOrderData['stations'] as $station)
+                                <div wire:key="station-status-{{ $station['ticket_id'] }}" style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem; font-size:0.75rem; border:1px solid #E6DAC0; border-radius:10px; padding:0.45rem 0.65rem; background:#FFFDF8;">
+                                    <span style="font-weight:800; color:#4F2F2A; white-space:nowrap;">{{ $station['station_name'] }}</span>
+                                    @if($station['printed_at'])
+                                        <span style="font-weight:800; color:#047857;">Terkirim {{ $station['printed_at'] }}</span>
+                                    @elseif($station['error'])
+                                        <span style="font-weight:700; color:#B42318; text-align:right;">Gagal: {{ $station['error'] }}</span>
+                                    @else
+                                        <span style="font-weight:700; color:#92400E;">Belum terkirim</span>
+                                    @endif
+                                </div>
+                            @endforeach
+                        </div>
                     @endif
-                    <button type="button" wire:click="{{ $posStep === 'history' ? 'closeReceiptModal' : 'startNewTransaction' }}" class="fnbpos-pay-btn active col-span-2">{{ $posStep === 'history' ? 'Tutup' : 'Transaksi Baru' }}</button>
+
+                    <div class="fnbpos-receipt-actions">
+                        {{-- Struk hanya dicetak untuk transaksi lunas. --}}
+                        @if(($completedOrderData['payment_status'] ?? 'PAID') === 'PAID')
+                            <button type="button" onclick="club61PrintReceipt('#fnbpos-receipt')" class="fnbpos-pay-btn flex-1">Cetak Struk</button>
+                            <button type="button" wire:click="resendStationTickets('{{ $completedOrderData['order_id'] ?? '' }}')" wire:loading.attr="disabled" wire:target="resendStationTickets" class="fnbpos-pay-btn flex-1">Kirim Ulang ke Stasiun</button>
+                        @endif
+                        <button type="button" wire:click="{{ $posStep === 'history' ? 'closeReceiptModal' : 'startNewTransaction' }}" class="fnbpos-pay-btn active col-span-2">{{ $posStep === 'history' ? 'Tutup' : 'Transaksi Baru' }}</button>
+                    </div>
                 </div>
             </div>
         </div>

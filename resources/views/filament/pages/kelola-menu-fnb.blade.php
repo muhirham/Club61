@@ -7,6 +7,8 @@
         .fnb-table-menu { min-width: 860px; }
         .fnb-table-cat { min-width: 520px; }
         .fnb-table-mod { min-width: 640px; }
+        .fnb-table-station { min-width: 680px; }
+        .fnb-table .fnb-mono { font-family: var(--font-mono); font-weight: 700; color: var(--c-brown); white-space: nowrap; }
         .fnb-table .fnb-center { text-align: center; }
         .fnb-table .fnb-price { font-family: var(--font-mono); font-weight: 700; color: var(--c-terra); white-space: nowrap; font-variant-numeric: tabular-nums; }
         .fnb-table .fnb-mods { font-size: 0.75rem; color: var(--c-muted); max-width: 200px; line-height: 1.4; }
@@ -62,7 +64,7 @@
             </div>
             <div class="c61-hero-title">Kelola Menu F&amp;B &amp; Tambahan</div>
             <div class="c61-hero-sub">
-                Kategori, menu makanan/minuman (lengkap dengan foto), dan grup tambahan/modifier (mis. pilihan susu, level gula) — semuanya di 1 halaman ini, dipakai bareng sumber data yang sama.
+                Kategori, menu makanan/minuman (lengkap dengan foto), grup tambahan/modifier (mis. pilihan susu, level gula), dan stasiun produksi beserta printernya — semuanya di 1 halaman ini.
             </div>
         </div>
 
@@ -71,8 +73,10 @@
                 <button type="button" wire:click="openCreateCategoryModal" class="c61-btn c61-btn-cream c61-btn-lg">+ Tambah Kategori</button>
             @elseif($activeTab === 'menus')
                 <button type="button" wire:click="openCreateMenuModal" class="c61-btn c61-btn-cream c61-btn-lg">+ Tambah Menu</button>
-            @else
+            @elseif($activeTab === 'modifiers')
                 <button type="button" wire:click="openCreateModifierGroupModal" class="c61-btn c61-btn-cream c61-btn-lg">+ Tambah Grup Tambahan</button>
+            @else
+                <button type="button" wire:click="openCreateStationModal" class="c61-btn c61-btn-cream c61-btn-lg">+ Tambah Stasiun</button>
             @endif
         </div>
     </div>
@@ -83,6 +87,7 @@
             <button type="button" wire:click="requestTabChange('categories')" class="c61-seg-btn {{ $activeTab === 'categories' ? 'is-active' : '' }}">Kategori Menu</button>
             <button type="button" wire:click="requestTabChange('menus')" class="c61-seg-btn {{ $activeTab === 'menus' ? 'is-active' : '' }}">Menu F&amp;B</button>
             <button type="button" wire:click="requestTabChange('modifiers')" class="c61-seg-btn {{ $activeTab === 'modifiers' ? 'is-active' : '' }}">Tambahan / Modifier</button>
+            <button type="button" wire:click="requestTabChange('stations')" class="c61-seg-btn {{ $activeTab === 'stations' ? 'is-active' : '' }}">Stasiun &amp; Printer</button>
         </div>
     </div>
 
@@ -181,7 +186,7 @@
                                 </td>
                                 <td class="strong">{{ $menu->name }}</td>
                                 <td><span class="c61-pill c61-pill-cream">{{ $menu->category?->name }}</span></td>
-                                <td><span class="c61-pill {{ $menu->station === 'KITCHEN' ? 'c61-pill-warn' : 'c61-pill-info' }}">{{ $menu->station }}</span></td>
+                                <td><span class="c61-pill {{ $menu->station ? 'c61-pill-warn' : 'c61-pill-gray' }}">{{ $menu->station?->name ?? 'Kasir' }}</span></td>
                                 <td class="fnb-price">Rp {{ number_format($menu->base_price, 0, ',', '.') }}</td>
                                 <td class="fnb-mods">{{ $menu->modifierGroups->pluck('name')->implode(', ') ?: '-' }}</td>
                                 <td class="fnb-center">
@@ -246,6 +251,110 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- ================= TAB 4: STASIUN & PRINTER ================= --}}
+    @if($activeTab === 'stations')
+        <div class="c61-card">
+            <div class="c61-card-head">
+                <div>
+                    <div class="c61-card-title">Stasiun Produksi &amp; Printer</div>
+                    <div class="c61-card-sub">Begitu pesanan lunas, slip menu tiap stasiun dikirim tablet kasir ke printer LAN stasiunnya. Menu "Kasir (tanpa slip)" dibuat langsung di kasir.</div>
+                </div>
+                <span class="c61-pill c61-pill-cream">Total: {{ $this->stations->count() }} Stasiun</span>
+            </div>
+
+            <div class="c61-table-wrap">
+                <table class="c61-table fnb-table fnb-table-station">
+                    <thead>
+                        <tr>
+                            <th>Nama Stasiun</th>
+                            <th>Printer (IP : Port)</th>
+                            <th>Jumlah Menu</th>
+                            <th>Status</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($this->stations as $station)
+                            <tr wire:key="station-{{ $station->id }}">
+                                <td class="strong">{{ $station->name }}</td>
+                                <td>
+                                    @if($station->hasPrinter())
+                                        <span class="fnb-mono">{{ $station->printer_host }}:{{ $station->printer_port }}</span>
+                                    @else
+                                        <span class="c61-pill c61-pill-warn">IP printer belum diisi</span>
+                                    @endif
+                                </td>
+                                <td>{{ $station->menus_count }}</td>
+                                <td><span class="c61-pill {{ $station->is_active ? 'c61-pill-ok' : 'c61-pill-gray' }}">{{ $station->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
+                                <td>
+                                    <div class="c61-actions">
+                                        <button type="button" wire:click="openEditStationModal('{{ $station->id }}')" class="fnb-act">Edit</button>
+                                        <button type="button" x-on:click="$dispatch('club61-confirm', { title: @js('Hapus stasiun '.$station->name.'?'), message: @js($station->menus_count > 0 ? $station->menus_count.' menu di stasiun ini akan dipindah ke '.\App\Models\Fnb\FnbStation::CASHIER_LABEL.'. Riwayat slip lama tetap tersimpan.' : 'Stasiun akan dihapus dari daftar.'), confirmLabel: 'Ya, Hapus', tone: 'danger', onConfirm: () => $wire.deleteStation(@js($station->id)) })" class="fnb-act fnb-act-danger">Hapus</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="c61-empty">Belum ada stasiun — semua menu dibuat di kasir. Klik "+ Tambah Stasiun" untuk Kitchen / Bar.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    {{-- ================= MODAL: STASIUN & PRINTER ================= --}}
+    @if($showStationModal)
+        <div class="c61-modal-backdrop">
+            <div class="c61-modal" style="max-width: 520px;">
+                <div class="c61-modal-head">
+                    <div class="c61-modal-title" style="margin-top: 0;">{{ $editingStationId ? 'Edit Stasiun' : 'Tambah Stasiun' }}</div>
+                    <button type="button" wire:click="closeStationModal" class="c61-modal-close">&times;</button>
+                </div>
+
+                <div class="c61-modal-body" style="gap: 0;">
+                    <div class="c61-field">
+                        <label class="c61-label">Nama Stasiun</label>
+                        <input type="text" wire:model="stationName" class="c61-input" placeholder="Contoh: Kitchen / Bar">
+                        @error('stationName') <span class="fnb-error">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="fnb-grid-2">
+                        <div class="c61-field">
+                            <label class="c61-label">IP Printer LAN</label>
+                            <input type="text" wire:model="stationPrinterHost" class="c61-input" placeholder="192.168.1.50" inputmode="decimal">
+                            @error('stationPrinterHost') <span class="fnb-error">{{ $message }}</span> @enderror
+                        </div>
+                        <div class="c61-field">
+                            <label class="c61-label">Port</label>
+                            <input type="number" wire:model="stationPrinterPort" class="c61-input" min="1" max="65535">
+                            @error('stationPrinterPort') <span class="fnb-error">{{ $message }}</span> @enderror
+                        </div>
+                    </div>
+                    <span class="c61-hint" style="margin-top: -0.4rem; margin-bottom: 0.9rem; display: block;">Pakai IP tetap (atur di router / printer) supaya slip tidak nyasar. Port printer thermal LAN umumnya 9100.</span>
+
+                    <div class="c61-field" style="margin-bottom: 0;">
+                        <label class="c61-label">Status</label>
+                        <div class="fnb-radios">
+                            <label class="fnb-choice">
+                                <input type="radio" wire:model="stationIsActive" value="1">
+                                <span class="fnb-choice-ok">Aktif — slip dicetak</span>
+                            </label>
+                            <label class="fnb-choice">
+                                <input type="radio" wire:model="stationIsActive" value="0">
+                                <span class="fnb-choice-muted">Nonaktif — menunya tanpa slip</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="closeStationModal" class="c61-btn c61-btn-ghost">Batal</button>
+                    <button type="button" wire:click="saveStation" class="c61-btn c61-btn-primary">Simpan Stasiun</button>
+                </div>
             </div>
         </div>
     @endif
@@ -334,10 +443,14 @@
                         </div>
                         <div class="c61-field">
                             <label class="c61-label">Stasiun Produksi</label>
-                            <select wire:model="menuStation" class="c61-select">
-                                <option value="BAR">Bar (Minuman)</option>
-                                <option value="KITCHEN">Kitchen (Makanan)</option>
+                            <select wire:model="menuStationId" class="c61-select">
+                                <option value="">{{ \App\Models\Fnb\FnbStation::CASHIER_LABEL }}</option>
+                                @foreach($this->stations as $station)
+                                    <option value="{{ $station->id }}">{{ $station->name }}{{ $station->is_active ? '' : ' (nonaktif)' }}</option>
+                                @endforeach
                             </select>
+                            <span class="c61-hint">Slip pesanan dicetak di printer stasiun ini begitu lunas.</span>
+                            @error('menuStationId') <span class="fnb-error">{{ $message }}</span> @enderror
                         </div>
                     </div>
 

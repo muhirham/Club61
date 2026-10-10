@@ -6,6 +6,7 @@ use App\Models\Fnb\FnbCategory;
 use App\Models\Fnb\FnbMenu;
 use App\Models\Pos\PosCashierShift;
 use App\Services\Fnb\FnbPosService;
+use App\Services\Fnb\StationTicketService;
 use App\Services\Finance\TaxAndFeeService;
 use Carbon\Carbon;
 use Illuminate\Contracts\View\View;
@@ -121,7 +122,7 @@ class FnbCashierTerminal extends Component
 
     public function getMenusProperty()
     {
-        $query = FnbMenu::query()->where('is_available', true)->with('category');
+        $query = FnbMenu::query()->where('is_available', true)->with(['category', 'station']);
 
         if ($this->activeCategoryId !== 'ALL') {
             $query->where('category_id', $this->activeCategoryId);
@@ -643,12 +644,14 @@ class FnbCashierTerminal extends Component
         $order = $result['order'];
 
         $this->completedOrderData = [
+            'order_id' => $order->id,
             'order_number' => $order->order_number,
             'queue_number' => $order->queue_number,
             'order_type' => $order->order_type,
             'table_number' => $order->table_number,
             'customer_name' => $order->customer_name,
             'items' => $this->receiptItems($order->items),
+            'stations' => app(StationTicketService::class)->statusFor($order),
             'subtotal' => (float) $order->subtotal,
             'tax_amount' => (float) $order->tax_amount,
             'tax_name' => $result['finance']['tax_name'],
@@ -665,8 +668,63 @@ class FnbCashierTerminal extends Component
         $this->posStep = 'selection';
         $this->showReceiptModal = true;
 
-        // Struk langsung dicetak di aplikasi Club61 — sama dengan Bayar Otomatis (semua metode, satu alur).
-        $this->queueAutoPrint($order->id, 'pos.receipts.fnb-print', ['receipt' => $this->completedOrderData], 'startNewTransaction');
+        // Struk customer langsung dicetak di aplikasi Club61 — sama dengan Bayar Otomatis (semua metode, satu alur).
+        // Slip pesanan dikirim terpisah ke printer stasiunnya masing-masing (Kitchen, dst.).
+        $this->queueAutoPrint($order->id, 'pos.receipts.fnb', ['receipt' => $this->completedOrderData], 'startNewTransaction');
+        $this->dispatchStationPrint($order, onlyUnprinted: true);
+    }
+
+    // ===================== SLIP PESANAN KE PRINTER STASIUN (KITCHEN, DST.) =====================
+
+    /** Kirim slip pesanan order ini ke tablet kasir → printer LAN tiap stasiun (pos.partials.receipt-print-script). */
+    protected function dispatchStationPrint(\App\Models\Pos\Order $order, bool $onlyUnprinted = false): void
+    {
+        $jobs = app(StationTicketService::class)->printJobs($order, $onlyUnprinted);
+        if ($jobs === []) {
+            return;
+        }
+
+        $this->dispatch('club61-station-print', wireId: $this->getId(), queueNumber: $order->queue_number, jobs: $jobs);
+    }
+
+    /** Tombol "Kirim Ulang ke Stasiun" di modal struk (transaksi baru maupun dari Riwayat). */
+    public function resendStationTickets(string $orderId): void
+    {
+        $this->authorizeViewFnbHistory();
+
+        $order = \App\Models\Pos\Order::query()
+            ->whereHas('items', fn ($q) => $q->where('item_type', 'FNB'))
+            ->where('payment_status', 'PAID')
+            ->findOrFail($orderId);
+
+        // Order lunas sebelum fitur stasiun ada → slipnya dibuat sekarang.
+        app(StationTicketService::class)->createForOrder($order);
+        $this->refreshStationStatus($order);
+
+        if (! $order->kitchenTickets()->exists()) {
+            $this->js('window.club61Toast('.json_encode('Pesanan ini tidak punya menu stasiun (semua dibuat di kasir) — tidak ada slip yang dikirim.').')');
+
+            return;
+        }
+
+        $this->dispatchStationPrint($order);
+    }
+
+    /** Hasil kirim slip dari tablet kasir (berhasil / gagal + alasannya) — dicatat supaya slip yang belum tercetak ketahuan. */
+    public function reportStationPrint(string $ticketId, bool $ok, ?string $error = null): void
+    {
+        $this->authorizeViewFnbHistory();
+
+        $ticket = \App\Models\Pos\KitchenTicket::with('order')->findOrFail($ticketId);
+        app(StationTicketService::class)->recordPrintResult($ticket, $ok, $error);
+        $this->refreshStationStatus($ticket->order);
+    }
+
+    protected function refreshStationStatus(\App\Models\Pos\Order $order): void
+    {
+        if (($this->completedOrderData['order_id'] ?? null) === $order->id) {
+            $this->completedOrderData['stations'] = app(StationTicketService::class)->statusFor($order);
+        }
     }
 
     protected function resetFnbCart(): void
@@ -755,8 +813,10 @@ class FnbCashierTerminal extends Component
         $this->pendingQris = null;
         $this->posStep = 'selection';
         $this->showReceiptModal = true;
-        // Lunas lewat Bayar Otomatis → struk langsung dicetak di aplikasi Club61 (tanpa buka modal / tekan Cetak Struk).
-        $this->queueAutoPrint($order->id, 'pos.receipts.fnb-print', ['receipt' => $this->completedOrderData], 'startNewTransaction');
+        // Lunas lewat Bayar Otomatis → struk langsung dicetak di aplikasi Club61 (tanpa buka modal / tekan Cetak Struk),
+        // slip pesanan ke printer stasiunnya.
+        $this->queueAutoPrint($order->id, 'pos.receipts.fnb', ['receipt' => $this->completedOrderData], 'startNewTransaction');
+        $this->dispatchStationPrint($order, onlyUnprinted: true);
     }
 
     /** Buka kembali struk transaksi lama dari daftar riwayat (rekonstruksi dari data tersimpan). */
@@ -784,21 +844,19 @@ class FnbCashierTerminal extends Component
             ?? $this->formatPaymentMethodLabel($payment->payment_method);
     }
 
-    /** Data struk dari order tersimpan (cetak ulang dari Riwayat & struk setelah QR Midtrans lunas). */
-    /** Baris struk + stasiun (BAR / KITCHEN, dari menu) & catatan item untuk slip pesanan bar / dapur. */
+    /** Baris struk customer + catatan item. */
     protected function receiptItems(\Illuminate\Support\Collection $items): array
     {
-        $stations = FnbMenu::whereIn('id', $items->pluck('reference_id')->filter()->all())->pluck('station', 'id');
-
         return $items->map(fn ($item) => [
             'name' => $item->item_name,
             'quantity' => $item->quantity,
             'unit_price' => (float) $item->unit_price,
             'subtotal' => (float) $item->subtotal,
             'notes' => $item->notes,
-            'station' => strtoupper((string) ($stations[$item->reference_id] ?? 'BAR')) === 'KITCHEN' ? 'KITCHEN' : 'BAR',
         ])->values()->all();
     }
+
+    /** Data struk dari order tersimpan (cetak ulang dari Riwayat & struk setelah QR Midtrans lunas). */
 
     protected function receiptDataFor(\App\Models\Pos\Order $order): array
     {
@@ -825,8 +883,10 @@ class FnbCashierTerminal extends Component
         }
 
         return [
+            'order_id' => $order->id,
             'order_number' => $order->order_number,
             'payment_status' => $order->payment_status,
+            'stations' => app(StationTicketService::class)->statusFor($order),
             'queue_number' => $order->queue_number,
             'order_type' => $order->order_type,
             'table_number' => $order->table_number,

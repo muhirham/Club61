@@ -191,7 +191,7 @@ class MidtransQrisPosTest extends TestCase
             'opened_by_id' => $this->cashier->id, 'opened_at' => now(), 'starting_cash' => 0, 'expected_cash' => 0,
         ]);
         $category = \App\Models\Fnb\FnbCategory::create(['name' => 'Coffee', 'sort_order' => 1]);
-        $latte = \App\Models\Fnb\FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'station' => 'BAR', 'is_available' => true]);
+        $latte = \App\Models\Fnb\FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'is_available' => true]);
         $this->actingAs($this->cashier);
 
         // Lunas.
@@ -393,7 +393,7 @@ class MidtransQrisPosTest extends TestCase
             'opened_by_id' => $this->cashier->id, 'opened_at' => now(), 'starting_cash' => 0, 'expected_cash' => 0,
         ]);
         $category = \App\Models\Fnb\FnbCategory::create(['name' => 'Coffee', 'sort_order' => 1]);
-        $latte = \App\Models\Fnb\FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'station' => 'BAR', 'is_available' => true]);
+        $latte = \App\Models\Fnb\FnbMenu::create(['category_id' => $category->id, 'name' => 'Latte', 'base_price' => 38000, 'is_available' => true]);
         $this->actingAs($this->cashier);
 
         $pending = Livewire::test(\App\Livewire\Pos\FnbCashierTerminal::class)
