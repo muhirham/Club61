@@ -67,7 +67,8 @@ class PadelBookingConcurrencyTest extends TestCase
                 'success' => false,
             ]);
 
-        // 5. Player 3 attempts to claim overlapping partial slot (19:30 - 20:30) -> Must also fail with 409 Conflict
+        // 5. Player 3 attempts to claim overlapping partial slot (19:30 - 20:30) -> must also fail.
+        //    Jadwal hanya per jam bulat, jadi slot 19:30 ditolak lebih awal (422) sebelum cek bentrok.
         $response3 = $this->actingAs($player3, 'sanctum')
             ->postJson('/api/v1/padel/hold-slot', [
                 'booking_date' => $bookingDate,
@@ -80,7 +81,7 @@ class PadelBookingConcurrencyTest extends TestCase
                 ],
             ]);
 
-        $response3->assertStatus(409)
+        $response3->assertStatus(422)
             ->assertJson([
                 'success' => false,
             ]);

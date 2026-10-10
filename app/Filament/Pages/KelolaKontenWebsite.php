@@ -295,23 +295,39 @@ class KelolaKontenWebsite extends Page
         // connect") karena browser coba buka teks itu sebagai URL relatif ke web ini
         // sendiri. Kalau isinya bukan URL http(s) yang valid, abaikan saja (biarkan kosong,
         // supaya welcome.blade.php otomatis balik pakai peta hasil generate dari alamat).
+        // Wajib https ke Google Maps: filter_var saja menerima "javascript://…", yang lalu dijalankan
+        // iframe di browser setiap pengunjung halaman depan.
         $trimmedMapsUrl = trim($this->mapsEmbedUrl);
-        if ($trimmedMapsUrl !== '' && ! filter_var($trimmedMapsUrl, FILTER_VALIDATE_URL)) {
+        if ($trimmedMapsUrl !== '' && ! CompanyProfileSetting::isSafeMapsEmbedUrl($trimmedMapsUrl)) {
             $trimmedMapsUrl = '';
             Notification::make()
                 ->title('URL Embed Maps Diabaikan')
-                ->body('Isian "URL Embed Google Maps" bukan link yang valid, jadi tidak disimpan — halaman depan tetap pakai peta otomatis dari alamat.')
+                ->body('Isian "URL Embed Google Maps" harus link https dari Google Maps (contoh: https://www.google.com/maps/embed?pb=…), jadi tidak disimpan — halaman depan tetap pakai peta otomatis dari alamat.')
                 ->warning()
                 ->send();
         }
         $settings->maps_embed_url = mb_substr($trimmedMapsUrl, 0, 500);
         $settings->footer_tagline = mb_substr(trim($this->footerTagline), 0, 200);
         $settings->footer_tagline_en = mb_substr(trim($this->footerTaglineEn), 0, 200) ?: null;
-        $settings->footer_social_links = array_filter([
-            'instagram' => trim($this->footerInstagram) ?: null,
-            'facebook' => trim($this->footerFacebook) ?: null,
-            'tiktok' => trim($this->footerTiktok) ?: null,
-        ]);
+
+        // Link sosial hanya http(s) — "javascript:" di href footer akan jalan saat diklik pengunjung.
+        $socialInput = [
+            'instagram' => trim($this->footerInstagram),
+            'facebook' => trim($this->footerFacebook),
+            'tiktok' => trim($this->footerTiktok),
+        ];
+        $rejectedSocial = array_keys(array_filter($socialInput, fn (string $url) => $url !== '' && ! CompanyProfileSetting::isSafeWebUrl($url)));
+        if ($rejectedSocial !== []) {
+            Notification::make()
+                ->title('Link Sosial Diabaikan')
+                ->body('Link '.implode(', ', array_map('ucfirst', $rejectedSocial)).' harus diawali https:// (contoh: https://instagram.com/club61), jadi tidak disimpan.')
+                ->warning()
+                ->send();
+        }
+        $settings->footer_social_links = array_filter(
+            array_map(fn (string $url) => mb_substr($url, 0, 300), $socialInput),
+            fn (string $url) => CompanyProfileSetting::isSafeWebUrl($url),
+        );
         $settings->updated_by = auth()->id();
         $settings->save();
 

@@ -49,8 +49,14 @@ Route::middleware(['auth'])->group(function () {
         try {
             $result = $service->checkIn($code, $user);
             return response()->json(['success' => true, 'data' => $result]);
-        } catch (\Throwable $e) {
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            // Pesan bisnis (tiket tidak valid, belum jam main, dsb.) memang untuk kasir.
             return response()->json(['success' => false, 'message' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            // Error lain (mis. query DB) jangan dibocorkan ke layar kasir — cukup dicatat di log.
+            report($e);
+
+            return response()->json(['success' => false, 'message' => 'Check-in gagal diproses. Coba lagi atau hubungi admin.'], 500);
         }
     })->name('pos.checkin');
 

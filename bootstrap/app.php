@@ -22,7 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
         // AuthenticateSession: sesi web di perangkat lain otomatis keluar setelah password diganti / direset lewat email
         // (dulu hanya panel admin yang begini — HP customer yang hilang tetap login walau password sudah direset).
-        $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \Illuminate\Session\Middleware\AuthenticateSession::class]);
+        $middleware->web(append: [\App\Http\Middleware\SetLocale::class, \Illuminate\Session\Middleware\AuthenticateSession::class, \App\Http\Middleware\EnsureUserIsActive::class]);
+        $middleware->api(append: [\App\Http\Middleware\EnsureUserIsActive::class]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         // Enforce JSON responses for all /api/* requests

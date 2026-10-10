@@ -337,6 +337,9 @@ trait ManagesRescheduleAndCashier
             $bookingId, $newCourtId, $newStartTimeStr, $reason,
             $adminUser, $paymentMethod, $isDeltaPaid, $timezone, $parsedDate, $paymentProof, $deltaPaymentChannel
         ) {
+            // Kunci lapangan tujuan SEBELUM booking — urutan yang sama dengan holdBatchSlots (lapangan dulu,
+            // baru baris booking), supaya hold dan reschedule di lapangan yang sama antre tanpa deadlock.
+            $newCourt = PadelCourt::where('id', $newCourtId)->lockForUpdate()->firstOrFail();
             $booking = PadelBooking::with(['order', 'court'])->where('id', $bookingId)->lockForUpdate()->firstOrFail();
 
             // Hanya booking yang SUDAH LUNAS. Dulu status LOCKED juga diterima: keranjang customer yang belum
@@ -382,7 +385,6 @@ trait ManagesRescheduleAndCashier
                 }
             }
 
-            $newCourt = PadelCourt::where('id', $newCourtId)->lockForUpdate()->firstOrFail();
             if (! $newCourt->is_active) {
                 throw new HttpException(422, "Lapangan {$newCourt->name} sedang tidak aktif.");
             }

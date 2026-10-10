@@ -146,4 +146,54 @@ class CompanyProfileSetting extends Model
             return $card;
         })->all();
     }
+
+    /** Host Google Maps yang boleh dipasang sebagai iframe peta di halaman depan. */
+    public const MAPS_EMBED_HOSTS = ['www.google.com', 'google.com', 'maps.google.com'];
+
+    /**
+     * Link web biasa (http/https dengan host). filter_var saja tidak cukup: "javascript://x%0Aalert(1)"
+     * lolos FILTER_VALIDATE_URL, padahal dijalankan browser sebagai skrip di href/iframe.
+     */
+    public static function isSafeWebUrl(?string $url): bool
+    {
+        $url = trim((string) $url);
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return false;
+        }
+
+        $scheme = strtolower((string) parse_url($url, PHP_URL_SCHEME));
+
+        return in_array($scheme, ['http', 'https'], true) && (string) parse_url($url, PHP_URL_HOST) !== '';
+    }
+
+    /** URL embed peta: wajib https ke Google Maps (iframe ber-origin lain tidak boleh disisipkan). */
+    public static function isSafeMapsEmbedUrl(?string $url): bool
+    {
+        if (! self::isSafeWebUrl($url)) {
+            return false;
+        }
+
+        $url = trim((string) $url);
+
+        return strtolower((string) parse_url($url, PHP_URL_SCHEME)) === 'https'
+            && in_array(strtolower((string) parse_url($url, PHP_URL_HOST)), self::MAPS_EMBED_HOSTS, true)
+            && str_starts_with((string) parse_url($url, PHP_URL_PATH), '/maps');
+    }
+
+    /** URL iframe peta yang aman dipakai halaman publik: embed tersimpan kalau valid, selain itu peta dari alamat. */
+    public function safeMapsEmbedUrl(): string
+    {
+        return self::isSafeMapsEmbedUrl($this->maps_embed_url)
+            ? trim((string) $this->maps_embed_url)
+            : 'https://www.google.com/maps?q='.urlencode((string) $this->address_line).'&output=embed';
+    }
+
+    /** Link media sosial footer yang aman di-render (data lama yang tidak valid dilewati). */
+    public function safeSocialLinks(): array
+    {
+        return array_filter(
+            array_map(fn ($url) => trim((string) $url), $this->footer_social_links ?: []),
+            fn (string $url) => self::isSafeWebUrl($url),
+        );
+    }
 }

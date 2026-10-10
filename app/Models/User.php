@@ -63,6 +63,20 @@ class User extends Authenticatable implements FilamentUser
 
     protected static function booted(): void
     {
+        // Dinonaktifkan → cabut semua token API & sesi web di database saat itu juga (middleware
+        // EnsureUserIsActive tetap menjaga sesi yang tersimpan di tempat lain).
+        static::updated(function (User $user) {
+            if (! $user->wasChanged('is_active') || $user->is_active !== false) {
+                return;
+            }
+
+            $user->tokens()->delete();
+
+            if (config('session.driver') === 'database') {
+                \Illuminate\Support\Facades\DB::table(config('session.table', 'sessions'))->where('user_id', $user->getKey())->delete();
+            }
+        });
+
         static::saved(function (User $user) {
             if ($user->pendingRole) {
                 $role = Role::findOrCreate($user->pendingRole, 'web');

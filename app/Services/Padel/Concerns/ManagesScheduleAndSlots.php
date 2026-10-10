@@ -210,6 +210,13 @@ trait ManagesScheduleAndSlots
 
         // Validasi waktu masing-masing slot
         foreach ($slots as $slot) {
+            // Grid jadwal per jam bulat (sama dengan aturan reschedule). Jam seperti 19:30 dulu lolos dan memakai
+            // kunci cache yang berbeda dari slot 19:00 — bentrok baru ketahuan di lapisan database.
+            if (! preg_match('/^([01]\d|2[0-3]):00(:00)?$/', (string) $slot['start_time'])
+                || ! preg_match('/^(([01]\d|2[0-3]):00|24:00)(:00)?$/', (string) $slot['end_time'])) {
+                throw new HttpException(422, 'Jam booking harus jam bulat (contoh 19:00 - 20:00). Pilih slot dari jadwal.');
+            }
+
             $start = Carbon::parse("{$bookingDate} {$slot['start_time']}");
             $end = Carbon::parse("{$bookingDate} {$slot['end_time']}");
             if ($end->lessThanOrEqualTo($start)) {
@@ -260,7 +267,10 @@ trait ManagesScheduleAndSlots
                 $batchId = 'BATCH-PAD-' . strtoupper(Str::random(8));
 
                 foreach ($slots as $slot) {
-                    $court = PadelCourt::where('id', $slot['court_id'])->where('is_active', true)->first();
+                    // Kunci baris lapangan dulu: semua jalur yang mengisi jadwal lapangan ini (hold online, walk-in,
+                    // reschedule) antre di baris yang sama, jadi cek bentrok di bawah tidak bergantung pada level
+                    // isolasi database. Slot sudah diurutkan per court_id → urutan kunci konsisten (anti-deadlock).
+                    $court = PadelCourt::where('id', $slot['court_id'])->where('is_active', true)->lockForUpdate()->first();
                     if (! $court) {
                         throw new HttpException(404, "Lapangan ID {$slot['court_id']} tidak ditemukan.");
                     }

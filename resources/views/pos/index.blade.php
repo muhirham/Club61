@@ -84,6 +84,12 @@
 
     <!-- Quick Cart Script -->
     <script>
+        // Semua nilai dari server (nama customer, lapangan, alat, pesan error) di-escape sebelum masuk innerHTML:
+        // nama customer diisi bebas oleh customer, jadi tanpa escape bisa menyisipkan skrip ke sesi kasir.
+        function escHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+        }
+
         function openPosCheckInModal() {
             document.getElementById('pos-checkin-modal').classList.remove('hidden');
             document.getElementById('pos-checkin-result').classList.add('hidden');
@@ -126,7 +132,7 @@
                     let equipmentsHtml = '';
                     if (res.equipments && res.equipments.length > 0) {
                         equipmentsHtml = '<div class="mt-2 pt-2 border-t border-emerald-200"><div class="font-bold text-emerald-900 mb-1">Serah-Terima Alat:</div>' +
-                            res.equipments.map(e => `<div class="flex justify-between py-0.5"><span>${e.name}</span><span class="font-bold font-mono">${e.quantity} Pcs</span></div>`).join('') +
+                            res.equipments.map(e => `<div class="flex justify-between py-0.5"><span>${escHtml(e.name)}</span><span class="font-bold font-mono">${escHtml(e.quantity)} Pcs</span></div>`).join('') +
                             '<div class="mt-1 text-[11px] text-emerald-700 font-semibold">Wajib serahkan raket &amp; bola ke pemain.</div></div>';
                     } else {
                         equipmentsHtml = '<div class="text-[11px] text-gray-500 italic mt-1">Tidak ada sewa raket/bola tambahan.</div>';
@@ -138,19 +144,19 @@
                             <span class="px-2 py-0.5 rounded-md font-bold text-[10px] bg-emerald-200 text-emerald-900 uppercase">
                                 ${res.already_checked_in ? 'Sudah Pernah Check-In' : 'Check-In Berhasil'}
                             </span>
-                            <span class="font-mono text-[10px] text-emerald-700">${res.booking_code}</span>
+                            <span class="font-mono text-[10px] text-emerald-700">${escHtml(res.booking_code)}</span>
                         </div>
-                        <div class="font-bold text-sm text-gray-900">${res.player_name}</div>
-                        <div class="text-xs text-gray-700"><strong>${res.court_name}</strong> &bull; ${res.schedule}</div>
+                        <div class="font-bold text-sm text-gray-900">${escHtml(res.player_name)}</div>
+                        <div class="text-xs text-gray-700"><strong>${escHtml(res.court_name)}</strong> &bull; ${escHtml(res.schedule)}</div>
                         ${equipmentsHtml}
                     `;
                 } else {
                     resultContainer.className = 'rounded-2xl p-4 border text-xs space-y-2 bg-rose-50 border-rose-300 text-rose-900';
-                    resultContainer.innerHTML = `<strong>Gagal Check-In:</strong><br>${data.message || 'Tiket tidak ditemukan.'}`;
+                    resultContainer.innerHTML = `<strong>Gagal Check-In:</strong><br>${escHtml(data.message || 'Tiket tidak ditemukan.')}`;
                 }
             } catch (err) {
                 resultContainer.className = 'rounded-2xl p-4 border text-xs space-y-2 bg-rose-50 border-rose-300 text-rose-900';
-                resultContainer.innerHTML = `<strong>Terjadi Kesalahan:</strong><br>${err.message}`;
+                resultContainer.innerHTML = `<strong>Terjadi Kesalahan:</strong><br>${escHtml(err.message)}`;
             }
         }
     </script>

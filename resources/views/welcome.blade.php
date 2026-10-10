@@ -366,9 +366,8 @@
     @php
         // Kalau maps_embed_url bukan URL valid (pernah terisi teks alamat biasa → iframe gagal dimuat),
         // abaikan dan pakai peta hasil generate dari alamat.
-        $mapsUrl = $companyProfile->maps_embed_url && filter_var($companyProfile->maps_embed_url, FILTER_VALIDATE_URL)
-            ? $companyProfile->maps_embed_url
-            : 'https://www.google.com/maps?q='.urlencode($companyProfile->address_line).'&output=embed';
+        // Hanya embed https Google Maps (lihat CompanyProfileSetting::isSafeMapsEmbedUrl) — URL javascript: dsb. diabaikan.
+        $mapsUrl = $companyProfile->safeMapsEmbedUrl();
     @endphp
     <section id="location" class="scroll-mt-20">
         <div class="{{ $wrap }} py-16 sm:py-24 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
@@ -414,7 +413,7 @@
                     <p class="text-sm leading-relaxed max-w-sm">{{ $companyProfile->localized('footer_tagline') }}</p>
                 @endif
             </div>
-            @php $social = $companyProfile->footer_social_links ?: []; @endphp
+            @php $social = $companyProfile->safeSocialLinks(); @endphp
             @if(!empty($social))
                 <div class="flex flex-wrap items-center gap-6">
                     @foreach($social as $platform => $url)

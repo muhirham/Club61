@@ -42,8 +42,6 @@ class LoginRequest extends FormRequest
      */
     public function authenticate(): void
     {
-        $this->ensureIsNotRateLimited();
-
         $login = trim($this->input('email'));
         $password = $this->input('password');
 
@@ -65,20 +63,55 @@ class LoginRequest extends FormRequest
             }
         }
 
+        // Batas percobaan dihitung dari identitas yang SUDAH di-resolve: dulu kuncinya teks mentah, jadi
+        // "admin", email, nomor HP (0812…/+62812…) untuk akun yang sama masing-masing dapat jatah 5x.
+        $this->resolvedLogin = Str::lower($login);
+        $this->ensureIsNotRateLimited();
+
         $credentials = [
             'email' => $login,
             'password' => $password,
         ];
 
         if (! Auth::attempt($credentials, $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            $this->hitRateLimits();
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
         }
 
+        // Akun nonaktif (staf yang sudah keluar, customer yang diblokir) tidak boleh mendapat sesi web.
+        if (Auth::user()?->is_active === false) {
+            Auth::guard('web')->logout();
+            $this->hitRateLimits();
+
+            throw ValidationException::withMessages([
+                'email' => \App\Http\Middleware\EnsureUserIsActive::MESSAGE,
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
+        RateLimiter::clear($this->accountThrottleKey());
+    }
+
+    /** Identitas login setelah alias/nomor HP di-resolve ke email (null sebelum authenticate() jalan). */
+    protected ?string $resolvedLogin = null;
+
+    /** Maks gagal per akun + IP (pengguna sah yang salah ketik). */
+    public const MAX_ATTEMPTS_ACCOUNT_IP = 5;
+
+    /** Maks gagal per akun dari IP mana pun dalam 15 menit (penyerang yang berganti-ganti IP). */
+    public const MAX_ATTEMPTS_ACCOUNT = 20;
+
+    /** Maks gagal per IP ke akun mana pun per menit (password spraying ke banyak akun). */
+    public const MAX_ATTEMPTS_IP = 30;
+
+    protected function hitRateLimits(): void
+    {
+        RateLimiter::hit($this->throttleKey());
+        RateLimiter::hit($this->accountThrottleKey(), 15 * 60);
+        RateLimiter::hit($this->ipThrottleKey());
     }
 
     /**
@@ -88,13 +121,27 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        $limits = [
+            $this->throttleKey() => self::MAX_ATTEMPTS_ACCOUNT_IP,
+            $this->accountThrottleKey() => self::MAX_ATTEMPTS_ACCOUNT,
+            $this->ipThrottleKey() => self::MAX_ATTEMPTS_IP,
+        ];
+
+        $blockedKey = null;
+        foreach ($limits as $key => $max) {
+            if (RateLimiter::tooManyAttempts($key, $max)) {
+                $blockedKey = $key;
+                break;
+            }
+        }
+
+        if ($blockedKey === null) {
             return;
         }
 
         event(new Lockout($this));
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+        $seconds = RateLimiter::availableIn($blockedKey);
 
         throw ValidationException::withMessages([
             'email' => trans('auth.throttle', [
@@ -109,6 +156,21 @@ class LoginRequest extends FormRequest
      */
     public function throttleKey(): string
     {
-        return Str::transliterate(Str::lower($this->string('email')).'|'.$this->ip());
+        return Str::transliterate($this->loginIdentity().'|'.$this->ip());
+    }
+
+    public function accountThrottleKey(): string
+    {
+        return 'login-account:'.Str::transliterate($this->loginIdentity());
+    }
+
+    public function ipThrottleKey(): string
+    {
+        return 'login-ip:'.$this->ip();
+    }
+
+    protected function loginIdentity(): string
+    {
+        return $this->resolvedLogin ?? Str::lower(trim((string) $this->string('email')));
     }
 }
