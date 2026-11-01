@@ -32,6 +32,8 @@ class Club61PermissionMatrix
         'manage_coaching_rates',
         // Mengubah aturan akses (hari / jam / peak) kartu member yang sudah terjual sekaligus (Modul 28).
         'apply_membership_plan_rules',
+        // Mengubah kuota & tanggal berakhir kartu member yang sudah terjual sekaligus (selisih kuota paket).
+        'apply_membership_plan_quota',
         'View:RoleResource',
         'view_roles',
         'create_roles',
@@ -102,6 +104,7 @@ class Club61PermissionMatrix
                 'request_refund_padel',
                 'View:JadwalCoaching',
                 'book_coaching',
+                'settle_coaching_bill',
             ],
             'kitchen' => [
                 'view_kitchen_kds',
@@ -191,6 +194,13 @@ class Club61PermissionMatrix
                         'actions' => [
                             'View:JadwalCoaching' => 'Akses Halaman Jadwal Coaching',
                             'book_coaching' => 'Buat Booking Coaching di POS Walk-In (Tarif Setoran)',
+                        ],
+                    ],
+                    'coaching_billing' => [
+                        'label' => 'Tagihan Berkala Academy Coaching',
+                        'actions' => [
+                            'settle_coaching_bill' => 'Pelunasan Tagihan Coaching di POS Walk-In (QRIS / EDC / Transfer Bank)',
+                            'View:TagihanCoaching' => 'Akses Halaman Tagihan Coaching & Unduh Invoice',
                         ],
                     ],
                     'coaching_data' => [
@@ -455,6 +465,7 @@ class Club61PermissionMatrix
                             'view_membership_plans' => 'Lihat Daftar Paket Membership',
                             'manage_membership_plans' => 'Kelola Paket, Harga & Benefit Membership',
                             'apply_membership_plan_rules' => 'Terapkan Aturan Akses Paket (Hari / Jam / Peak) ke Membership yang Sudah Aktif',
+                            'apply_membership_plan_quota' => 'Terapkan Kuota & Masa Aktif Paket ke Kartu Member yang Sudah Terjual',
                             'manage_membership_facilities' => 'Kelola Master Fasilitas Membership (tambah fasilitas, nama & deskripsi benefit)',
                         ],
                     ],

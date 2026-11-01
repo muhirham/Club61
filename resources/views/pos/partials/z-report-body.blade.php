@@ -57,7 +57,7 @@
                             <span>Selisih</span><span>{{ abs($row['difference']) < 0.005 ? 'COCOK' : ($row['difference'] > 0 ? '+' : '-').$rupiah(abs($row['difference'])) }}</span>
                         </div>
                     @else
-                        <div style="{{ $line }} color:#15803D;"><span>{{ $row['type'] === SCS::TYPE_AUTO ? 'Terverifikasi sistem' : 'Benefit (bukan uang)' }}</span><span>&#10003;</span></div>
+                        <div style="{{ $line }} color:#15803D;"><span>{{ match ($row['type']) { SCS::TYPE_AUTO => 'Terverifikasi sistem', SCS::TYPE_TRANSFER => 'Cek mutasi rekening', default => 'Benefit (bukan uang)' } }}</span><span>&#10003;</span></div>
                     @endif
                 </div>
             @endforeach

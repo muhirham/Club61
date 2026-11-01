@@ -383,6 +383,8 @@
                                                         &bull; MAIN
                                                     @elseif($slot['is_paid'])
                                                         LUNAS
+                                                    @elseif($slot['is_tab'] ?? false)
+                                                        TAGIHAN BERKALA
                                                     @elseif($slot['is_pending'])
                                                         HOLD
                                                     @elseif($slot['is_completed'])

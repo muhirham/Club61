@@ -50,7 +50,9 @@ trait ManagesCheckInAndTurnstile
             throw new HttpException(400, "Tiket kedaluwarsa (Expired). Sesi bermain pada pukul {$booking->start_time->format('H:i')} - {$booking->end_time->format('H:i')} WIB telah selesai.");
         }
 
-        if ($booking->status === 'PENDING' || $booking->status === 'PENDING_PAYMENT') {
+        // Sesi tagihan coaching academy (Modul 31) boleh check-in walau belum lunas — dilunasi belakangan di kasir.
+        $isCoachingTab = $booking->status === 'PENDING_PAYMENT' && \App\Services\Coaching\CoachingBillingService::isTabBooking($booking);
+        if (($booking->status === 'PENDING' || $booking->status === 'PENDING_PAYMENT') && ! $isCoachingTab) {
             throw new HttpException(400, "Tiket belum lunas. Silakan selesaikan pembayaran terlebih dahulu.");
         }
 
@@ -112,11 +114,11 @@ trait ManagesCheckInAndTurnstile
         // Scan Pertama: Ubah status menjadi CHECKED_IN + potong stock alat SEWA (RACKET/TOWEL) pada
         // momen serah-terima fisik. Dibungkus 1 transaksi biar atomik — kalau potong stock gagal di
         // tengah jalan, perubahan status booking ikut ter-rollback juga.
-        DB::transaction(function () use ($booking, $now, $staffUser, $equipmentList) {
+        DB::transaction(function () use ($booking, $now, $staffUser, $equipmentList, $isCoachingTab) {
             // Update bersyarat: kalau di sela-sela booking ini baru saja di-reschedule (jadi LOCKED, tagihan
             // selisih belum lunas) atau dibatalkan, check-in gagal — bukan menimpa statusnya jadi CHECKED_IN.
             $updated = PadelBooking::whereKey($booking->id)
-                ->where('status', 'PAID')
+                ->where('status', $isCoachingTab ? 'PENDING_PAYMENT' : 'PAID')
                 ->whereNull('checked_in_at')
                 ->update(['status' => 'CHECKED_IN', 'checked_in_at' => $now]);
             if ($updated === 0) {

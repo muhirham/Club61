@@ -23,6 +23,7 @@ class BookOfflineCourt extends Page
     use \App\Livewire\Concerns\AutoPrintsReceipts;
     use \App\Livewire\Concerns\ClosesPosShift;
     use \App\Livewire\Concerns\PrintsDailySalesRecap;
+    use \App\Livewire\Concerns\SettlesCoachingBills;
     use HasPageShield;
 
     protected static string | BackedEnum | null $navigationIcon = 'heroicon-o-building-storefront';
@@ -208,6 +209,15 @@ class BookOfflineCourt extends Page
         }
 
         $booking = PadelBooking::with(['user', 'court', 'order.payments'])->find($bookingId);
+        // Sesi tagihan berkala academy (Modul 31) dilunasi sekaligus per academy, bukan per slot.
+        if ($booking && $booking->status === 'PENDING_PAYMENT' && \App\Services\Coaching\CoachingBillingService::isTabBooking($booking)) {
+            $academy = $booking->coachingBooking?->academy?->name ?? 'academy';
+            Notification::make()->title('Tagihan Berkala Academy')
+                ->body("Sesi {$booking->booking_code} tercatat pada tagihan berkala {$academy}. Pelunasan dilakukan sekaligus melalui Pelunasan Tagihan Coaching.")
+                ->info()->send();
+
+            return;
+        }
         // Kasir hanya melunasi selisih reschedule. Booking online yang belum dibayar wajib dibayar online —
         // customer yang mau bayar di kasir dibuatkan booking walk-in baru (supaya slot tidak bisa ditahan tanpa bayar).
         if ($booking && (in_array($booking->status, ['PENDING_PAYMENT', 'PENDING'], true) || ($booking->status === 'LOCKED' && (int) $booking->reschedule_count < 1))) {
@@ -859,6 +869,28 @@ class BookOfflineCourt extends Page
     {
         $this->resetPriceCaches();
         $this->saveDraft();
+    }
+
+    /**
+     * Modul 31: academy coach utama menggunakan Tagihan Berkala → booking dicatat ke tagihan (tanpa pembayaran saat ini).
+     * Hanya untuk tampilan; server menentukan ulang dari pengaturan academy saat checkout.
+     */
+    public function getCoachingTabAcademyProperty(): ?\App\Models\Coaching\CoachingAcademy
+    {
+        if (! $this->isCoaching || ! $this->coachingCoachId || ! array_key_exists($this->coachingCoachId, $this->coachOptions)) {
+            return null;
+        }
+        $academy = \App\Models\Coaching\Coach::with('academy')->find($this->coachingCoachId)?->academy;
+
+        return $academy?->usesTab() ? $academy : null;
+    }
+
+    /** @return array{sessions: int, amount: float} tagihan academy yang lewat jatuh tempo (peringatan ke resepsionis) */
+    public function getCoachingTabOverdueProperty(): array
+    {
+        $academy = $this->coachingTabAcademy;
+
+        return $academy ? app(\App\Services\Coaching\CoachingBillingService::class)->overdue($academy) : ['sessions' => 0, 'amount' => 0.0];
     }
 
     protected function resetPriceCaches(): void
@@ -1780,7 +1812,10 @@ class BookOfflineCourt extends Page
         $grandTotal = $this->grandTotal;
         $paymentMeta = [];
 
-        if ($grandTotal <= 0) {
+        if ($grandTotal > 0 && $this->coachingTabAcademy) {
+            // Modul 31: academy Tagihan Berkala — tanpa pembayaran saat ini, dilunasi di kasir sesuai periode.
+            $method = 'TAGIHAN';
+        } elseif ($grandTotal <= 0) {
             // Seluruh tagihan ditanggung voucher promo / kuota membership / voucher jam corporate: tidak ada uang
             // masuk, jadi tanpa bukti EDC / QRIS dan tanpa Midtrans. Server menentukan label sumbernya.
             $method = 'VOUCHER';
@@ -1894,7 +1929,7 @@ class BookOfflineCourt extends Page
                 slots: $slotsPayload,
                 bookingDate: $this->bookingDate,
                 equipments: $equipmentsPayload,
-                paymentMethod: in_array($method, ['VOUCHER', 'QRIS_MIDTRANS'], true) ? $method : $this->paymentMethod,
+                paymentMethod: in_array($method, ['VOUCHER', 'QRIS_MIDTRANS', 'TAGIHAN'], true) ? $method : $this->paymentMethod,
                 cashier: $cashier,
                 autoCheckIn: $this->isAutoCheckIn,
                 paymentMeta: $paymentMeta,
@@ -1949,6 +1984,7 @@ class BookOfflineCourt extends Page
                 'service_charge' => $result['order']->service_charge,
                 'admin_fee_name' => $this->adminFeeName,
                 'grand_total' => $result['grand_total'],
+                'billed_to_tab' => $result['billed_to_tab'] ?? false,
                 'auto_checked_in' => $result['auto_checked_in'],
                 'created_at' => now()->format('d/m/Y H:i:s'),
                 'payment_meta' => $paymentMeta,
@@ -2448,7 +2484,7 @@ class BookOfflineCourt extends Page
         $bookingWindowNotice = \App\Support\BookingWindow::blockedReason($this->bookingDate);
 
         // Tarik seluruh booking pada tanggal aktif untuk evaluasi cepat
-        $existingBookings = PadelBooking::with(['court', 'user'])
+        $existingBookings = PadelBooking::with(['court', 'user', 'coachingBooking:id,billing'])
             ->whereDate('booking_date', $this->bookingDate)
             ->whereIn('status', ['LOCKED', 'PENDING_PAYMENT', 'PENDING', 'PAID', 'CHECKED_IN', 'COMPLETED'])
             ->get();
@@ -2546,12 +2582,15 @@ class BookOfflineCourt extends Page
                                 'status' => 'LOCKED',
                                 'is_active_bill' => ($this->settleBill['booking_id'] ?? null) === $matchedBooking->id,
                             ];
-                        } elseif (in_array($matchedBooking->status, ['PAID', 'CHECKED_IN', 'COMPLETED'])) {
+                        } elseif (in_array($matchedBooking->status, ['PAID', 'CHECKED_IN', 'COMPLETED'])
+                            || ($matchedBooking->status === 'PENDING_PAYMENT' && $matchedBooking->coachingBooking?->isTab())) {
+                            // Sesi tagihan berkala coaching (Modul 31): slot terkunci tetap, bukan hold checkout.
                             $status = 'BOOKED';
                             $bookingDetail = [
                                 'code' => $matchedBooking->booking_code,
                                 'player' => $matchedBooking->user?->name ?? 'Pemain',
                                 'status' => $matchedBooking->status,
+                                'tab' => $matchedBooking->status === 'PENDING_PAYMENT',
                             ];
                         } else {
                             $status = 'LOCKED';
@@ -2630,9 +2669,10 @@ class BookOfflineCourt extends Page
         $walkInStatsToday = Cache::remember($walkInStatsCacheKey, 10, function () use ($todayRange) {
             $query = \App\Models\Pos\Order::where('order_type', 'WALK_IN')->whereBetween('created_at', $todayRange);
 
+            // Omzet hanya order yang sudah lunas — tagihan coaching belum dilunasi / order batal tidak ikut terhitung.
             return [
                 'count' => (clone $query)->count(),
-                'revenue' => (float) (clone $query)->sum('grand_total'),
+                'revenue' => (float) (clone $query)->where('payment_status', 'PAID')->sum('grand_total'),
             ];
         });
 

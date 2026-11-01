@@ -65,6 +65,11 @@
                     <span class="pos-only-narrow">SHIFT {{ \Illuminate\Support\Str::afterLast($activeShift->shift_number, '-') }} AKTIF</span>
                     <small class="pos-hide-md">{{ $activeShift->openedBy?->name ?? 'Kasir' }} &bull; {{ $activeShift->opened_at->setTimezone('Asia/Jakarta')->format('H:i') }} WIB</small>
                 </span>
+                @if ($this->canSettleCoachingBill)
+                    <button type="button" wire:click="openCoachingSettlement" class="pos-btn pos-btn-ghost">
+                        Pelunasan Tagihan Coaching
+                    </button>
+                @endif
                 <button type="button" wire:click="prepareCloseShift" class="pos-btn pos-btn-danger">
                     Tutup Shift<span class="pos-hide-md">&nbsp;(Closing)</span>
                 </button>
@@ -314,9 +319,10 @@
                                         </button>
                                     @elseif($st === 'BOOKED')
                                         <div class="slot-btn slot-booked"
-                                            title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }} ({{ $slot['label'] }}–{{ $seg['end_label'] }})">
+                                            title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }} ({{ $slot['label'] }}–{{ $seg['end_label'] }}){{ ! empty($slot['booking']['tab']) ? ' — Tagihan Berkala, belum lunas' : '' }}">
                                             <span class="lbl">{{ $slot['booking']['player'] ?? 'Main' }}</span>
-                                            @if ($seg['span'] > 1)<span class="sub">{{ $slot['label'] }}–{{ $seg['end_label'] }}</span>@endif
+                                            @if (! empty($slot['booking']['tab']))<span class="sub">Tagihan Berkala</span>
+                                            @elseif ($seg['span'] > 1)<span class="sub">{{ $slot['label'] }}–{{ $seg['end_label'] }}</span>@endif
                                         </div>
                                     @elseif($st === 'UNPAID_DELTA')
                                         <button type="button"
@@ -369,7 +375,11 @@
                     @endif
 
                     {{-- Form metode pembayaran bersama (dipakai juga oleh Kasir F&B) --}}
-                    @if (! $settleBill && $this->grandTotal <= 0)
+                    @if (! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy)
+                        <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:0.9rem 1rem; color:#1E3A8A; font-size:0.875rem; font-weight:700; line-height:1.5;">
+                            Sesi ini dicatat pada tagihan berkala {{ $this->coachingTabAcademy->name }} ({{ $this->coachingTabAcademy->billingLabel() }}). Tidak ada pembayaran EDC / QRIS saat ini; tagihan dilunasi melalui Pelunasan Tagihan Coaching.
+                        </div>
+                    @elseif (! $settleBill && $this->grandTotal <= 0)
                         @php
                             $coveredBy = collect([
                                 $this->membershipDiscountAmount > 0 ? 'kuota member' : null,
@@ -391,8 +401,7 @@
                         </button>
                         {{-- Konfirmasi dulu (atas nama, jadwal, tambahan, total, metode) sebelum diproses. --}}
                         <button type="button" x-on:click="$dispatch('open-modal', { id: 'walkin-confirm-payment' })" wire:loading.attr="disabled" wire:target="submitWalkInBooking" class="pos-submit-btn" style="flex:1;">
-                            <span wire:loading.remove wire:target="submitWalkInBooking">Bayar Lunas &amp; Cetak
-                                Struk</span>
+                            <span wire:loading.remove wire:target="submitWalkInBooking">{{ ! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy ? 'Catat ke Tagihan Berkala' : 'Bayar Lunas & Cetak Struk' }}</span>
                             <span wire:loading wire:target="submitWalkInBooking">Memproses Transaksi...</span>
                         </button>
                     </div>
@@ -542,6 +551,18 @@
                             <textarea wire:model="coachingNotes" maxlength="1000" rows="2" placeholder="Catatan (mis. ballboy, kebutuhan lapangan)" class="pos-input" style="resize:vertical;" {{ $posStep !== 'selection' ? 'disabled' : '' }}></textarea>
                             @if ($this->coachingQuote['error'])
                                 <div style="font-size:0.6875rem; color:#B91C1C; font-weight:700; line-height:1.4;">{{ $this->coachingQuote['error'] }}</div>
+                            @endif
+                            @if ($tabAcademy = $this->coachingTabAcademy)
+                                @php $tabOverdue = $this->coachingTabOverdue; @endphp
+                                <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:0.45rem 0.65rem; font-size:0.6875rem; color:#1E3A8A; line-height:1.45;">
+                                    <b>{{ $tabAcademy->name }} menggunakan {{ $tabAcademy->billingLabel() }}.</b> Sewa lapangan tidak dibayar saat booking; sesi dicatat pada tagihan academy dan dilunasi sesuai periode tagihan.
+                                </div>
+                                @if ($tabOverdue['sessions'] > 0)
+                                    <div style="background:#FEF2F2; border:1px solid #FECACA; border-radius:8px; padding:0.45rem 0.65rem; font-size:0.6875rem; color:#991B1B; font-weight:700; line-height:1.45;">
+                                        Tagihan melewati jatuh tempo: {{ $tabOverdue['sessions'] }} sesi, Rp {{ number_format($tabOverdue['amount'], 0, ',', '.') }}.
+                                        {{ $tabAcademy->block_when_overdue ? 'Booking baru tidak dapat dibuat sampai tagihan dilunasi.' : 'Mohon ingatkan academy untuk melakukan pelunasan.' }}
+                                    </div>
+                                @endif
                             @endif
                             <div style="font-size:0.5625rem; color:#9CA3AF; line-height:1.4;">Harga lapangan memakai tarif setoran coaching. Membership, voucher jam corporate &amp; kode promo tidak dipakai. Nomor HP lama otomatis dikenali.</div>
                         </div>
@@ -928,7 +949,10 @@
                 'QRIS', 'QRIS_STATIS' => $qrisMode === 'MIDTRANS' ? 'QRIS (QR otomatis)' : 'QRIS Kasir Frontdesk',
                 default => $paymentMethod,
             };
-            if (! $settleBill && $this->grandTotal <= 0) {
+            $confirmToTab = ! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy;
+            if ($confirmToTab) {
+                $confirmMethod = 'Dicatat pada tagihan '.$this->coachingTabAcademy->name.' ('.$this->coachingTabAcademy->billingLabel().')';
+            } elseif (! $settleBill && $this->grandTotal <= 0) {
                 $confirmMethod = 'Gratis — ditanggung benefit (tanpa pembayaran)';
             }
             $confirmAddons = collect($equipments)->filter(fn ($eq) => ($rentalQuantities[$eq->id] ?? 0) > 0);
@@ -1002,7 +1026,7 @@
                     <button type="button" class="pos-btn pos-btn-ghost" x-on:click="$dispatch('close-modal', { id: 'walkin-confirm-payment' })">Periksa Lagi</button>
                     <button type="button" class="pos-btn pos-btn-primary" wire:click="submitWalkInBooking" wire:loading.attr="disabled" wire:target="submitWalkInBooking"
                         x-on:click="$dispatch('close-modal', { id: 'walkin-confirm-payment' })">
-                        Ya, Proses Pembayaran
+                        {{ $confirmToTab ? 'Ya, Catat ke Tagihan Berkala' : 'Ya, Proses Pembayaran' }}
                     </button>
                 </div>
             </x-slot>
@@ -1039,7 +1063,7 @@
                     <div>
                         <div
                             style="font-size:0.625rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em; background:#FCF8EE; border:1px solid #E6DAC0; border-radius:4px; padding:0.08rem 0.4rem; display:inline-block;">
-                            TRANSAKSI LUNAS</div>
+                            {{ ($completedOrderData['billed_to_tab'] ?? false) ? 'TERCATAT PADA TAGIHAN BERKALA' : 'TRANSAKSI LUNAS' }}</div>
                         <div style="font-size:1rem; font-weight:900; color:#4F2F2A; margin-top:0.2rem;">Tiket Walk-In
                             Siap Digunakan</div>
                     </div>
@@ -1141,11 +1165,12 @@
 
     {{-- Tutup shift blind + laporan Z (sama dengan POS F&B) — App\Livewire\Concerns\ClosesPosShift. --}}
     @include('pos.partials.shift-close-modal')
+    @include('pos.partials.coaching-settlement-modal')
     @include('pos.partials.shift-report-modal')
     @include('pos.partials.sales-recap-modal')
 
     {{-- Struk & Z-Report dicetak di printer thermal 58mm (App\Support\ReceiptPaper). --}}
-    @include('pos.partials.receipt-print-style', ['selectors' => ['#printable-pos-receipt', '#printable-z-report', '#printable-sales-recap']])
+    @include('pos.partials.receipt-print-style', ['selectors' => ['#printable-pos-receipt', '#printable-z-report', '#printable-sales-recap', '#printable-coaching-settlement']])
     <script>
         window.addEventListener('beforeunload', function(e) {
             if (@this.get('posStep') === 'payment') {

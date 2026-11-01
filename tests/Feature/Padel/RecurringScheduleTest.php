@@ -259,15 +259,62 @@ class RecurringScheduleTest extends TestCase
         $this->assertSame(3, PadelBooking::where('recurring_schedule_id', $schedule->id)->whereDate('booking_date', '2026-11-12')->where('status', 'CANCELLED')->count());
         $this->assertSame(3, PadelRecurringOccurrence::where('status', 'SKIPPED')->count());
 
+        // Pilihan "Lewati tanggal" tidak menampilkan tanggal yang sudah dilewati; muncul lagi setelah "Batal lewati".
+        $options = fn () => array_keys(\App\Filament\Resources\Padel\PadelRecurringScheduleResource::upcomingDateOptions($schedule->fresh()));
+        $this->assertSame(['2026-11-05', '2026-11-19'], array_slice($options(), 0, 2));
+        $labels = \App\Filament\Resources\Padel\PadelRecurringScheduleResource::upcomingDateOptions($schedule->fresh());
+        $this->assertSame('Kamis, 05 Nov 2026 — sudah dibooking, 9 jam kuota dikembalikan', $labels['2026-11-05'], '3 jam × 3 lapangan');
+        $this->assertSame('Kamis, 19 Nov 2026 — belum dibooking, kuota belum terpotong', $labels['2026-11-19']);
+
         // Tidak dibuat ulang selama masih dilewati; dibuat lagi setelah "batal lewati".
         $this->assertSame(0, $this->service()->generate($schedule->fresh(), $this->admin)['booked']);
         $this->service()->unskip($schedule, '2026-11-12', $this->admin);
+        $this->assertSame(['2026-11-05', '2026-11-12', '2026-11-19'], array_slice($options(), 0, 3));
+
+        // Hari ini yang jam mainnya sudah dimulai tidak ditawarkan.
+        $this->travelTo(Carbon::parse('2026-11-05 19:30'));
+        $this->assertSame('2026-11-12', $options()[0]);
+        $this->travelTo(Carbon::parse('2026-11-02 10:00'));
         $this->assertSame(3, $this->service()->generate($schedule->fresh(), $this->admin)['booked']);
         $this->assertEquals(82, (float) $this->balance->fresh()->remaining_quota);
 
         // Hari yang bukan Kamis ditolak.
         $this->expectException(HttpException::class);
         $this->service()->skip($schedule, '2026-11-13', 'Salah hari', $this->admin);
+    }
+
+    public function test_table_shows_until_which_date_the_quota_covers_the_schedule(): void
+    {
+        // Kamis 5 Nov – 3 Des (5 minggu), 3 lapangan × 3 jam = 9 jam/minggu; 5 & 12 Nov sudah dibuat.
+        $schedule = $this->schedule(['ends_on' => '2026-12-03']);
+        $this->service()->generate($schedule, $this->admin);
+        $this->balance->update(['remaining_quota' => 12]);
+
+        $forecast = $this->service()->quotaForecast($schedule->fresh());
+        $this->assertEquals(15, $forecast['shortfall'], '26 Nov kurang 2 lapangan (6 jam) + 3 Des penuh (9 jam)');
+        $this->assertSame('2026-11-19', $forecast['covered_until']->toDateString());
+        $this->assertSame(['2026-11-26', 1, 3], [$forecast['partial']['date']->toDateString(), $forecast['partial']['courts'], $forecast['partial']['of']]);
+        $this->assertSame('2026-12-03', $forecast['first_missing']->toDateString());
+
+        $this->actingAs($this->admin);
+        Livewire::test(ManagePadelRecurringSchedules::class)
+            ->assertSee('Kuota kurang 15 jam untuk sampai Kam, 03 Des 2026.')
+            ->assertSee('Cukup sampai Kam, 19 Nov 2026.')
+            ->assertSee('Kam, 26 Nov 2026: hanya 1 dari 3 lapangan.')
+            ->assertSee('Kam, 03 Des 2026 dst. tidak akan dibuat.')
+            ->assertSee('booking dibuat s/d 12 Nov 2026');
+
+        // Tanggal yang dilewati tidak butuh kuota; kuota cukup → keterangan hijau.
+        $this->service()->skip($schedule, '2026-12-03', 'Libur', $this->admin);
+        $this->balance->update(['remaining_quota' => 18]);
+        $this->assertEquals(0, $this->service()->quotaForecast($schedule->fresh())['shortfall']);
+        Livewire::test(ManagePadelRecurringSchedules::class)
+            ->assertSee('Kuota cukup sampai akhir periode (Kam, 03 Des 2026)')
+            ->assertDontSee('Kuota kurang');
+
+        // Jadwal lain dari membership yang sama memakai kuota yang sama.
+        $this->schedule(['name' => 'Jumat pagi', 'day_of_week' => 5, 'start_time' => '08:00', 'end_time' => '09:00', 'court_ids' => [$this->courts[0]->id], 'ends_on' => '2026-11-27']);
+        $this->assertGreaterThan(0, $this->service()->quotaForecast($schedule->fresh())['shortfall']);
     }
 
     public function test_skip_before_generation_and_paused_schedule_create_nothing(): void
@@ -333,6 +380,25 @@ class RecurringScheduleTest extends TestCase
         $this->assertSame('ACTIVE', $schedule->status);
         $this->assertSame(3, PadelBooking::where('recurring_schedule_id', $schedule->id)->where('status', 'PAID')->count());
         $this->assertSame('IOH', $schedule->ownerLabel());
+        $this->assertSame('2027-10-31', $schedule->ends_on->toDateString(), 'bawaan: sampai membership habis');
+
+        // "Selama 2 minggu" → berakhir 13 hari setelah mulai (2 kali hari jadwal), bukan sampai membership habis.
+        Livewire::test(ManagePadelRecurringSchedules::class)
+            ->callAction('create', [
+                'name' => 'Turnamen 2 minggu', 'user_membership_id' => $this->balance->user_membership_id, 'day_of_week' => 6,
+                'start_time' => '08:00', 'end_time' => '10:00', 'court_ids' => [$this->courts[0]->id],
+                'starts_on' => '2026-11-05', 'period_mode' => 'WEEKS', 'period_weeks' => 2, 'weeks_ahead' => 5,
+            ])
+            ->assertHasNoActionErrors();
+        $twoWeeks = PadelRecurringSchedule::where('name', 'Turnamen 2 minggu')->sole();
+        $this->assertSame('2026-11-18', $twoWeeks->ends_on->toDateString());
+        $this->assertSame(['2026-11-07', '2026-11-14'], PadelBooking::where('recurring_schedule_id', $twoWeeks->id)
+            ->orderBy('booking_date')->get()->map(fn ($b) => $b->booking_date->toDateString())->all(), 'kunci 5 minggu tetap hanya 2 minggu jadwal');
+        $this->assertSame(['2026-11-07', '2026-11-14'], array_keys(\App\Filament\Resources\Padel\PadelRecurringScheduleResource::upcomingDateOptions($twoWeeks)));
+
+        // Form edit membaca kembali pilihan "Lama jadwal".
+        $this->assertSame(['period_mode' => 'MEMBERSHIP', 'ends_on' => null], \App\Filament\Resources\Padel\PadelRecurringScheduleResource::periodState($schedule));
+        $this->assertSame(['period_mode' => 'DATE', 'ends_on' => '2026-11-18'], \App\Filament\Resources\Padel\PadelRecurringScheduleResource::periodState($twoWeeks));
     }
 
     public function test_owner_sets_the_global_reschedule_cutoff_with_its_own_button(): void

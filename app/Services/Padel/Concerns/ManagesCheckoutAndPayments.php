@@ -481,6 +481,11 @@ trait ManagesCheckoutAndPayments
                 throw new HttpException(400, \App\Support\SiteLocale::text('payment.status_not_retryable', ['status' => $booking->status]));
             }
 
+            // Modul 31: sesi tagihan coaching academy dilunasi di kasir (Pelunasan Tagihan Coaching), tidak dibayar online.
+            if (\App\Services\Coaching\CoachingBillingService::isTabBooking($booking)) {
+                throw new HttpException(422, 'Sesi ini tercatat pada tagihan berkala academy dan dilunasi di kasir Club 61, bukan melalui pembayaran online.');
+            }
+
             $order = $this->ensureBookingOrder($booking);
 
             // Ambil seluruh booking yang tergabung dalam order yang sama
@@ -925,6 +930,11 @@ trait ManagesCheckoutAndPayments
             return $posLabel;
         }
 
+        // Modul 31: booking coaching academy yang tercatat pada tagihan berkala (belum dibayar).
+        if (strtoupper((string) $method) === 'TAGIHAN') {
+            return 'Tagihan Berkala Academy (belum dibayar)';
+        }
+
         // 1. Metode yang BENAR-BENAR dipakai customer menurut Midtrans (webhook / rekonsiliasi).
         if (!empty($payload['payment_type'])) {
             $pt = strtolower((string) $payload['payment_type']);
@@ -1076,6 +1086,26 @@ trait ManagesCheckoutAndPayments
             $voucherCode = null;
         }
 
+        // Modul 31: academy "Tagihan Berkala" → booking dicatat ke tagihan (metode TAGIHAN), dilunasi di kasir sesuai periode.
+        // Cara bayar ditentukan pengaturan academy di server, bukan pilihan kasir.
+        $tabAcademy = $coaching !== null ? \App\Models\Coaching\Coach::with('academy')->find($coaching['head_coach_id'])?->academy : null;
+        $tabAcademy = $tabAcademy?->usesTab() ? $tabAcademy : null;
+        $isTabMethod = strtoupper($paymentMethod) === 'TAGIHAN';
+        if ($tabAcademy && ! $isTabMethod) {
+            throw new HttpException(422, "{$tabAcademy->name} menggunakan Tagihan Berkala. Gunakan tombol \"Catat ke Tagihan Berkala\"; sesi ini tidak dibayar per transaksi.");
+        }
+        if (! $tabAcademy && $isTabMethod) {
+            throw new HttpException(422, 'Pencatatan ke tagihan berkala hanya untuk booking coaching academy yang menggunakan Tagihan Berkala.');
+        }
+        $tabShift = null;
+        if ($tabAcademy) {
+            app(\App\Services\Coaching\CoachingBillingService::class)->assertCanBook($tabAcademy);
+            $tabShift = \App\Models\Pos\PosCashierShift::getActiveShift('PADEL_FRONTDESK');
+            if (! $tabShift && $tabAcademy->billing_cycle === \App\Models\Coaching\CoachingAcademy::CYCLE_SHIFT) {
+                throw new HttpException(422, 'Tidak ada shift kasir yang aktif untuk loket [PADEL_FRONTDESK]. Buka shift dulu — tagihan Per Shift dilunasi sebelum shift ditutup.');
+            }
+        }
+
         // 1. Pakai slot yang sudah ditahan kasir, atau hold batch slots untuk customer (SlotConflictException jika tabrakan)
         $useHeld = $heldBookingIds && $holder && $this->walkInHoldIsValid($heldBookingIds, $holder, $slots, $bookingDate);
         if ($useHeld) {
@@ -1090,7 +1120,7 @@ trait ManagesCheckoutAndPayments
         // "slot sedang di-hold pemain lain". Slot yang ditahan kasir sebelumnya TIDAK dilepas: kasir membetulkan isian
         // lalu menekan Bayar lagi tanpa kehilangan slotnya.
         try {
-            return DB::transaction(function () use ($customer, $bookingIds, $equipments, $paymentMethod, $cashier, $autoCheckIn, $paymentMeta, $membershipBalanceId, $voucherCode, $expectedGrandTotal, $sponsorVoucherId, $useHeld, $holder, $coaching) {
+            return DB::transaction(function () use ($customer, $bookingIds, $equipments, $paymentMethod, $cashier, $autoCheckIn, $paymentMeta, $membershipBalanceId, $voucherCode, $expectedGrandTotal, $sponsorVoucherId, $useHeld, $holder, $coaching, $tabAcademy, $tabShift) {
                 if ($useHeld) {
                     $this->claimWalkInHold($bookingIds, $holder, $customer);
                 }
@@ -1278,6 +1308,11 @@ trait ManagesCheckoutAndPayments
                     ]);
                 }
 
+                // Modul 31: dicatat ke tagihan berkala academy — tanpa pembayaran sekarang, tanpa batas bayar (tidak dilepas otomatis).
+                if ($tabAcademy && ! $coveredByVoucher) {
+                    return $this->saveCoachingTab($order, $bookings, $coachingRecord, $tabAcademy, $tabShift, $cashier, $customer, $autoCheckIn, (float) $grandTotal);
+                }
+
                 // Susun payload_log audit finansial
                 $payloadLog = [
                     'cashier_id' => $cashier->id,
@@ -1386,6 +1421,50 @@ trait ManagesCheckoutAndPayments
 
             throw $e;
         }
+    }
+
+    /**
+     * Modul 31 — booking coaching academy "Tagihan Berkala": order tetap UNPAID, booking PENDING_PAYMENT tanpa batas bayar,
+     * data tagihan (academy, periode, shift, jatuh tempo) disimpan. Uangnya baru masuk saat dilunasi di kasir.
+     */
+    protected function saveCoachingTab(
+        Order $order,
+        \Illuminate\Support\Collection $bookings,
+        \App\Models\Coaching\CoachingBooking $coachingRecord,
+        \App\Models\Coaching\CoachingAcademy $academy,
+        ?\App\Models\Pos\PosCashierShift $shift,
+        User $cashier,
+        User $customer,
+        bool $autoCheckIn,
+        float $grandTotal,
+    ): array {
+        PadelBooking::where('order_id', $order->id)->update(['expires_at' => null]);
+        app(\App\Services\Coaching\CoachingBillingService::class)->stamp($coachingRecord, $academy, $bookings->min('start_time'), $shift);
+
+        if ($autoCheckIn) {
+            PadelBooking::where('order_id', $order->id)->update(['status' => 'CHECKED_IN', 'checked_in_at' => now()]);
+            app(\App\Services\Realtime\RealtimeSignal::class)->bookings(PadelBooking::where('order_id', $order->id)->pluck('id'));
+        }
+
+        $first = $bookings->sortBy('start_time')->first();
+        \App\Services\Audit\ActivityLogger::record('COACHING', 'coaching_tab.saved',
+            "Mencatat booking coaching {$academy->name} ke tagihan berkala: {$bookings->count()} slot, Rp ".number_format($grandTotal, 0, ',', '.'),
+            subject: $first,
+            meta: ['order' => $order->order_number, 'periode' => $academy->billingLabel(), 'jadwal' => $first->start_time->format('d/m/Y H:i')],
+            subjectLabel: $first->booking_code,
+        );
+
+        return [
+            'success' => true,
+            'message' => "Booking coaching tercatat pada tagihan berkala {$academy->name} (".$academy->billingLabel().').',
+            'order' => $order->fresh(['items', 'payments']),
+            'bookings' => PadelBooking::with(['court', 'equipments.equipment'])->where('order_id', $order->id)->get(),
+            'grand_total' => $grandTotal,
+            'payment_method' => 'TAGIHAN',
+            'customer' => $customer->fresh(),
+            'auto_checked_in' => $autoCheckIn,
+            'billed_to_tab' => true,
+        ];
     }
 
     /**

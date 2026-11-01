@@ -154,8 +154,7 @@
                                     <div style="font-size:0.65rem; margin-top:0.2rem;">{{ $benefitNote }}</div>
                                 @endforeach
                                 <div style="font-size:0.65rem; margin-top:0.2rem;">
-                                    Status: <strong>LUNAS
-                                        (PAID){{ ! empty($receipt['auto_checked_in']) ? ' — CHECKED IN' : '' }}</strong>
+                                    Status: <strong>{{ ! empty($receipt['billed_to_tab']) ? 'TAGIHAN BERKALA ACADEMY (BELUM LUNAS)' : 'LUNAS (PAID)' }}{{ ! empty($receipt['auto_checked_in']) ? ' — CHECKED IN' : '' }}</strong>
                                 </div>
                                 @if (! empty($receipt['is_reprint']))
                                     <div style="font-size:0.625rem; font-weight:900; margin-top:0.25rem;">*** CETAK ULANG {{ $receipt['reprinted_at'] ?? '' }} ***</div>

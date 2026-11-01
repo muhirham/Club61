@@ -8,6 +8,8 @@ use App\Models\Membership\MembershipUsageLog;
 use App\Models\Membership\UserMembership;
 use App\Models\Membership\UserMembershipBalance;
 use App\Models\Padel\PadelBooking;
+use App\Models\Sponsor\SponsorOrganization;
+use App\Models\Sponsor\SponsorOrganizationMember;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Notifications\Notification;
@@ -162,98 +164,123 @@ class Kustomer extends Page
             ->get();
     }
 
-    public function getCorporateRosterProperty(): array
+    /**
+     * Tab "Anggota Tim Sponsor & Jadwal" — semua dari data asli:
+     *  - Kuota kartu (jam PADEL): kontrak, dipakai langsung oleh kartu (Jadwal Tetap Mingguan / booking atas nama kartu),
+     *    diberikan ke karyawan (voucher, menu Kelola Sponsor), dan sisa. Sponsor seperti IM3 bisa memakai kuota hanya
+     *    lewat Jadwal Tetap tanpa anggota karyawan.
+     *  - Jadwal Tetap Mingguan kartu ini + jadwal terakhir main & berikutnya.
+     *  - Anggota karyawan: jatah voucher yang masih berlaku, jam terpakai, jadwal dari booking yang memakai jatah
+     *    perusahaan (angka mengikuti dashboard PIC).
+     *
+     * @return array{organization: ?SponsorOrganization, total_quota: ?float, direct_used: float, released: float, used: float, remaining: ?float, schedules: list<array>, members: list<array>, active_count: int, idle_count: int}
+     */
+    public function getCorporateTeamProperty(): array
     {
+        $team = ['organization' => null, 'total_quota' => null, 'direct_used' => 0.0, 'released' => 0.0, 'used' => 0.0, 'remaining' => null,
+            'schedules' => [], 'members' => [], 'active_count' => 0, 'idle_count' => 0];
         $m = $this->selectedMembership;
         if (! $m || $m->owner_type !== 'ORGANIZATIONAL') {
-            return [];
+            return $team;
         }
 
-        $padelBal = $m->balances->firstWhere('facility', 'PADEL');
-        if ($padelBal && ! empty($padelBal->extra_benefits['corporate_members'])) {
-            return $padelBal->extra_benefits['corporate_members'];
+        $now = now();
+        $schedule = fn (?PadelBooking $b) => $b
+            ? $b->start_time->format('d M Y, H:i').' - '.$b->end_time->format('H:i').' WIB ('.($b->court?->name ?? '-').')'
+            : null;
+
+        // Kuota jam PADEL kartu. Jam yang dipakai langsung = booking atas nama kartu (pembatalan mengembalikan & menolkan jamnya).
+        $padel = $m->balances->first(fn ($b) => $b->facility === 'PADEL' && $b->quota_type === 'HOURS');
+        if ($padel) {
+            $team['total_quota'] = $padel->initial_quota !== null ? (float) $padel->initial_quota : null;
+            $team['remaining'] = (float) $padel->remaining_quota;
+            $team['direct_used'] = (float) PadelBooking::where('membership_balance_id', $padel->id)->sum('member_hours_consumed');
         }
 
-        return [
-            [
-                'name' => 'Budi Pratama',
-                'role' => 'Software Engineering Lead',
-                'email' => 'budi.pratama@sinarharapan.com',
-                'phone' => '081233445566',
-                'allocated_hours' => 20,
-                'used_hours' => 6,
-                'remaining_hours' => 14,
-                'last_played' => now()->subDays(3)->format('d M Y, 19:00 WIB (Court 1)'),
-                'next_schedule' => now()->addDays(2)->format('d M Y, 19:00 - 21:00 WIB (Court 1)'),
-                'status' => 'ACTIVE',
-                'notes' => 'Rutin tanding ganda malam hari sehabis kantor',
-            ],
-            [
-                'name' => 'Siti Rahmawati',
-                'role' => 'Finance & Accounting Manager',
-                'email' => 'siti.rahma@sinarharapan.com',
-                'phone' => '081277889900',
-                'allocated_hours' => 15,
-                'used_hours' => 4,
-                'remaining_hours' => 11,
-                'last_played' => now()->subDays(5)->format('d M Y, 17:00 WIB (Court 2)'),
-                'next_schedule' => now()->addDays(4)->format('d M Y, 17:00 - 19:00 WIB (Court 2)'),
-                'status' => 'ACTIVE',
-                'notes' => 'Sesi sore santai + wellness',
-            ],
-            [
-                'name' => 'Dimas Setiawan',
-                'role' => 'Marketing & Brand Specialist',
-                'email' => 'dimas.s@sinarharapan.com',
-                'phone' => '081399001122',
-                'allocated_hours' => 15,
-                'used_hours' => 2,
-                'remaining_hours' => 13,
-                'last_played' => now()->subDays(8)->format('d M Y, 08:00 WIB (Court 3)'),
-                'next_schedule' => now()->addDays(5)->format('d M Y, 08:00 - 10:00 WIB (Court 3)'),
-                'status' => 'ACTIVE',
-                'notes' => 'Sesi akhir pekan pagi',
-            ],
-            [
-                'name' => 'Ahmad Fauzi',
-                'role' => 'UI/UX Product Designer',
-                'email' => 'ahmad.fauzi@sinarharapan.com',
-                'phone' => '081344556677',
-                'allocated_hours' => 15,
-                'used_hours' => 0,
-                'remaining_hours' => 15,
-                'last_played' => null,
-                'next_schedule' => null,
-                'status' => 'IDLE',
-                'notes' => 'Kosong / Pasif: Didaftarkan 10 hari lalu, belum pernah booking atau check-in',
-            ],
-            [
-                'name' => 'Nadia Putri',
-                'role' => 'HR Talent Acquisition',
-                'email' => 'nadia.putri@sinarharapan.com',
-                'phone' => '081388776655',
-                'allocated_hours' => 15,
-                'used_hours' => 0,
-                'remaining_hours' => 15,
-                'last_played' => null,
-                'next_schedule' => null,
-                'status' => 'IDLE',
-                'notes' => 'Kosong / Pasif: Belum pernah ada jadwal bermain',
-            ],
-            [
-                'name' => 'Rian Kurniawan',
-                'role' => 'B2B Sales Executive',
-                'email' => 'rian.k@sinarharapan.com',
-                'phone' => '081311559933',
-                'allocated_hours' => 15,
-                'used_hours' => 0,
-                'remaining_hours' => 15,
-                'last_played' => null,
-                'next_schedule' => null,
-                'status' => 'IDLE',
-                'notes' => 'Kosong / Pasif: Belum pernah ada jadwal bermain',
-            ],
-        ];
+        $courtNames = \App\Models\Padel\PadelCourt::pluck('name', 'id');
+        $team['schedules'] = \App\Models\Padel\PadelRecurringSchedule::where('user_membership_id', $m->id)
+            ->orderByRaw("CASE status WHEN 'ACTIVE' THEN 0 WHEN 'PAUSED' THEN 1 ELSE 2 END")->orderBy('day_of_week')->orderBy('start_time')
+            ->get()
+            ->map(function (\App\Models\Padel\PadelRecurringSchedule $s) use ($courtNames, $now, $schedule) {
+                $bookings = PadelBooking::with('court:id,name')->where('recurring_schedule_id', $s->id)
+                    ->whereIn('status', ['PAID', 'CHECKED_IN', 'COMPLETED'])->get(['id', 'court_id', 'start_time', 'end_time', 'status']);
+
+                return [
+                    'name' => $s->name,
+                    'schedule' => $s->scheduleLabel().' WIB',
+                    'courts' => collect((array) $s->court_ids)->map(fn ($id) => $courtNames[$id] ?? '-')->implode(', '),
+                    'hours_per_week' => $s->hoursPerWeek(),
+                    'status' => $s->status,
+                    'last_played' => $schedule($bookings->filter(fn ($b) => in_array($b->status, ['CHECKED_IN', 'COMPLETED'], true))->sortByDesc('start_time')->first()),
+                    'next_schedule' => $schedule($bookings->filter(fn ($b) => $b->start_time->gte($now) && in_array($b->status, ['PAID', 'CHECKED_IN'], true))->sortBy('start_time')->first()),
+                ];
+            })->all();
+
+        $organization = SponsorOrganization::with('sponsorAdmin:id,name,phone')->where('user_membership_id', $m->id)->first();
+        $team['organization'] = $organization;
+        if (! $organization) {
+            return $team;
+        }
+
+        $members = SponsorOrganizationMember::where('sponsor_organization_id', $organization->id)
+            ->with(['user:id,name,email,phone', 'vouchers'])
+            ->get()
+            ->sortBy(fn (SponsorOrganizationMember $member) => ($member->isActive() ? '0' : '1').mb_strtolower((string) $member->user?->name))
+            ->values();
+
+        // Booking yang memakai jatah perusahaan ini (ditandai sponsor_organization_id saat checkout).
+        $bookings = PadelBooking::with('court:id,name')
+            ->where('sponsor_organization_id', $organization->id)
+            ->whereIn('user_id', $members->pluck('user_id')->filter()->all())
+            ->whereIn('status', ['PAID', 'CHECKED_IN', 'COMPLETED'])
+            ->get(['id', 'user_id', 'court_id', 'start_time', 'end_time', 'status'])
+            ->groupBy('user_id');
+
+        $rows = $members->map(function (SponsorOrganizationMember $member) use ($bookings, $now, $schedule) {
+            // Sama dengan dashboard PIC: jatah & terpakai dari voucher yang masih berlaku.
+            $valid = $member->vouchers->filter(fn ($v) => ! $v->isExpired());
+            $own = $bookings->get($member->user_id, collect());
+            $last = $own->filter(fn (PadelBooking $b) => in_array($b->status, ['CHECKED_IN', 'COMPLETED'], true))->sortByDesc('start_time')->first();
+            $next = $own->filter(fn (PadelBooking $b) => $b->start_time->gte($now) && in_array($b->status, ['PAID', 'CHECKED_IN'], true))->sortBy('start_time')->first();
+            $used = (float) $valid->sum(fn ($v) => (float) $v->hours_used);
+
+            return [
+                'name' => $member->user?->name ?? '-',
+                'email' => $member->user?->email,
+                'phone' => $member->user?->phone,
+                'allocated_hours' => (float) $valid->sum(fn ($v) => (float) $v->hours_granted),
+                'used_hours' => $used,
+                'remaining_hours' => $member->totalRemainingHours(),
+                'last_played' => $schedule($last),
+                'next_schedule' => $schedule($next),
+                'status' => ! $member->isActive() ? 'INACTIVE' : (($own->isNotEmpty() || $used > 0) ? 'ACTIVE' : 'IDLE'),
+            ];
+        })->all();
+
+        $statuses = array_count_values(array_column($rows, 'status'));
+
+        return array_merge($team, [
+            'released' => $organization->totalHoursReleased(),
+            'used' => (float) array_sum(array_map(fn ($r) => $r['status'] === 'INACTIVE' ? 0 : $r['used_hours'], $rows)),
+            'members' => $rows,
+            'active_count' => $statuses['ACTIVE'] ?? 0,
+            'idle_count' => $statuses['IDLE'] ?? 0,
+        ]);
+    }
+
+    /** Jam mulai yang paling sering dipesan (booking lunas / check-in / selesai); "-" bila belum ada. */
+    private function favoriteTime(\Illuminate\Support\Collection $bookings): string
+    {
+        $hours = $bookings->whereIn('status', ['PAID', 'CHECKED_IN', 'COMPLETED'])
+            ->countBy(fn (PadelBooking $b) => (int) $b->start_time->format('H'))
+            ->sortByDesc(fn ($count) => $count);
+        if ($hours->isEmpty()) {
+            return '-';
+        }
+
+        $hour = (int) $hours->keys()->first();
+
+        return sprintf('%02d:00 - %02d:00 WIB (%dx booking)', $hour, ($hour + 1) % 24, $hours->first());
     }
 
     public function getMemberHabitAnalysisProperty(): array
@@ -302,7 +329,7 @@ class Kustomer extends Page
             'habit_label' => $habitLabel,
             'habit_color' => $habitColor,
             'favorite_court' => $bookings->groupBy('court.name')->sortByDesc->count()->keys()->first() ?? '-',
-            'favorite_time' => 'Sore & Malam (16:00 - 20:00 WIB)',
+            'favorite_time' => $this->favoriteTime($bookings),
             'recommendation' => $recommendation,
         ];
     }

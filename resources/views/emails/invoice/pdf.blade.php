@@ -2,6 +2,8 @@
     PDF invoice lunas, A4 (lampiran OrderInvoiceMail) — App\Services\Mail\InvoicePdf. Logo, identitas usaha, judul,
     kalimat & warna aksen dari Keuangan → Template Invoice (App\Models\Setting\InvoiceTemplateSetting).
     dompdf: tabel + CSS sederhana saja (tanpa flex / grid), ukuran dalam pt.
+    Modul 31: invoice tagihan berkala coaching (belum lunas) memakai template yang sama lewat isian opsional
+    document_title / status_label / date_label / total_label / due_note — tanpa isian itu tampilan invoice lunas tidak berubah.
 --}}
 @php
     $setting = \App\Models\Setting\InvoiceTemplateSetting::current();
@@ -10,13 +12,14 @@
     $accent = $t['accent_hex'];
     $rp = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
     $reach = implode('  ·  ', array_filter([$t['phone'], $t['email']]));
+    $docTitle = $invoice['document_title'] ?? $t['document_title'];
     $hasAdjustments = ($invoice['discount'] ?? 0) > 0 || ($invoice['service_charge'] ?? 0) > 0 || ($invoice['tax'] ?? 0) > 0;
 @endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <title>{{ $t['document_title'] }} {{ $invoice['number'] }}</title>
+    <title>{{ $docTitle }} {{ $invoice['number'] }}</title>
     <style>
         @page { margin: 0; }
         body { margin: 0; font-family: Helvetica, Arial, sans-serif; font-size: 9pt; line-height: 1.45; color: #2A1A17; }
@@ -104,9 +107,9 @@
                     @endif
                 </td>
                 <td class="right">
-                    <div class="doc-title">{{ $t['document_title'] }}</div>
+                    <div class="doc-title">{{ $docTitle }}</div>
                     <div class="doc-no">No. {{ $invoice['number'] }}</div>
-                    <span class="status">{{ $t['status_label'] }}</span>
+                    <span class="status">{{ $invoice['status_label'] ?? $t['status_label'] }}</span>
                 </td>
             </tr>
         </table>
@@ -136,7 +139,7 @@
         <table class="meta">
             <tr>
                 <td class="first" style="width:32%;">
-                    <div class="label">Tanggal bayar</div>
+                    <div class="label">{{ $invoice['date_label'] ?? 'Tanggal bayar' }}</div>
                     <div class="value">{{ $invoice['paid_at'] }}</div>
                 </td>
                 <td style="width:18%;">
@@ -211,8 +214,13 @@
             <tr>
                 <td style="width:50%; padding-right:24pt;">
                     <div class="paid-note">
-                        <div class="title">Pembayaran diterima</div>
-                        Dibayar lunas pada {{ $invoice['paid_at'] }} melalui {{ $invoice['method'] }}.
+                        @if (! empty($invoice['due_note']))
+                            <div class="title">Menunggu pembayaran</div>
+                            {{ $invoice['due_note'] }}
+                        @else
+                            <div class="title">Pembayaran diterima</div>
+                            Dibayar lunas pada {{ $invoice['paid_at'] }} melalui {{ $invoice['method'] }}.
+                        @endif
                     </div>
                 </td>
                 <td style="width:50%;">
@@ -232,7 +240,7 @@
                     </table>
                     <table class="grand">
                         <tr>
-                            <td class="k">Total dibayar</td>
+                            <td class="k">{{ $invoice['total_label'] ?? 'Total dibayar' }}</td>
                             <td class="v">{{ $rp($invoice['grand_total']) }}</td>
                         </tr>
                     </table>

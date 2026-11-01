@@ -123,6 +123,9 @@ class PosCashierShift extends Model
         return array_values($rows);
     }
 
+    /** Baris Tutup Shift untuk transfer Pelunasan Tagihan Coaching (Modul 31). */
+    public const TRANSFER_COACHING_KEY = 'TRANSFER_COACHING';
+
     /**
      * Kategori settlement satu pembayaran (dipakai settlementBreakdown & tutup shift blind) — EDC per mesin + debit/kredit,
      * QRIS per penyedia, Bayar Otomatis non-QRIS per metode, sisanya OTHER_<metode>.
@@ -153,6 +156,12 @@ class PosCashierShift extends Model
             $key = $terminal.'_'.$cardType;
             $label = ($cardType === 'CREDIT' ? 'Kartu Kredit' : 'Kartu Debit').' — '.(self::EDC_TERMINAL_LABELS[$terminal] ?? $terminal);
             $source = 'Struk settlement '.(self::EDC_TERMINAL_LABELS[$terminal] ?? $terminal);
+        } elseif ($method === 'TRANSFER_BANK' && ! empty($log['coaching_settlement_id'])) {
+            // Modul 31: transfer academy langsung ke rekening Club 61 (tidak lewat mesin di meja kasir) — dicek admin pada
+            // mutasi rekening dengan bukti terlampir, tidak diketik kasir saat tutup shift.
+            $key = self::TRANSFER_COACHING_KEY;
+            $label = 'Transfer Bank — Pelunasan Tagihan Coaching';
+            $source = 'Mutasi rekening Club 61 (bukti transfer di Tagihan Coaching)';
         } else {
             $key = 'OTHER_'.preg_replace('/[^A-Z0-9_]/', '_', $method);
             $label = 'Lainnya — '.$method;

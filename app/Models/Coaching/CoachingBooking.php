@@ -21,11 +21,35 @@ class CoachingBooking extends Model
 
     public const MAX_STUDENTS = 2;
 
-    protected $fillable = ['order_id', 'head_coach_id', 'academy_name', 'students', 'notes', 'extra_coach_fee_per_hour', 'pricing', 'created_by_id'];
+    protected $fillable = [
+        'order_id', 'head_coach_id', 'academy_name', 'academy_id', 'billing', 'billing_cycle', 'cashier_shift_id', 'due_at',
+        'settlement_id', 'students', 'notes', 'extra_coach_fee_per_hour', 'pricing', 'created_by_id',
+    ];
 
     protected function casts(): array
     {
-        return ['students' => 'array', 'pricing' => 'array', 'extra_coach_fee_per_hour' => 'decimal:2'];
+        return ['students' => 'array', 'pricing' => 'array', 'extra_coach_fee_per_hour' => 'decimal:2', 'due_at' => 'datetime'];
+    }
+
+    /** Modul 31: sesi tercatat pada tagihan berkala academy (dilunasi di kasir sesuai periode), bukan dibayar saat booking. */
+    public function isTab(): bool
+    {
+        return $this->billing === CoachingAcademy::BILLING_TAB;
+    }
+
+    public function academy(): BelongsTo
+    {
+        return $this->belongsTo(CoachingAcademy::class, 'academy_id');
+    }
+
+    public function settlement(): BelongsTo
+    {
+        return $this->belongsTo(CoachingSettlement::class, 'settlement_id');
+    }
+
+    public function cashierShift(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Pos\PosCashierShift::class, 'cashier_shift_id');
     }
 
     public function order(): BelongsTo

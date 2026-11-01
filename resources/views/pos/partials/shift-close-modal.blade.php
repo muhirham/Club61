@@ -58,6 +58,7 @@
                                 <div style="font-weight:800; color:#4F2F2A; font-size:0.78rem;">{{ $row['label'] }}</div>
                                 <div style="font-size:0.65rem; color:#9CA3AF;">
                                     @if ($row['type'] === SCS::TYPE_AUTO) Lunas dipastikan sistem pembayaran — tidak perlu diketik
+                                    @elseif ($row['type'] === SCS::TYPE_TRANSFER) Dicek admin pada mutasi rekening (bukti terlampir) — tidak perlu diketik
                                     @elseif ($row['type'] === SCS::TYPE_INFO) Benefit (bukan uang) — tidak perlu dicek
                                     @else Cek: {{ $row['source'] }} (jam shift ini)
                                     @endif
@@ -65,6 +66,8 @@
                             </div>
                             @if ($row['type'] === SCS::TYPE_MANUAL)
                                 <input type="text" inputmode="numeric" wire:model="settlementInputs.{{ $row['key'] }}" style="{{ $input }} max-width:190px;" placeholder="Total di aplikasi / mutasi">
+                            @elseif ($row['type'] === SCS::TYPE_TRANSFER)
+                                <span style="font-size:0.75rem; font-weight:900; color:#1E40AF; white-space:nowrap;">Dicek admin</span>
                             @else
                                 <span style="font-size:0.75rem; font-weight:900; color:#15803D; white-space:nowrap;">&#10003; Terverifikasi</span>
                             @endif

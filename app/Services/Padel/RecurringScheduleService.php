@@ -644,6 +644,108 @@ class RecurringScheduleService
         return $dates;
     }
 
+    /**
+     * Perkiraan kuota untuk tanggal yang BELUM dibuatkan booking sampai akhir periode, dengan aturan yang sama dengan
+     * generate(): per tanggal lalu per lapangan, kuota dipotong selama cukup; tanggal yang dilewati / tutup / sudah dibuat
+     * tidak dihitung. Jadwal aktif lain dari membership yang sama ikut dihitung karena kuotanya satu. Hanya perkiraan:
+     * jam yang nanti diberikan ke karyawan sponsor juga memakai kuota yang sama.
+     *
+     * @return array{last_booked: ?Carbon, period_end: ?Carbon, shortfall: float, covered_until: ?Carbon, partial: ?array{date: Carbon, courts: int, of: int}, first_missing: ?Carbon}|null
+     */
+    public function quotaForecast(PadelRecurringSchedule $schedule): ?array
+    {
+        $balance = $schedule->padelBalance();
+        if (! $balance || ! $schedule->isActive()) {
+            return null;
+        }
+
+        $membershipEnd = $schedule->membership?->end_date?->copy()->startOfDay();
+        $today = now()->startOfDay();
+        $needs = [];
+        $byDate = []; // per tanggal jadwal ini: of = lapangan yang dimainkan, courts = sudah dibuat / tertutup kuota
+        foreach (PadelRecurringSchedule::where('user_membership_id', $schedule->user_membership_id)->where('status', PadelRecurringSchedule::STATUS_ACTIVE)->get() as $s) {
+            $end = $s->ends_on?->copy()->startOfDay() ?? $membershipEnd ?? $today->copy()->addWeeks(52);
+            $done = $s->occurrences()->whereDate('occurrence_date', '>=', $today->toDateString())
+                ->whereIn('status', [PadelRecurringOccurrence::STATUS_BOOKED, PadelRecurringOccurrence::STATUS_SKIPPED])
+                ->get(['occurrence_date', 'court_id', 'status'])
+                ->mapWithKeys(fn (PadelRecurringOccurrence $o) => [$o->occurrence_date->toDateString().'|'.$o->court_id => $o->status]);
+
+            for ($date = $s->firstDateOnOrAfter($today->copy()->max($s->starts_on->copy()->startOfDay())); $date->lte($end); $date = $date->copy()->addWeek()) {
+                if (Carbon::parse($date->toDateString().' '.$s->start_time)->lte(now()) || \App\Support\BookingWindow::isClosed($date)) {
+                    continue;
+                }
+                foreach ((array) $s->court_ids as $courtId) {
+                    $status = $done[$date->toDateString().'|'.$courtId] ?? null;
+                    if ($status === PadelRecurringOccurrence::STATUS_SKIPPED) {
+                        continue;
+                    }
+                    if ($status === PadelRecurringOccurrence::STATUS_BOOKED) {
+                        if ($s->id === $schedule->id) {
+                            $byDate[$date->toDateString()] ??= ['date' => $date->copy(), 'of' => 0, 'courts' => 0];
+                            $byDate[$date->toDateString()]['of']++;
+                            $byDate[$date->toDateString()]['courts']++;
+                        }
+
+                        continue;
+                    }
+                    $needs[] = ['date' => $date->copy(), 'schedule' => $s->id, 'hours' => (float) $s->durationHours()];
+                }
+            }
+        }
+        usort($needs, fn ($a, $b) => [$a['date'], $a['schedule']] <=> [$b['date'], $b['schedule']]);
+
+        // Bagi sisa kuota berurutan; catat hasil per tanggal milik jadwal ini.
+        $remaining = (float) $balance->remaining_quota;
+        $shortfall = 0.0;
+        foreach ($needs as $need) {
+            $covered = $remaining + 0.001 >= $need['hours'];
+            if ($covered) {
+                $remaining -= $need['hours'];
+            }
+            if ($need['schedule'] !== $schedule->id) {
+                continue;
+            }
+            $key = $need['date']->toDateString();
+            $byDate[$key] ??= ['date' => $need['date'], 'of' => 0, 'courts' => 0];
+            $byDate[$key]['of']++;
+            if ($covered) {
+                $byDate[$key]['courts']++;
+            } else {
+                $shortfall += $need['hours'];
+            }
+        }
+        ksort($byDate);
+
+        $lastBooked = PadelBooking::where('recurring_schedule_id', $schedule->id)->whereNotIn('status', ['CANCELLED', 'REFUNDED'])->max('booking_date');
+        $coveredUntil = null;
+        $partial = null;
+        $firstMissing = null;
+        foreach ($byDate as $row) {
+            if ($row['courts'] === $row['of']) {
+                if ($partial === null && $firstMissing === null) {
+                    $coveredUntil = $row['date'];
+                }
+
+                continue;
+            }
+            if ($row['courts'] > 0 && $partial === null && $firstMissing === null) {
+                $partial = $row;
+
+                continue;
+            }
+            $firstMissing ??= $row['date'];
+        }
+
+        return [
+            'last_booked' => $lastBooked ? Carbon::parse($lastBooked)->startOfDay() : null,
+            'period_end' => $schedule->ends_on?->copy()->startOfDay() ?? $membershipEnd,
+            'shortfall' => round($shortfall, 2),
+            'covered_until' => $coveredUntil,
+            'partial' => $partial,
+            'first_missing' => $firstMissing,
+        ];
+    }
+
     /** Perkiraan minggu yang masih tertutup sisa kuota (null = kuota tidak terbaca). */
     public function weeksLeft(PadelRecurringSchedule $schedule): ?array
     {
