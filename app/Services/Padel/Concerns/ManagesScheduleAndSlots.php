@@ -437,6 +437,12 @@ trait ManagesScheduleAndSlots
                     continue;
                 }
 
+                // Sesi tagihan coaching academy (Modul 31) hanya dibatalkan staf lewat CoachingBillingService::cancelTab
+                // (ada batas waktu & tetap ditagih bila lewat) — bukan dilepas pemilik akun dari keranjang.
+                if (\App\Services\Coaching\CoachingBillingService::isTabBooking($booking)) {
+                    continue;
+                }
+
                 if ($booking->order_id) {
                     $order = \App\Models\Pos\Order::where('id', $booking->order_id)
                         ->orWhere('order_number', $booking->order_id)
@@ -648,7 +654,8 @@ trait ManagesScheduleAndSlots
 
         // 2. Slot PENDING_PAYMENT / PENDING yang tidak dibayar sampai batas bayar. Selama jeda setelah batas bayar
         //    hanya dilepas kalau Midtrans sudah memastikan semua sesinya berakhir (lihat withoutBookingsPaidAtGateway).
-        $expiredPendingPayments = PadelBooking::whereIn('status', ['PENDING_PAYMENT', 'PENDING'])
+        //    Sesi tagihan coaching academy (Modul 31) tidak punya batas bayar — dilunasi belakangan di kasir.
+        $expiredPendingPayments = \App\Services\Coaching\CoachingBillingService::withoutTab(PadelBooking::whereIn('status', ['PENDING_PAYMENT', 'PENDING']))
             ->where(fn ($q) => $q->where('expires_at', '<', now())
                 ->orWhere(fn ($legacy) => $legacy->whereNull('expires_at')->where('created_at', '<', $paymentThreshold)))
             ->where('reschedule_count', 0)

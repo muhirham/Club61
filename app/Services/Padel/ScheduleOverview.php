@@ -50,7 +50,7 @@ class ScheduleOverview
         $type = $filters['type'] ?? 'all';
         $search = mb_strtolower(trim((string) ($filters['search'] ?? '')));
 
-        return PadelBooking::with(['court:id,name,type', 'user:id,name,phone', 'order:id,order_type'])
+        return PadelBooking::with(['court:id,name,type', 'user:id,name,phone', 'order:id,order_type', 'coachingBooking:id,billing'])
             ->whereDate('booking_date', '>=', $from->toDateString())
             ->whereDate('booking_date', '<=', $until->toDateString())
             ->whereIn('status', self::STATUSES)
@@ -198,7 +198,8 @@ class ScheduleOverview
             'name' => $b->user?->name ?? 'Guest',
             'type' => $type,
             'type_label' => self::TYPES[$type],
-            'pending' => in_array($b->status, self::PENDING_STATUSES, true),
+            // Sesi tagihan berkala coaching (Modul 31) terkunci tetap — tidak digambar sebagai "menunggu bayar".
+            'pending' => in_array($b->status, self::PENDING_STATUSES, true) && ! ($b->status === 'PENDING_PAYMENT' && $b->coachingBooking?->isTab()),
             'completed' => $b->status === 'COMPLETED',
             'continued' => $continued,
         ];

@@ -50,7 +50,9 @@ trait ManagesCheckInAndTurnstile
             throw new HttpException(400, "Tiket kedaluwarsa (Expired). Sesi bermain pada pukul {$booking->start_time->format('H:i')} - {$booking->end_time->format('H:i')} WIB telah selesai.");
         }
 
-        if ($booking->status === 'PENDING' || $booking->status === 'PENDING_PAYMENT') {
+        // Sesi tagihan coaching academy (Modul 31) boleh check-in walau belum lunas — dilunasi belakangan di kasir.
+        $isCoachingTab = $booking->status === 'PENDING_PAYMENT' && \App\Services\Coaching\CoachingBillingService::isTabBooking($booking);
+        if (($booking->status === 'PENDING' || $booking->status === 'PENDING_PAYMENT') && ! $isCoachingTab) {
             throw new HttpException(400, "Tiket belum lunas. Silakan selesaikan pembayaran terlebih dahulu.");
         }
 
@@ -65,24 +67,13 @@ trait ManagesCheckInAndTurnstile
         }
 
         // Ambil daftar peralatan sewa (flat per order atau per booking)
+        // Alat order booking + tambahan alat yang dibeli terpisah untuk booking ini (Tambah Alat ke Booking).
         $equipmentList = [];
-        if ($booking->order_id) {
-            $orderEquipments = PadelBookingEquipment::with('equipment')
-                ->where('order_id', $booking->order_id)
-                ->get();
-            foreach ($orderEquipments as $oe) {
-                $equipmentList[] = [
-                    'name' => $oe->equipment ? $oe->equipment->name : 'Peralatan Padel',
-                    'quantity' => $oe->quantity,
-                ];
-            }
-        } elseif ($booking->equipments && $booking->equipments->isNotEmpty()) {
-            foreach ($booking->equipments as $be) {
-                $equipmentList[] = [
-                    'name' => $be->equipment ? $be->equipment->name : 'Peralatan Padel',
-                    'quantity' => $be->quantity,
-                ];
-            }
+        foreach (\App\Services\Padel\BookingAddonService::equipmentRowsOf($booking)->with('equipment')->get() as $oe) {
+            $equipmentList[] = [
+                'name' => $oe->equipment ? $oe->equipment->name : 'Peralatan Padel',
+                'quantity' => $oe->quantity,
+            ];
         }
 
         $earliestCheckIn = $booking->start_time->copy()->subMinutes(45);
@@ -112,11 +103,11 @@ trait ManagesCheckInAndTurnstile
         // Scan Pertama: Ubah status menjadi CHECKED_IN + potong stock alat SEWA (RACKET/TOWEL) pada
         // momen serah-terima fisik. Dibungkus 1 transaksi biar atomik — kalau potong stock gagal di
         // tengah jalan, perubahan status booking ikut ter-rollback juga.
-        DB::transaction(function () use ($booking, $now, $staffUser, $equipmentList) {
+        DB::transaction(function () use ($booking, $now, $staffUser, $equipmentList, $isCoachingTab) {
             // Update bersyarat: kalau di sela-sela booking ini baru saja di-reschedule (jadi LOCKED, tagihan
             // selisih belum lunas) atau dibatalkan, check-in gagal — bukan menimpa statusnya jadi CHECKED_IN.
             $updated = PadelBooking::whereKey($booking->id)
-                ->where('status', 'PAID')
+                ->where('status', $isCoachingTab ? 'PENDING_PAYMENT' : 'PAID')
                 ->whereNull('checked_in_at')
                 ->update(['status' => 'CHECKED_IN', 'checked_in_at' => $now]);
             if ($updated === 0) {
@@ -166,12 +157,7 @@ trait ManagesCheckInAndTurnstile
      */
     protected function deductRentalEquipmentStock(PadelBooking $booking): void
     {
-        $query = PadelBookingEquipment::with('equipment')->whereNull('stock_deducted_at');
-        $query = $booking->order_id
-            ? $query->where('order_id', $booking->order_id)
-            : $query->where('booking_id', $booking->id);
-
-        $pendingItems = $query->get();
+        $pendingItems = \App\Services\Padel\BookingAddonService::equipmentRowsOf($booking)->with('equipment')->whereNull('stock_deducted_at')->get();
 
         foreach ($pendingItems as $item) {
             if (! $item->equipment || ! in_array(strtoupper($item->equipment->type), ['RACKET', 'TOWEL'])) {
@@ -210,14 +196,10 @@ trait ManagesCheckInAndTurnstile
         $booking = PadelBooking::findOrFail($bookingId);
 
         return DB::transaction(function () use ($booking, $staffUser) {
-            $query = PadelBookingEquipment::with('equipment')
+            $pendingReturns = \App\Services\Padel\BookingAddonService::equipmentRowsOf($booking)->with('equipment')
                 ->whereNotNull('stock_deducted_at')
-                ->whereNull('returned_at');
-            $query = $booking->order_id
-                ? $query->where('order_id', $booking->order_id)
-                : $query->where('booking_id', $booking->id);
-
-            $pendingReturns = $query->get();
+                ->whereNull('returned_at')
+                ->get();
 
             $restoredItems = [];
             foreach ($pendingReturns as $item) {

@@ -444,6 +444,8 @@ class BookingSystem extends Page
                 if ($matchedBooking) {
                     $occupiedSlotsCount++;
                     $status = $matchedBooking->status;
+                    // Sesi tagihan berkala coaching (Modul 31): terkunci tetap & dilunasi belakangan, bukan hold checkout.
+                    $isTab = $status === 'PENDING_PAYMENT' && $matchedBooking->coachingBooking?->isTab();
 
                     if ($status === 'CHECKED_IN') {
                         $playingCount++;
@@ -459,7 +461,8 @@ class BookingSystem extends Page
                         'status' => $status,
                         'is_playing' => $status === 'CHECKED_IN',
                         'is_paid' => $status === 'PAID',
-                        'is_pending' => in_array($status, ['PENDING_PAYMENT', 'PENDING', 'LOCKED']),
+                        'is_pending' => ! $isTab && in_array($status, ['PENDING_PAYMENT', 'PENDING', 'LOCKED']),
+                        'is_tab' => $isTab,
                         'is_completed' => $status === 'COMPLETED',
                         'player_name' => $matchedBooking->user?->name ?? 'Guest',
                         'booking_code' => $matchedBooking->booking_code,

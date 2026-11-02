@@ -22,6 +22,12 @@
         <div>Periode: {{ $recap['opened_at'] }} - {{ $recap['until'] }}</div>
         <div>Status: {{ $recap['still_open'] ? $recap['open_shift_count'].' shift masih buka' : 'Semua shift tutup' }}</div>
         <div>Jumlah shift: {{ $recap['shift_count'] }}</div>
+        @foreach ($recap['carried_over'] ?? [] as $carried)
+            <div>Shift sejak {{ $carried['since'] }}</div>
+            @if ($carried['still_open'])
+                <div style="font-weight:900;">BELUM DITUTUP</div>
+            @endif
+        @endforeach
         <div>Dicetak: {{ $recap['printed_at'] }}</div>
         <div>Oleh: {{ $recap['printed_by'] }}</div>
     </div>
@@ -43,6 +49,23 @@
             <div>Belum ada transaksi.</div>
         @endforelse
     </div>
+
+    {{-- Shift lupa ditutup dari hari sebelumnya: total seluruh shift untuk dicocokkan saat Tutup Shift. --}}
+    @foreach ($recap['running_shifts'] ?? [] as $running)
+        <div style="{{ $section }}">
+            <div style="font-weight:900;">SHIFT BELUM DITUTUP</div>
+            <div>{{ $running['shift_number'] }}</div>
+            <div>Sejak {{ $running['since'] }} s/d skrg</div>
+            <div style="{{ $line }}"><span>Transaksi</span><span>{{ $running['transactions'] }}</span></div>
+            <div style="{{ $line }} font-weight:900;"><span>TOTAL</span><span>{{ $rupiah($running['total']) }}</span></div>
+            @foreach ($running['methods'] as $method)
+                <div style="margin-top:0.2rem;">
+                    <div style="font-weight:700;">{{ $method['label'] }}</div>
+                    <div style="{{ $line }}"><span>{{ $method['count'] }} transaksi</span><span>{{ $rupiah($method['amount']) }}</span></div>
+                </div>
+            @endforeach
+        </div>
+    @endforeach
 
     @if ($recap['online'] !== null)
         <div style="{{ $section }}">

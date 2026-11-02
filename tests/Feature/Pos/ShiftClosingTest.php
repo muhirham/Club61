@@ -247,7 +247,9 @@ class ShiftClosingTest extends TestCase
         $this->actingAs($this->admin);
         Livewire::test(ReviewShiftKasir::class)
             ->filterTable('review_status', 'OPEN')
-            ->assertCanSeeTableRecords([$shift]);
+            ->assertCanSeeTableRecords([$shift])
+            // Penjualan shift yang masih buka = total berjalan (dulu Rp 0 sampai shift ditutup).
+            ->assertTableColumnStateSet('total_sales', (float) $a, $shift);
         Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])->assertSee('Sedang buka');
 
         app(PaymentMethodCorrection::class)->apply($wrong, $this->admin, 'EDC_BCA', ['card_type' => 'DEBIT', 'card_last_4' => '4321', 'approval_code' => 'APR051', 'trace_number' => 'TAPR051'], 'Kasir lapor salah klik, slip EDC ada');

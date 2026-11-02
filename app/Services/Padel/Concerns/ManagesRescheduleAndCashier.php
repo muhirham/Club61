@@ -127,7 +127,10 @@ trait ManagesRescheduleAndCashier
                     'start_time' => $startStr,
                     'end_time' => $endStr,
                     'duration_hours' => $durationHours,
-                    'label' => "{$startStr} - {$endStr} WIB ({$durationHours} Jam)" . ($hasPrime ? ' [Prime Time]' : ' [Reguler]'),
+                    // Coaching ditagih Tarif Setoran (pita jamnya sendiri), bukan jam peak lapangan → tampilkan tarifnya langsung.
+                    'label' => "{$startStr} - {$endStr} WIB ({$durationHours} Jam)" . ($booking->coaching_booking_id
+                        ? ' · Rp '.number_format($quote['net_new'], 0, ',', '.')
+                        : ($hasPrime ? ' [Prime Time]' : ' [Reguler]')),
                     'estimated_fee' => $quote['net_new'],
                     'gross_fee' => $quote['gross_new'],
                     'benefit_discount' => $quote['member_discount_new'] + $quote['sponsor_discount_new'],
@@ -363,12 +366,24 @@ trait ManagesRescheduleAndCashier
             // Kunci lapangan tujuan SEBELUM booking — urutan yang sama dengan holdBatchSlots (lapangan dulu,
             // baru baris booking), supaya hold dan reschedule di lapangan yang sama antre tanpa deadlock.
             $newCourt = PadelCourt::where('id', $newCourtId)->lockForUpdate()->firstOrFail();
-            $booking = PadelBooking::with(['order', 'court'])->where('id', $bookingId)->lockForUpdate()->firstOrFail();
 
-            // Hanya booking yang SUDAH LUNAS. Dulu status LOCKED juga diterima: keranjang customer yang belum
-            // dibayar bisa "dipindah" admin lalu keluar sebagai PAID + QR aktif tanpa uang masuk, dan booking
-            // yang masih punya tagihan selisih reschedule bisa dipindah lagi sehingga tagihannya menumpuk ganda.
-            if ($booking->status !== 'PAID') {
+            // Modul 31: sesi tagihan berkala coaching (belum dibayar) boleh dipindah dengan aturan global. Order-nya
+            // dikunci sebelum baris booking — urutan sama dengan Pelunasan & Batalkan Sesi Tagihan (order lalu sesi).
+            $peek = PadelBooking::whereKey($bookingId)->first(['id', 'order_id', 'coaching_booking_id', 'status']);
+            $tabOrder = $peek && $peek->order_id && $peek->status === 'PENDING_PAYMENT' && \App\Services\Coaching\CoachingBillingService::isTabBooking($peek)
+                ? \App\Models\Pos\Order::whereKey($peek->order_id)->lockForUpdate()->first()
+                : null;
+
+            $booking = PadelBooking::with(['order', 'court'])->where('id', $bookingId)->lockForUpdate()->firstOrFail();
+            $isTab = $tabOrder !== null && $booking->status === 'PENDING_PAYMENT' && $booking->order_id === $tabOrder->id;
+            if ($isTab && $tabOrder->payment_status !== 'UNPAID') {
+                throw new HttpException(422, 'Tagihan sesi coaching ini sudah dilunasi atau dibatalkan. Muat ulang halaman lalu coba lagi.');
+            }
+
+            // Hanya booking yang SUDAH LUNAS (atau sesi tagihan coaching di atas). Dulu status LOCKED juga diterima:
+            // keranjang customer yang belum dibayar bisa "dipindah" admin lalu keluar sebagai PAID + QR aktif tanpa uang
+            // masuk, dan booking yang masih punya tagihan selisih reschedule bisa dipindah lagi sehingga tagihannya menumpuk ganda.
+            if (! $isTab && $booking->status !== 'PAID') {
                 $hasPendingDelta = $booking->status === 'LOCKED' && (int) $booking->reschedule_count > 0;
                 throw new HttpException(400, $hasPendingDelta
                     ? 'Booking ini masih punya tagihan selisih reschedule yang belum lunas. Lunasi dulu (POS Walk-In / customer bayar via invoice) sebelum dipindah lagi.'
@@ -403,7 +418,7 @@ trait ManagesRescheduleAndCashier
                 $adjacent = PadelBooking::where('order_id', $booking->order_id)
                     ->where('id', '!=', $booking->id)
                     ->where('court_id', $booking->court_id)
-                    ->whereIn('status', ['PAID', 'LOCKED', 'CHECKED_IN'])
+                    ->whereIn('status', $isTab ? ['PENDING_PAYMENT', 'CHECKED_IN'] : ['PAID', 'LOCKED', 'CHECKED_IN'])
                     ->where(fn ($q) => $q->where('end_time', $booking->start_time)->orWhere('start_time', $booking->end_time))
                     ->first();
                 if ($adjacent) {
@@ -478,8 +493,10 @@ trait ManagesRescheduleAndCashier
                 }
             }
 
-            $mustPay = $quote['total_charge'] > 0;
+            // Sesi tagihan coaching tidak punya selisih bayar / hangus: tagihan academy langsung mengikuti tarif jadwal baru.
+            $mustPay = ! $isTab && $quote['total_charge'] > 0;
             $payNow = $mustPay && $isDeltaPaid;
+            $tabTotalBefore = $isTab ? (float) $tabOrder->grand_total : 0.0;
             $proofPayload = [];
 
             // Semua validasi pembayaran SEBELUM menyentuh kunci slot di cache — cache tidak ikut di-rollback
@@ -516,8 +533,10 @@ trait ManagesRescheduleAndCashier
             }
 
             try {
-                $targetStatus = 'PAID';
-                $newQrCodeHash = hash_hmac('sha256', $booking->booking_code.$booking->user_id.$newCourt->id.$newStartDt->toISOString(), config('app.key'));
+                $targetStatus = $isTab ? 'PENDING_PAYMENT' : 'PAID';
+                $newQrCodeHash = $isTab && ! $booking->qr_code_hash
+                    ? null
+                    : hash_hmac('sha256', $booking->booking_code.$booking->user_id.$newCourt->id.$newStartDt->toISOString(), config('app.key'));
                 $deltaPayload = [
                     'type' => 'RESCHEDULE_PRICE_DELTA',
                     'booking_id' => $booking->id,
@@ -551,7 +570,10 @@ trait ManagesRescheduleAndCashier
                     }
                 };
 
-                if ($mustPay) {
+                if ($isTab) {
+                    // Belum ada uang masuk: tarif sesi, item order & total tagihan (pajak + biaya layanan) ikut jadwal baru.
+                    app(\App\Services\Coaching\CoachingBillingService::class)->repriceForReschedule($booking, $tabOrder, $quote['net_new'], $newCourt->name);
+                } elseif ($mustPay) {
                     $dropBenefits();
                     // Kurang bayar: tarif & benefit mengikuti jadwal baru, tagihan selisih masuk ke order yang sama.
                     $booking->court_fee = $quote['net_new'];
@@ -624,6 +646,10 @@ trait ManagesRescheduleAndCashier
                 $booking->reschedule_count = $booking->reschedule_count + 1;
                 $booking->cancel_reason = "Reschedule: {$reason} (Admin: {$adminUser->name})";
                 $booking->save();
+
+                if ($isTab) {
+                    app(\App\Services\Coaching\CoachingBillingService::class)->refreshDueAt($booking->coaching_booking_id);
+                }
             } catch (\Throwable $e) {
                 foreach ($acquiredLocks as $key) {
                     Cache::forget($key);
@@ -634,6 +660,7 @@ trait ManagesRescheduleAndCashier
             $scheduleAfter = $newCourt->name.', '.$newStartDt->format('d M Y H:i').'-'.$newEndDt->format('H:i');
             $rupiah = fn (float $v) => \App\Services\Audit\ActivityLogger::rupiah($v);
             $outcome = match (true) {
+                $isTab => 'sesi tagihan berkala coaching, tagihan '.$rupiah($tabTotalBefore).' → '.$rupiah((float) $tabOrder->grand_total).' (belum dibayar)',
                 $payNow => 'selisih '.$rupiah($quote['total_charge']).' dibayar di frontdesk ('.strtoupper((string) $paymentMethod).')',
                 $mustPay => 'tagihan selisih '.$rupiah($quote['total_charge']).(strtoupper($deltaPaymentChannel) === 'ONLINE'
                     ? ' dibayar customer via Midtrans (link di invoice)'
@@ -654,8 +681,10 @@ trait ManagesRescheduleAndCashier
                     'tarif_normal_jadwal_baru' => $quote['gross_new'],
                     'benefit_member_sponsor_ikut_pindah' => $quote['member_discount_new'] + $quote['sponsor_discount_new'] ?: null,
                     'selisih_tarif_lapangan' => $quote['court_delta'],
-                    'total_tagihan_selisih' => $quote['total_charge'] ?: null,
-                    'selisih_hangus' => $quote['forfeited'] ?: null,
+                    // Tagihan berkala coaching hanya disesuaikan nilainya — tidak ada selisih yang ditagih / hangus.
+                    'total_tagihan_selisih' => $isTab ? null : ($quote['total_charge'] ?: null),
+                    'selisih_hangus' => $isTab ? null : ($quote['forfeited'] ?: null),
+                    'tagihan_coaching' => $isTab ? $rupiah($tabTotalBefore).' → '.$rupiah((float) $tabOrder->grand_total) : null,
                     'benefit_gugur' => $quote['benefit_dropped_reason'],
                     'status_setelahnya' => $targetStatus,
                     'alasan' => $reason,
@@ -677,6 +706,7 @@ trait ManagesRescheduleAndCashier
                 'forfeited' => $quote['forfeited'],
                 'benefit_dropped_reason' => $quote['benefit_dropped_reason'],
                 'is_locked' => $targetStatus === 'LOCKED',
+                'coaching_tab' => $isTab ? ['before' => $tabTotalBefore, 'after' => (float) $tabOrder->grand_total] : null,
             ];
         });
     }

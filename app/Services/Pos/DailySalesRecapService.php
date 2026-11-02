@@ -16,8 +16,9 @@ use Illuminate\Support\Str;
 /**
  * Rekap Penjualan Harian (X-Report) per loket — hanya MEMBACA data, tidak menutup / mengubah apa pun.
  *
- * Periode = shift loket yang DIBUKA pada tanggal itu: dari shift pertama dibuka sampai sekarang (masih ada shift buka)
- * atau sampai shift terakhir ditutup. Angka = pembayaran SUCCESS shift-shift itu, dikelompokkan dengan
+ * Periode = tanggal kalender itu (WIB): shift loket yang SEMPAT BUKA pada tanggal itu — termasuk shift hari sebelumnya
+ * yang belum ditutup (lupa tutup shift) — dari jam buka (paling awal 00:00) sampai sekarang / shift terakhir ditutup
+ * (paling akhir 23:59). Angka = pembayaran SUCCESS shift-shift itu yang DIBAYAR pada tanggal itu, dikelompokkan dengan
  * PosCashierShift::categorize (kategori yang sama dengan form Tutup Shift & Z-Report), jadi baris rekap bisa langsung
  * dicocokkan dengan struk settlement EDC / mutasi QRIS.
  *
@@ -67,18 +68,22 @@ class DailySalesRecapService
     ];
 
     /**
-     * @return array<string, mixed>|null null = belum ada shift loket ini yang dibuka pada tanggal itu
+     * @return array<string, mixed>|null null = tidak ada shift loket ini yang buka pada tanggal itu (atau tanggalnya belum tiba)
      */
     public function build(string $counter, string $date, User $printedBy): ?array
     {
         $dayStart = Carbon::parse($date, self::TZ)->startOfDay();
+        $dayEnd = $dayStart->copy()->endOfDay();
+        if ($dayStart->gt(now())) {
+            return null;
+        }
+        $start = $dayStart->copy()->setTimezone(config('app.timezone'));
+        $end = $dayEnd->copy()->setTimezone(config('app.timezone'));
 
         $shifts = PosCashierShift::query()
             ->where('counter', $counter)
-            ->whereBetween('opened_at', [
-                $dayStart->copy()->setTimezone(config('app.timezone')),
-                $dayStart->copy()->endOfDay()->setTimezone(config('app.timezone')),
-            ])
+            ->where('opened_at', '<=', $end)
+            ->where(fn ($q) => $q->where('status', 'OPEN')->orWhere('closed_at', '>=', $start))
             ->orderBy('opened_at')
             ->get();
 
@@ -87,23 +92,41 @@ class DailySalesRecapService
         }
 
         $openCount = $shifts->where('status', 'OPEN')->count();
-        $from = $shifts->first()->opened_at;
-        $until = $openCount > 0 ? now() : $shifts->max('closed_at');
-        $until = $until ? Carbon::parse($until) : now();
+        $from = Carbon::parse($shifts->first()->opened_at);
+        $from = $from->lt($dayStart) ? $dayStart->copy() : $from;
+        $until = $openCount > 0 ? now() : Carbon::parse($shifts->max('closed_at'));
+        $until = $until->gt($dayEnd) ? $dayEnd->copy() : $until;
 
         $payments = Payment::query()
             ->whereIn('pos_shift_id', $shifts->pluck('id'))
             ->where('status', 'SUCCESS')
+            ->whereBetween('paid_at', [$start, $end])
             ->get();
 
-        $methods = [];
-        foreach ($payments as $payment) {
-            $category = PosCashierShift::categorize($payment);
-            $methods[$category['key']] ??= ['label' => $this->counterLabel($category['key'], $payment), 'count' => 0, 'amount' => 0.0];
-            $methods[$category['key']]['count']++;
-            $methods[$category['key']]['amount'] += (float) $payment->amount;
-        }
-        ksort($methods);
+        // Shift dari hari sebelumnya yang masih / baru ditutup — dicetak supaya kasir tahu shift-nya belum ditutup.
+        $carriedOver = $shifts->filter(fn (PosCashierShift $s) => Carbon::parse($s->opened_at)->lt($dayStart))
+            ->map(fn (PosCashierShift $s) => [
+                'since' => Carbon::parse($s->opened_at)->setTimezone(self::TZ)->format('d/m H:i'),
+                'still_open' => $s->status === 'OPEN',
+            ])->values()->all();
+
+        // Shift yang masih buka sejak sebelum hari ini: total seluruh shift (sejak dibuka s/d sekarang) untuk dicocokkan
+        // saat Tutup Shift — kelompok metodenya sama dengan form Tutup Shift. Shift yang dibuka hari ini sudah sama
+        // dengan rekap harian, jadi tidak diulang.
+        $todayStart = now(self::TZ)->startOfDay();
+        $runningShifts = $shifts
+            ->filter(fn (PosCashierShift $s) => $s->status === 'OPEN' && Carbon::parse($s->opened_at)->lt($todayStart))
+            ->map(function (PosCashierShift $s) {
+                $shiftPayments = Payment::query()->where('pos_shift_id', $s->id)->where('status', 'SUCCESS')->get();
+
+                return [
+                    'shift_number' => $s->shift_number,
+                    'since' => Carbon::parse($s->opened_at)->setTimezone(self::TZ)->format('d/m H:i'),
+                    'transactions' => $shiftPayments->count(),
+                    'total' => (float) $shiftPayments->sum('amount'),
+                    'methods' => $this->cashierMethods($shiftPayments),
+                ];
+            })->values()->all();
 
         $now = now()->setTimezone(self::TZ);
 
@@ -118,11 +141,13 @@ class DailySalesRecapService
             'shift_count' => $shifts->count(),
             'open_shift_count' => $openCount,
             'shift_ids' => $shifts->pluck('id')->all(),
+            'carried_over' => $carriedOver,
             'printed_at' => $now->format('d/m/Y H:i'),
             'printed_by' => self::fit((string) $printedBy->name, 20),
             'transactions' => $payments->count(),
             'total' => (float) $payments->sum('amount'),
-            'methods' => array_values($methods),
+            'methods' => $this->cashierMethods($payments),
+            'running_shifts' => $runningShifts,
             // Bayar online customer hanya untuk booking & membership — loket padel saja.
             'online' => $counter === 'PADEL_FRONTDESK' ? $this->online($from, $until) : null,
         ];
@@ -159,6 +184,26 @@ class DailySalesRecapService
             ->where('subject_type', class_basename($shift))
             ->where('subject_id', $shift->getKey())
             ->count();
+    }
+
+    /**
+     * Pembayaran kasir per kategori PosCashierShift::categorize (sama dengan form Tutup Shift & Z-Report).
+     *
+     * @param  \Illuminate\Support\Collection<int, Payment>  $payments
+     * @return list<array{label: string, count: int, amount: float}>
+     */
+    private function cashierMethods(\Illuminate\Support\Collection $payments): array
+    {
+        $methods = [];
+        foreach ($payments as $payment) {
+            $category = PosCashierShift::categorize($payment);
+            $methods[$category['key']] ??= ['label' => $this->counterLabel($category['key'], $payment), 'count' => 0, 'amount' => 0.0];
+            $methods[$category['key']]['count']++;
+            $methods[$category['key']]['amount'] += (float) $payment->amount;
+        }
+        ksort($methods);
+
+        return array_values($methods);
     }
 
     /** Pembayaran online customer (website / aplikasi) yang lunas dalam periode rekap — info, tidak lewat EDC. */

@@ -85,7 +85,10 @@ class ReviewShiftKasir extends Page implements HasTable
                     ->description(fn (PosCashierShift $s) => $s->status === 'OPEN'
                         ? 'dibuka '.$s->opened_at?->setTimezone(LedgerReport::TIMEZONE)->format('d M H:i').' oleh '.($s->openedBy?->name ?? '-')
                         : 'oleh '.($s->closedBy?->name ?? '-')),
+                // Shift masih buka: total_sales baru diisi saat tutup shift → tampilkan total berjalan (sama dengan halaman detail).
                 TextColumn::make('total_sales')->label('Penjualan')->alignEnd()
+                    ->getStateUsing(fn (PosCashierShift $s) => $s->status === 'OPEN' ? $s->calculateSummary()['total_sales'] : $s->total_sales)
+                    ->description(fn (PosCashierShift $s) => $s->status === 'OPEN' ? 'berjalan' : null)
                     ->formatStateUsing(fn ($state) => BukuTransaksi::rupiah($state)),
                 TextColumn::make('settlement_difference')->label('Selisih')->alignEnd()->weight('bold')->placeholder('-')
                     ->color(fn ($state) => abs((float) $state) < 0.005 ? 'success' : 'danger')

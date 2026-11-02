@@ -81,10 +81,13 @@ class JadwalCoaching extends Page implements HasTable
                 TextColumn::make('user.name')->label('Atas nama')->searchable()
                     ->description(fn (PadelBooking $b) => $b->user?->phone),
                 TextColumn::make('status')->label('Status')->badge()
-                    ->formatStateUsing(fn (string $state) => self::STATUS_LABELS[$state] ?? $state)
-                    ->color(fn (string $state) => match ($state) {
-                        'PAID', 'CHECKED_IN', 'COMPLETED' => 'success',
-                        'EXPIRED' => 'danger',
+                    // Sesi tagihan berkala academy (Modul 31) belum dibayar tetapi sudah terkonfirmasi.
+                    ->formatStateUsing(fn (string $state, PadelBooking $b) => $state === 'PENDING_PAYMENT' && $b->coachingBooking?->isTab()
+                        ? 'Tagihan Berkala' : (self::STATUS_LABELS[$state] ?? $state))
+                    ->color(fn (string $state, PadelBooking $b) => match (true) {
+                        in_array($state, ['PAID', 'CHECKED_IN', 'COMPLETED'], true) => 'success',
+                        $state === 'EXPIRED' => 'danger',
+                        $state === 'PENDING_PAYMENT' && $b->coachingBooking?->isTab() => 'info',
                         default => 'warning',
                     }),
                 TextColumn::make('coaches')->label('Coach')

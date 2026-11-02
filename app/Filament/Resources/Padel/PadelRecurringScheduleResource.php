@@ -4,11 +4,13 @@ namespace App\Filament\Resources\Padel;
 
 use App\Filament\Resources\Concerns\AuthorizesWithCanMethods;
 use App\Filament\Resources\Padel\Pages\ManagePadelRecurringSchedules;
+use App\Models\Padel\PadelBooking;
 use App\Models\Padel\PadelCourt;
 use App\Models\Padel\PadelRecurringOccurrence;
 use App\Models\Padel\PadelRecurringSchedule;
 use App\Services\Padel\RecurringScheduleService;
 use BackedEnum;
+use Carbon\Carbon;
 use Filament\Actions\Action;
 use Filament\Actions\ActionGroup;
 use Filament\Actions\EditAction;
@@ -90,7 +92,6 @@ class PadelRecurringScheduleResource extends Resource
                     Select::make('user_membership_id')->label('Kuota jam dari membership')
                         ->options(fn (?PadelRecurringSchedule $record) => app(RecurringScheduleService::class)->membershipOptions($record?->user_membership_id))
                         ->searchable()->required()->native(false)->live()
-                        ->afterStateUpdated(fn (?string $state, \Filament\Schemas\Components\Utilities\Set $set) => $set('ends_on', $state ? \App\Models\Membership\UserMembership::find($state)?->end_date?->toDateString() : null))
                         ->disabled(fn (?PadelRecurringSchedule $record) => $record?->occurrences()->exists() ?? false)
                         ->helperText('Corporate atau member individu yang punya kuota jam Padel. Booking dibuat atas nama pemilik membership.'),
                     Select::make('day_of_week')->label('Hari')->options(PadelRecurringSchedule::DAYS)->required()->native(false),
@@ -98,19 +99,82 @@ class PadelRecurringScheduleResource extends Resource
                         ->options(fn () => PadelCourt::where('is_active', true)->ordered()->pluck('name', 'id')->all()),
                     Select::make('start_time')->label('Jam mulai')->options($hours(6, 23))->required()->native(false),
                     Select::make('end_time')->label('Jam selesai')->options($hours(7, 24))->required()->native(false),
-                    DatePicker::make('starts_on')->label('Mulai tanggal')->required()->native(false)->displayFormat('d M Y'),
-                    DatePicker::make('ends_on')->label('Sampai tanggal (opsional)')->native(false)->displayFormat('d M Y')
-                        ->helperText('Otomatis terisi tanggal habis membership dan tidak boleh lewat dari itu. Kosongkan = sampai membership habis.'),
+                    DatePicker::make('starts_on')->label('Mulai tanggal')->required()->native(false)->displayFormat('d M Y')->live(),
                 ]),
             ]),
+            // Lama jadwal = sampai kapan jadwal ini berjalan tiap minggu (disimpan sebagai ends_on oleh periodToEndsOn()).
+            Section::make('Lama jadwal')->columnSpanFull()->schema([
+                Grid::make(['default' => 1, 'sm' => 2])->schema([
+                    Select::make('period_mode')->label('Jadwal berjalan')->required()->native(false)->live()
+                        ->options([
+                            self::PERIOD_MEMBERSHIP => 'Sampai membership habis',
+                            self::PERIOD_WEEKS => 'Selama beberapa minggu',
+                            self::PERIOD_DATE => 'Sampai tanggal tertentu',
+                        ])
+                        ->default(self::PERIOD_MEMBERSHIP),
+                    TextInput::make('period_weeks')->label('Jumlah minggu')->integer()->minValue(1)->maxValue(104)->suffix('minggu')->live(onBlur: true)
+                        ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('period_mode') === self::PERIOD_WEEKS)
+                        ->required(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('period_mode') === self::PERIOD_WEEKS)
+                        ->helperText(fn (\Filament\Schemas\Components\Utilities\Get $get) => ($end = self::weeksEnd($get('starts_on'), $get('period_weeks')))
+                            ? 'Berakhir '.$end->locale('id')->translatedFormat('l, d M Y').'.' : 'Dihitung dari tanggal mulai.'),
+                    DatePicker::make('ends_on')->label('Sampai tanggal')->native(false)->displayFormat('d M Y')
+                        ->visible(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('period_mode') === self::PERIOD_DATE)
+                        ->required(fn (\Filament\Schemas\Components\Utilities\Get $get) => $get('period_mode') === self::PERIOD_DATE),
+                ]),
+            ])->description('Tidak boleh lewat dari masa aktif membership. Setelah tanggal berakhir tidak ada booking baru, dan daftar "Lewati tanggal" juga hanya sampai tanggal itu.'),
             Section::make('Aturan')->columnSpanFull()->schema([
                 Grid::make(['default' => 1, 'sm' => 2])->schema([
-                    TextInput::make('weeks_ahead')->label('Buat booking sampai')->integer()->minValue(1)
-                        ->maxValue(PadelRecurringSchedule::MAX_WEEKS_AHEAD)->required()->default(5)->suffix('minggu ke depan'),
+                    TextInput::make('weeks_ahead')->label('Kunci slot lebih dulu')->integer()->minValue(1)
+                        ->maxValue(PadelRecurringSchedule::MAX_WEEKS_AHEAD)->required()->default(5)->suffix('minggu')
+                        ->helperText('Bukan lama jadwal — hanya seberapa jauh ke depan booking dibuat & slot dikunci. Minggu berikutnya dibuat otomatis tiap malam.'),
                 ]),
                 Textarea::make('notes')->label('Catatan (opsional)')->rows(2)->maxLength(1000)->columnSpanFull(),
-            ])->description('Customer bisa booking sampai 30 hari ke depan, jadi 5 minggu = slot jadwal tetap sudah terkunci duluan. Mengubah hari / jam / durasi / lapangan ikut memindahkan booking yang sudah dibuat (aturan reschedule: yang sudah mepet tetap main di jadwal lama; lapangan yang dihapus dibatalkan & jamnya kembali). Batas reschedule mengikuti pengaturan global (tombol Batas Reschedule di kanan atas halaman ini).'),
+            ])->description('Customer bisa booking sampai 30 hari ke depan, jadi kunci 5 minggu = slot jadwal tetap sudah terkunci duluan. Mengubah hari / jam / durasi / lapangan ikut memindahkan booking yang sudah dibuat (aturan reschedule: yang sudah mepet tetap main di jadwal lama; lapangan yang dihapus dibatalkan & jamnya kembali). Batas reschedule mengikuti pengaturan global (tombol Batas Reschedule di kanan atas halaman ini).'),
         ]);
+    }
+
+    public const PERIOD_MEMBERSHIP = 'MEMBERSHIP';
+
+    public const PERIOD_WEEKS = 'WEEKS';
+
+    public const PERIOD_DATE = 'DATE';
+
+    /** "Selama N minggu" dari tanggal mulai → tanggal terakhir (N kali hari jadwal, karena tiap 7 hari berisi satu hari jadwal). */
+    public static function weeksEnd(mixed $startsOn, mixed $weeks): ?Carbon
+    {
+        if (! filled($startsOn) || ! is_numeric($weeks) || (int) $weeks < 1) {
+            return null;
+        }
+
+        try {
+            return Carbon::parse((string) $startsOn)->startOfDay()->addWeeks((int) $weeks)->subDay();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** Pilihan "Lama jadwal" → ends_on (kosong = sampai membership habis, diisi saat validasi di RecurringScheduleService::normalize). */
+    public static function periodToEndsOn(array $data): array
+    {
+        $data['ends_on'] = match ($data['period_mode'] ?? self::PERIOD_DATE) {
+            self::PERIOD_MEMBERSHIP => null,
+            self::PERIOD_WEEKS => self::weeksEnd($data['starts_on'] ?? null, $data['period_weeks'] ?? null)?->toDateString()
+                ?? throw new HttpException(422, 'Isi jumlah minggu jadwal (minimal 1).'),
+            default => $data['ends_on'] ?? null,
+        };
+
+        return $data;
+    }
+
+    /** Isi "Lama jadwal" saat edit: tanggal berakhir = tanggal habis membership (atau kosong) → "Sampai membership habis". */
+    public static function periodState(PadelRecurringSchedule $schedule): array
+    {
+        $membershipEnd = $schedule->membership?->end_date?->toDateString();
+        $endsOn = $schedule->ends_on?->toDateString();
+
+        return $endsOn === null || $endsOn === $membershipEnd
+            ? ['period_mode' => self::PERIOD_MEMBERSHIP, 'ends_on' => null]
+            : ['period_mode' => self::PERIOD_DATE, 'ends_on' => $endsOn];
     }
 
     public static function table(Table $table): Table
@@ -130,13 +194,16 @@ class PadelRecurringScheduleResource extends Resource
 
                         return $left === null ? 'Tidak ada kuota jam' : self::num($left['remaining']).' jam';
                     })
-                    ->description(function (PadelRecurringSchedule $r) {
-                        $left = app(RecurringScheduleService::class)->weeksLeft($r);
-
-                        return $left === null ? null : '≈ '.$left['weeks'].' minggu lagi'.($left['leftover'] > 0 ? ' + '.self::num($left['leftover']).' jam' : '');
-                    }),
+                    ->description(fn (PadelRecurringSchedule $r) => self::forecastLabel($r))
+                    ->wrap(),
                 TextColumn::make('starts_on')->label('Periode')->date('d M Y')
-                    ->description(fn (PadelRecurringSchedule $r) => $r->ends_on ? 's/d '.$r->ends_on->translatedFormat('d M Y') : 'tanpa tanggal akhir'),
+                    ->description(function (PadelRecurringSchedule $r) {
+                        $lastBooked = PadelBooking::where('recurring_schedule_id', $r->id)->whereNotIn('status', ['CANCELLED', 'REFUNDED'])->max('booking_date');
+
+                        return ($r->ends_on ? 's/d '.$r->ends_on->locale('id')->translatedFormat('d M Y') : 'tanpa tanggal akhir')
+                            .($lastBooked ? ' · booking dibuat s/d '.Carbon::parse($lastBooked)->locale('id')->translatedFormat('d M Y') : '');
+                    })
+                    ->wrap(),
                 TextColumn::make('status')->label('Status')->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         PadelRecurringSchedule::STATUS_ACTIVE => 'Aktif',
@@ -176,7 +243,9 @@ class PadelRecurringScheduleResource extends Resource
                         ->action(fn (PadelRecurringSchedule $record, array $data) => self::attempt(function () use ($record, $data) {
                             $cancelled = app(RecurringScheduleService::class)->skip($record, (string) $data['date'], (string) $data['reason'], auth()->user());
 
-                            return 'Tanggal dilewati'.($cancelled ? " — {$cancelled} booking dibatalkan, kuota jam dikembalikan." : '.');
+                            return $cancelled
+                                ? "Tanggal dilewati — {$cancelled} booking dibatalkan, kuota jam dikembalikan."
+                                : 'Tanggal dilewati. Belum ada booking di tanggal ini, jadi kuota jam tidak berubah.';
                         })),
                     Action::make('unskip')->label('Batal lewati')->icon('heroicon-o-arrow-uturn-left')->color('gray')
                         ->visible(fn (PadelRecurringSchedule $r) => ! $r->isStopped() && $r->occurrences()->where('status', PadelRecurringOccurrence::STATUS_SKIPPED)
@@ -186,13 +255,13 @@ class PadelRecurringScheduleResource extends Resource
                             Select::make('date')->label('Tanggal yang dilewati')->required()->native(false)
                                 ->options($record->occurrences()->where('status', PadelRecurringOccurrence::STATUS_SKIPPED)
                                     ->whereDate('occurrence_date', '>=', now()->toDateString())->orderBy('occurrence_date')->get()
-                                    ->mapWithKeys(fn (PadelRecurringOccurrence $o) => [$o->occurrence_date->toDateString() => $o->occurrence_date->translatedFormat('l, d M Y').($o->note ? ' — '.$o->note : '')])
+                                    ->mapWithKeys(fn (PadelRecurringOccurrence $o) => [$o->occurrence_date->toDateString() => $o->occurrence_date->locale('id')->translatedFormat('l, d M Y').($o->note ? ' — '.$o->note : '')])
                                     ->all()),
                         ])
                         ->action(fn (PadelRecurringSchedule $record, array $data) => self::attempt(function () use ($record, $data) {
                             app(RecurringScheduleService::class)->unskip($record, (string) $data['date'], auth()->user());
 
-                            return 'Tanggal tidak jadi dilewati.';
+                            return 'Tanggal tidak jadi dilewati. Booking dibuat lagi (dan kuota jam dipotong) saat "Buat booking sekarang" atau proses otomatis malam, bila slotnya masih kosong.';
                         })),
                     Action::make('toggle')
                         ->visible(fn (PadelRecurringSchedule $r) => ! $r->isStopped())
@@ -207,7 +276,7 @@ class PadelRecurringScheduleResource extends Resource
                             Notification::make()->title($record->isActive() ? 'Jadwal diaktifkan.' : 'Jadwal dijeda.')->success()->send();
                         }),
                     EditAction::make()->modalWidth('3xl')
-                        ->mutateRecordDataUsing(fn (array $data, PadelRecurringSchedule $record) => RecurringScheduleService::formState($record))
+                        ->mutateRecordDataUsing(fn (array $data, PadelRecurringSchedule $record) => self::periodState($record) + RecurringScheduleService::formState($record))
                         ->mutateDataUsing(fn (array $data, PadelRecurringSchedule $record, EditAction $action) => self::normalizeOrHalt($data, $action, $record))
                         ->using(function (PadelRecurringSchedule $record, array $data) {
                             self::notifyUpdated(app(RecurringScheduleService::class)->updateSchedule($record, $data, auth()->user()));
@@ -236,7 +305,7 @@ class PadelRecurringScheduleResource extends Resource
     public static function normalizeOrHalt(array $data, Action $action, ?PadelRecurringSchedule $record = null): array
     {
         try {
-            return app(RecurringScheduleService::class)->normalize($data, $record);
+            return app(RecurringScheduleService::class)->normalize(self::periodToEndsOn($data), $record);
         } catch (HttpException $e) {
             Notification::make()->title('Belum bisa disimpan')->body($e->getMessage())->danger()->send();
             $action->halt();
@@ -327,19 +396,79 @@ class PadelRecurringScheduleResource extends Resource
         }
     }
 
-    /** Tanggal main 12 minggu ke depan (hari jadwal ini) untuk "Lewati tanggal". */
-    private static function upcomingDateOptions(PadelRecurringSchedule $schedule): array
+    /**
+     * Tanggal main 12 minggu ke depan (hari jadwal ini) untuk "Lewati tanggal". Tanggal yang semua lapangannya sudah
+     * dilewati tidak ditampilkan lagi (muncul kembali setelah "Batal lewati"), begitu juga hari ini bila jam mainnya
+     * sudah dimulai (skip() menolaknya).
+     */
+    public static function upcomingDateOptions(PadelRecurringSchedule $schedule): array
     {
+        $courts = count((array) $schedule->court_ids);
+        $skipped = $schedule->occurrences()->where('status', PadelRecurringOccurrence::STATUS_SKIPPED)
+            ->whereDate('occurrence_date', '>=', now()->toDateString())
+            ->get(['occurrence_date', 'court_id'])
+            ->groupBy(fn (PadelRecurringOccurrence $o) => $o->occurrence_date->toDateString())
+            ->filter(fn ($rows) => $rows->pluck('court_id')->intersect((array) $schedule->court_ids)->unique()->count() >= $courts)
+            ->keys()->all();
+
+        // Jam kuota yang sudah terpotong per tanggal (booking yang sudah dibuat) → dikembalikan bila tanggal itu dilewati.
+        $bookedHours = \App\Models\Padel\PadelBooking::where('recurring_schedule_id', $schedule->id)
+            ->whereDate('booking_date', '>=', now()->toDateString())
+            ->whereNotIn('status', ['CANCELLED', 'EXPIRED', 'REFUNDED'])
+            ->get(['booking_date', 'member_hours_consumed'])
+            ->groupBy(fn ($b) => $b->booking_date->toDateString())
+            ->map(fn ($rows) => (float) $rows->sum('member_hours_consumed'));
+
         $options = [];
         $date = $schedule->firstDateOnOrAfter(now()->startOfDay()->max($schedule->starts_on->copy()->startOfDay()));
         for ($i = 0; $i < 12; $i++, $date = $date->copy()->addWeek()) {
             if ($schedule->ends_on && $date->gt($schedule->ends_on)) {
                 break;
             }
-            $options[$date->toDateString()] = $date->translatedFormat('l, d M Y');
+            if (in_array($date->toDateString(), $skipped, true) || Carbon::parse($date->toDateString().' '.$schedule->start_time)->lte(now())) {
+                continue;
+            }
+            $hours = $bookedHours->get($date->toDateString());
+            $options[$date->toDateString()] = $date->locale('id')->translatedFormat('l, d M Y').($hours !== null
+                ? ' — sudah dibooking, '.self::num($hours).' jam kuota dikembalikan'
+                : ' — belum dibooking, kuota belum terpotong');
         }
 
         return $options;
+    }
+
+    /**
+     * Keterangan di bawah sisa kuota: cukup sampai akhir periode, atau sampai tanggal berapa kuota menutup jadwal ini
+     * (RecurringScheduleService::quotaForecast) — supaya kuota bisa ditambah sebelum minggunya gagal dibuat.
+     */
+    private static function forecastLabel(PadelRecurringSchedule $schedule): ?\Illuminate\Support\HtmlString
+    {
+        $service = app(RecurringScheduleService::class);
+        $forecast = $service->quotaForecast($schedule);
+        if ($forecast === null) {
+            $left = $service->weeksLeft($schedule);
+
+            return $left === null ? null : new \Illuminate\Support\HtmlString(e('≈ '.$left['weeks'].' minggu lagi'.($left['leftover'] > 0 ? ' + '.self::num($left['leftover']).' jam' : '')));
+        }
+
+        $day = fn (Carbon $d) => $d->locale('id')->translatedFormat('D, d M Y');
+        if ($forecast['shortfall'] <= 0) {
+            return new \Illuminate\Support\HtmlString('<span style="color:#047857;">'.e('Kuota cukup sampai akhir periode'
+                .($forecast['period_end'] ? ' ('.$day($forecast['period_end']).')' : '')).'</span>');
+        }
+
+        $parts = ['Kuota kurang '.self::num($forecast['shortfall']).' jam'.($forecast['period_end'] ? ' untuk sampai '.$day($forecast['period_end']) : '').'.'];
+        if ($forecast['covered_until']) {
+            $parts[] = 'Cukup sampai '.$day($forecast['covered_until']).'.';
+        }
+        if ($forecast['partial']) {
+            $parts[] = $day($forecast['partial']['date']).': hanya '.$forecast['partial']['courts'].' dari '.$forecast['partial']['of'].' lapangan.';
+        }
+        if ($forecast['first_missing']) {
+            $parts[] = $day($forecast['first_missing']).' dst. tidak akan dibuat.';
+        }
+
+        return new \Illuminate\Support\HtmlString('<span style="color:#B42318; font-weight:600;">'.e(implode(' ', $parts)).'</span>');
     }
 
     private static function courtNames(PadelRecurringSchedule $schedule): string

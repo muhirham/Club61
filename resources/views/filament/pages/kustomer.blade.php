@@ -25,7 +25,8 @@
             $habit = $this->memberHabitAnalysis;
             $bookings = $this->memberBookings;
             $checkins = $this->memberCheckins;
-            $roster = $this->corporateRoster;
+            $team = $this->corporateTeam;
+            $roster = $team['members'];
             $padelBal = $m->balances->firstWhere('facility', 'PADEL');
             $gymBal = $m->balances->firstWhere('facility', 'GYM');
             $saunaBal = $m->balances->firstWhere('facility', 'SAUNA');
@@ -297,22 +298,33 @@
                         <span class="c61-pill c61-pill-terra">Corporate Sponsor Pool System</span>
                         <div class="c61-card-title" style="font-size: 1.375rem; margin-top: 0.5rem;">Daftar Anggota Karyawan &amp; Pemantauan Kuota Tim</div>
                         <div class="c61-card-sub">
-                            Admin Sponsor (PIC HR) mendaftarkan personil untuk memanfaatkan kuota blok jam perusahaan. Sistem memantau anggota yang aktif bermain dan yang pasif/kosong.
+                            @if ($team['organization'])
+                                {{ $team['organization']->name }} &bull; PIC: {{ $team['organization']->sponsorAdmin->name ?? '-' }}.
+                            @endif
+                            Kuota jam kartu dipakai langsung lewat Jadwal Tetap Mingguan / booking atas nama kartu, atau diberikan ke anggota karyawan melalui menu Kelola Sponsor.
                         </div>
                     </div>
 
+                    @php $hours = fn ($v) => $v === null ? '-' : number_format((float) $v, 1, ',', '.').' Jam'; @endphp
                     <div class="kus-stats c61-note">
                         <div>
-                            <div class="k">Total Kuota Pool</div>
-                            <div class="v" style="color: var(--c-terra);">120.0 Jam</div>
+                            <div class="k">Kuota Kontrak</div>
+                            <div class="v" style="color: var(--c-terra);">{{ $hours($team['total_quota']) }}</div>
                         </div>
                         <div>
-                            <div class="k">Terpakai Tim</div>
-                            <div class="v" style="color: #B42318;">12.0 Jam</div>
+                            <div class="k">Dipakai Jadwal Tetap / Kartu</div>
+                            <div class="v" style="color: #B42318;">{{ $hours($team['direct_used']) }}</div>
                         </div>
                         <div>
-                            <div class="k">Sisa Kuota Bersama</div>
-                            <div class="v" style="color: #047857;">108.0 Jam</div>
+                            <div class="k">Diberikan ke Karyawan</div>
+                            <div class="v">{{ $hours($team['released']) }}</div>
+                            @if ($team['released'] > 0)
+                                <div style="font-size: 0.6875rem; color: var(--c-muted);">terpakai {{ $hours($team['used']) }}</div>
+                            @endif
+                        </div>
+                        <div>
+                            <div class="k">Sisa Kuota</div>
+                            <div class="v" style="color: #047857;">{{ $hours($team['remaining']) }}</div>
                         </div>
                     </div>
                 </div>
@@ -320,10 +332,71 @@
 
             <div class="c61-card">
                 <div class="c61-card-head">
-                    <div class="c61-card-title">Daftar Karyawan Terdaftar ({{ count($roster) }} Orang)</div>
-                    <div class="c61-card-sub" style="margin: 0;">Status: 3 Aktif Bermain &bull; 3 Kosong / Pasif Gak Ada Kabar</div>
+                    <div class="c61-card-title">Jadwal Tetap Mingguan ({{ count($team['schedules']) }})</div>
+                    <div class="c61-card-sub" style="margin: 0;">Booking otomatis atas nama kartu, dipotong dari kuota jam kartu. Diatur di menu Booking Mingguan.</div>
                 </div>
 
+                @if ($team['schedules'] === [])
+                    <div class="c61-card-body">
+                        <div class="c61-note">Kartu ini belum memiliki Jadwal Tetap Mingguan.</div>
+                    </div>
+                @else
+                    <div class="c61-table-wrap">
+                        <table class="c61-table">
+                            <thead>
+                                <tr>
+                                    <th>Nama Jadwal</th>
+                                    <th>Hari &amp; Jam</th>
+                                    <th>Lapangan</th>
+                                    <th>Status</th>
+                                    <th>Jadwal Terakhir Main</th>
+                                    <th>Jadwal Selanjutnya</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($team['schedules'] as $s)
+                                    <tr>
+                                        <td><div class="strong">{{ $s['name'] }}</div></td>
+                                        <td>
+                                            <div class="strong">{{ $s['schedule'] }}</div>
+                                            <div class="sub">{{ $s['hours_per_week'] }} jam per minggu</div>
+                                        </td>
+                                        <td>{{ $s['courts'] }}</td>
+                                        <td>
+                                            @if ($s['status'] === \App\Models\Padel\PadelRecurringSchedule::STATUS_ACTIVE)
+                                                <span class="c61-pill c61-pill-ok">AKTIF</span>
+                                            @elseif ($s['status'] === \App\Models\Padel\PadelRecurringSchedule::STATUS_PAUSED)
+                                                <span class="c61-pill c61-pill-cream">DIJEDA</span>
+                                            @else
+                                                <span class="c61-pill c61-pill-gray">DIHENTIKAN</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $s['last_played'] ?? 'Belum pernah main' }}</td>
+                                        <td style="font-weight: 700; color: var(--c-terra);">{{ $s['next_schedule'] ?? 'Tidak ada jadwal' }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @endif
+            </div>
+
+            <div class="c61-card">
+                <div class="c61-card-head">
+                    <div class="c61-card-title">Daftar Karyawan Terdaftar ({{ count($roster) }} Orang)</div>
+                    @if ($roster !== [])
+                        <div class="c61-card-sub" style="margin: 0;">Status: {{ $team['active_count'] }} Aktif Bermain &bull; {{ $team['idle_count'] }} Belum Pernah Main</div>
+                    @endif
+                </div>
+
+                @if ($roster === [])
+                    <div class="c61-card-body">
+                        <div class="c61-note">
+                            Paket ini belum memakai daftar anggota karyawan. Kuota dipakai langsung lewat Jadwal Tetap Mingguan / booking atas nama kartu.
+                            Bila perusahaan ingin membagi jatah jam ke karyawan, tambahkan anggota melalui menu <strong>Kelola Sponsor</strong>.
+                        </div>
+                    </div>
+                @else
                 <div class="c61-table-wrap">
                     <table class="c61-table kus-members">
                         <thead>
@@ -334,56 +407,66 @@
                                 <th>Status Aktivitas</th>
                                 <th>Jadwal Terakhir Main</th>
                                 <th>Jadwal Selanjutnya</th>
-                                <th>Catatan</th>
                             </tr>
                         </thead>
                         <tbody>
+                            @php $num = fn ($v) => number_format((float) $v, 1, ',', '.'); @endphp
                             @foreach($roster as $r)
                                 <tr style="{{ $r['status'] === 'IDLE' ? 'background: #FEF6F5;' : '' }}">
                                     <td>
                                         <div class="strong">{{ $r['name'] }}</div>
-                                        <div class="sub">{{ $r['role'] }}</div>
                                     </td>
                                     <td>
-                                        <div>{{ $r['email'] }}</div>
-                                        <div class="sub" style="color: #047857; font-weight: 700;">{{ $r['phone'] }}</div>
+                                        <div class="strong" style="color: #047857;">{{ $r['phone'] ?? '-' }}</div>
+                                        @if ($r['email'])
+                                            <div class="sub">{{ $r['email'] }}</div>
+                                        @endif
                                     </td>
                                     <td>
-                                        <div class="strong"><span style="color: #B42318;">{{ $r['used_hours'] }} Jam</span> / {{ $r['allocated_hours'] }} Jam</div>
-                                        <div class="sub" style="color: #047857; font-weight: 700;">Sisa Jatah: {{ $r['remaining_hours'] }} Jam</div>
+                                        <div class="strong"><span style="color: #B42318;">{{ $num($r['used_hours']) }} Jam</span> / {{ $num($r['allocated_hours']) }} Jam</div>
+                                        <div class="sub" style="color: #047857; font-weight: 700;">Sisa Jatah: {{ $num($r['remaining_hours']) }} Jam</div>
                                     </td>
                                     <td>
                                         @if($r['status'] === 'ACTIVE')
                                             <span class="c61-pill c61-pill-ok">AKTIF BERMAIN</span>
+                                        @elseif($r['status'] === 'IDLE')
+                                            <span class="c61-pill c61-pill-danger">BELUM PERNAH MAIN</span>
                                         @else
-                                            <span class="c61-pill c61-pill-danger">KOSONG / PASIF</span>
+                                            <span class="c61-pill c61-pill-gray">NONAKTIF</span>
                                         @endif
                                     </td>
                                     <td>{{ $r['last_played'] ?? 'Belum pernah main' }}</td>
                                     <td style="font-weight: 700; color: var(--c-terra);">{{ $r['next_schedule'] ?? 'Tidak ada jadwal' }}</td>
-                                    <td style="font-size: 0.75rem; color: var(--c-muted); min-width: 200px;">{{ $r['notes'] }}</td>
                                 </tr>
                             @endforeach
                         </tbody>
                     </table>
                 </div>
+                @endif
             </div>
 
-            <div class="c61-card" style="border-left: 4px solid #10B981;">
-                <div class="c61-card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-                    <div style="max-width: 720px;">
-                        <div style="font-weight: 800; font-size: 0.9375rem;">Ada 3 Anggota Tim Belum Memakai Jatah Kuota</div>
-                        <div class="c61-card-sub">
-                            Kirim pesan pengingat ke Admin Sponsor / PIC HR agar jatah kuota dimanfaatkan oleh karyawan sebelum masa aktif 90 hari berakhir.
+            @php $picPhone = \App\Services\Coaching\CoachingReminder::waDigits($team['organization']?->sponsorAdmin?->phone ?? $m->user?->phone); @endphp
+            @if ($team['idle_count'] > 0 && $picPhone)
+                @php
+                    $waText = 'Halo Admin Sponsor '.$team['organization']->name.', dari Club 61. Masih ada '.$team['idle_count']
+                        .' anggota tim yang belum memakai jatah jam padel. Jatah dapat langsung dipakai untuk booking lapangan.';
+                @endphp
+                <div class="c61-card" style="border-left: 4px solid #10B981;">
+                    <div class="c61-card-body" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                        <div style="max-width: 720px;">
+                            <div style="font-weight: 800; font-size: 0.9375rem;">Ada {{ $team['idle_count'] }} Anggota Tim Belum Memakai Jatah Kuota</div>
+                            <div class="c61-card-sub">
+                                Kirim pesan pengingat ke Admin Sponsor / PIC agar jatah jam dimanfaatkan oleh karyawan sebelum masa berlakunya berakhir.
+                            </div>
                         </div>
-                    </div>
 
-                    <a href="https://wa.me/{{ preg_replace('/[^0-9]/', '', $m->user->phone ?? '081311223344') }}?text=Halo%20Admin%20Sponsor%20Club%2061%2C%20mengingatkan%20bahwa%20masih%20ada%20108%20Jam%20kuota%20Padel%20PT%20Sinar%20Harapan%20yang%20siap%20digunakan%20karyawan.%20Silakan%20reservasi%20lapangan%20sekarang."
-                       target="_blank" class="c61-btn c61-btn-lg" style="background: #047857; border-color: #047857; color: #FFFFFF;">
-                        <span>Blast Pengingat via WhatsApp &rarr;</span>
-                    </a>
+                        <a href="https://wa.me/{{ $picPhone }}?text={{ rawurlencode($waText) }}"
+                           target="_blank" rel="noopener" class="c61-btn c61-btn-lg" style="background: #047857; border-color: #047857; color: #FFFFFF;">
+                            <span>Kirim Pengingat via WhatsApp &rarr;</span>
+                        </a>
+                    </div>
                 </div>
-            </div>
+            @endif
         @endif
 
         <!-- SUB-TAB 3: KARTU DIGITAL & INFO ORDER -->
@@ -746,6 +829,8 @@
                                             <span class="c61-pill c61-pill-ok">TOPUP (ISI)</span>
                                         @elseif($log->change_type === 'REVERSAL')
                                             <span class="c61-pill c61-pill-info">REVERSAL (REFUND)</span>
+                                        @elseif($log->change_type === 'MANUAL_ADJUSTMENT')
+                                            <span class="c61-pill c61-pill-cream">PENYESUAIAN (ADMIN)</span>
                                         @elseif(str_contains($log->change_type, 'ROLLOVER'))
                                             <span class="c61-pill c61-pill-terra">{{ $log->change_type }}</span>
                                         @else

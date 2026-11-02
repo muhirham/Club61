@@ -40,6 +40,9 @@ class ShiftClosingService
     /** Benefit Rp0 (kuota member, voucher): bukan uang, tidak diketik. */
     public const TYPE_INFO = 'INFO';
 
+    /** Transfer Pelunasan Tagihan Coaching (Modul 31): langsung ke rekening, dicek admin pada mutasi, tidak diketik kasir. */
+    public const TYPE_TRANSFER = 'TRANSFER';
+
     /** Mesin EDC di-settle saat tutup shift ini (cocokkan dengan struk settlement). */
     public const MODE_SETTLE = 'SETTLE';
 
@@ -512,6 +515,18 @@ class ShiftClosingService
             }
         }
 
+        // Modul 31: tagihan berkala Per Shift yang dicatat di shift ini jatuh tempo saat shift ditutup.
+        if ($shift->counter === 'PADEL_FRONTDESK') {
+            $academies = app(\App\Services\Coaching\CoachingBillingService::class)->unpaidSessions()
+                ->whereHas('coachingBooking', fn ($q) => $q->where('cashier_shift_id', $shift->getKey())
+                    ->where('billing_cycle', \App\Models\Coaching\CoachingAcademy::CYCLE_SHIFT))
+                ->with('coachingBooking.academy:id,name')->get()
+                ->map(fn ($b) => $b->coachingBooking->academy?->name ?? $b->coachingBooking->academy_name)->unique()->filter();
+            if ($academies->isNotEmpty()) {
+                $warnings[] = 'Tagihan coaching Per Shift dari shift ini belum dilunasi ('.$academies->implode(', ').'). Lakukan Pelunasan Tagihan Coaching sebelum menutup shift.';
+            }
+        }
+
         return $warnings;
     }
 
@@ -581,6 +596,10 @@ class ShiftClosingService
 
     private static function typeOf(string $key): string
     {
+        if ($key === PosCashierShift::TRANSFER_COACHING_KEY) {
+            return self::TYPE_TRANSFER;
+        }
+
         return str_starts_with($key, 'AUTO_') || in_array($key, self::AUTO_QRIS_KEYS, true) ? self::TYPE_AUTO : self::TYPE_MANUAL;
     }
 

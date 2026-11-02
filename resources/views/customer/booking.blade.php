@@ -35,12 +35,16 @@
 
                     {{-- Tanggal --}}
                     <div class="flex items-stretch gap-2 p-2.5 sm:p-3 border-b border-[#E6DAC0]">
-                        <button type="button" @click="openCalendarPicker()" title="{{ __('booking.calendar_title') }}" aria-label="{{ __('booking.calendar_open') }}"
-                                class="bk-tap relative shrink-0 w-11 sm:w-12 rounded-lg bg-[#F7F0DB] text-[#662721] hover:bg-[#F7F0DB] flex items-center justify-center transition-colors">
-                            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                            <input type="date" x-ref="calendarInput" :min="minDate" :max="maxDate" :value="activeDate" tabindex="-1" aria-hidden="true"
-                                   @change="onCalendarSelect($event.target.value)" class="absolute inset-0 opacity-0 pointer-events-none w-full h-full">
-                        </button>
+                        {{-- Input tanggal asli transparan DI ATAS ikon & bisa disentuh: iPhone / iPad (semua browser iOS = WebKit)
+                             hanya membuka pemilih tanggal bila input disentuh langsung — showPicker() / focus() dari tombol lain
+                             tidak membukanya. Desktop: klik tetap membuka kalender lewat showPicker(). --}}
+                        <div title="{{ __('booking.calendar_title') }}" data-calendar-picker
+                             class="bk-tap relative shrink-0 w-11 sm:w-12 rounded-lg bg-[#F7F0DB] text-[#662721] flex items-center justify-center transition-colors">
+                            <svg class="w-5 h-5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <input type="date" x-ref="calendarInput" :min="minDate" :max="maxDate" :value="activeDate" aria-label="{{ __('booking.calendar_open') }}"
+                                   @click="openCalendarPicker()" @change="onCalendarSelect($event.target.value)"
+                                   class="absolute inset-0 block w-full h-full min-w-0 opacity-0 cursor-pointer" style="font-size:16px;">
+                        </div>
                         <div id="date-tabs-slider" class="bk-scroll flex-1 min-w-0 flex gap-1.5 overflow-x-auto">
                             <template x-for="tab in dateTabs" :key="tab.date">
                                 <button type="button" :id="'date-tab-' + tab.date" @click="selectDate(tab.date)" :aria-pressed="activeDate === tab.date"
@@ -344,13 +348,12 @@
                     return tab ? `${tab.day}, ${tab.dayNum} ${tab.month}` : dateStr;
                 },
 
+                // Dipanggil saat input tanggal (transparan di atas ikon) diklik. Browser yang tidak mendukung showPicker()
+                // — iOS — sudah membuka pemilih tanggal bawaannya sendiri dari sentuhan itu.
                 openCalendarPicker() {
                     const input = this.$refs.calendarInput;
-                    if (!input) return;
-                    if (typeof input.showPicker === 'function') {
-                        try { input.showPicker(); return; } catch (e) { console.warn('showPicker error:', e); }
-                    }
-                    input.focus();
+                    if (!input || typeof input.showPicker !== 'function') return;
+                    try { input.showPicker(); } catch (e) { /* sudah terbuka / tidak didukung — pemilih bawaan tetap jalan */ }
                 },
 
                 onCalendarSelect(val) {

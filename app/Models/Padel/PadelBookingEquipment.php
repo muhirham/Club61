@@ -42,4 +42,9 @@ class PadelBookingEquipment extends Model
     {
         return $this->belongsTo(CourtEquipment::class, 'equipment_id');
     }
+
+    public function order()
+    {
+        return $this->belongsTo(\App\Models\Pos\Order::class, 'order_id');
+    }
 }

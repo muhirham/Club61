@@ -162,6 +162,14 @@
                                     <div class="sub c61-truncate" style="color: var(--c-terra); font-family: var(--font-sans); font-weight: 600;"
                                         title="Jadwal Tetap: {{ $b->recurringSchedule->name }}">Jadwal Tetap · {{ $b->recurringSchedule->name }}</div>
                                 @endif
+                                @php
+                                    // Tambah Alat ke Booking: alat yang dibeli terpisah (transaksi lain) untuk booking ini.
+                                    $addonEquipments = $b->equipments->filter(fn ($e) => $e->order_id && $e->order_id !== $b->order_id && $e->order?->payment_status === 'PAID');
+                                @endphp
+                                @if ($addonEquipments->isNotEmpty())
+                                    <div class="sub c61-truncate" data-booking-addons style="color: #1E40AF; font-family: var(--font-sans); font-weight: 600;"
+                                        title="Tambahan alat (transaksi terpisah)">+ Alat: {{ $addonEquipments->map(fn ($e) => ($e->equipment?->name ?? 'Alat').' ×'.$e->quantity)->implode(', ') }} · Rp {{ number_format($addonEquipments->sum('subtotal'), 0, ',', '.') }}</div>
+                                @endif
                             </td>
                             <td>
                                 <div class="c61-truncate strong"
@@ -185,6 +193,9 @@
                             <td>
                                 @if ($b->status === 'PAID')
                                     <span class="c61-pill c61-pill-ok">Confirmed / Lunas</span>
+                                @elseif($b->status === 'PENDING_PAYMENT' && $b->coachingBooking?->isTab())
+                                    <span class="c61-pill c61-pill-cream" style="white-space: normal; height: auto; padding: 0.2rem 0.6rem;"
+                                        title="Dilunasi sekaligus di kasir melalui Pelunasan Tagihan Coaching">Tagihan Berkala · {{ $b->coachingBooking->academy?->name ?? $b->coachingBooking->academy_name }}</span>
                                 @elseif($b->status === 'PENDING_PAYMENT')
                                     <span class="c61-pill c61-pill-warn">Pending
                                         Payment</span>
@@ -244,7 +255,7 @@
                             </td>
                             <td>
                                 <div class="c61-actions">
-                                    @if ($this->canSettle && $b->order_id && ($b->status === 'PENDING_PAYMENT' || ($b->status === 'LOCKED' && $pendingAmount > 0)))
+                                    @if ($this->canSettle && $b->order_id && ! $b->coachingBooking?->isTab() && ($b->status === 'PENDING_PAYMENT' || ($b->status === 'LOCKED' && $pendingAmount > 0)))
                                         <button type="button" wire:click="checkMidtransPayment('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Cek Status Pembayaran ke Gateway"
                                             class="c61-icon-btn is-info">
@@ -335,7 +346,8 @@
                                         </button>
                                     @endif
 
-                                    @if ($this->canReschedule && in_array($b->status, ['PAID', 'LOCKED']) && (now()->gte(\App\Services\Padel\PadelBookingService::rescheduleDeadline($b)) || \App\Services\Padel\PadelBookingService::rescheduleLimitReached($b)))
+                                    @php $reschedulable = in_array($b->status, ['PAID', 'LOCKED']) || $this->isUnpaidCoachingTab($b); @endphp
+                                    @if ($this->canReschedule && $reschedulable && (now()->gte(\App\Services\Padel\PadelBookingService::rescheduleDeadline($b)) || \App\Services\Padel\PadelBookingService::rescheduleLimitReached($b)))
                                         {{-- Lewat batas reschedule (diatur admin lewat tombol Batas Reschedule di Jadwal Tetap Mingguan) atau sudah dipindah 3x → tombol nonaktif. --}}
                                         <button type="button" disabled
                                             title="{{ \App\Services\Padel\PadelBookingService::rescheduleLimitReached($b)
@@ -347,7 +359,7 @@
                                                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
                                         </button>
-                                    @elseif ($this->canReschedule && in_array($b->status, ['PAID', 'LOCKED']))
+                                    @elseif ($this->canReschedule && $reschedulable)
                                         <button type="button"
                                             wire:click="openRescheduleModal('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Pindah Jadwal (Reschedule) — sudah {{ (int) $b->reschedule_count }}/{{ \App\Services\Padel\PadelBookingService::MAX_RESCHEDULES }}x"
@@ -363,6 +375,15 @@
                                                 wire:target="openRescheduleModal('{{ $b->id }}')">
                                                 <svg class="c61-spin kp-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" style="opacity: 0.25;"></circle><path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" style="opacity: 0.75;"></path></svg>
                                             </span>
+                                        </button>
+                                    @endif
+
+                                    @if ($this->canCancelTabFor($b))
+                                        <button type="button" wire:click="openCancelTabModal('{{ $b->id }}')" wire:loading.attr="disabled"
+                                            title="Batalkan Sesi Tagihan Berkala" class="c61-icon-btn is-danger">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                            </svg>
                                         </button>
                                     @endif
 
@@ -540,8 +561,23 @@
                         @endif
                     </div>
 
+                    <!-- Sesi tagihan berkala coaching (Modul 31): belum dibayar → tidak ada selisih / hangus, tarif sesi ikut jadwal baru. -->
+                    @if (!empty($availableSlots) && $rescheduleStartTime && !empty($rescheduleQuote) && ! empty($selectedBookingData['is_tab']))
+                        @php
+                            $rp = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
+                            $row = 'display:flex; justify-content:space-between; font-size:0.75rem; color:#4B5563; margin-bottom:0.25rem;';
+                        @endphp
+                        <div style="border-radius: 12px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #BFDBFE; background: #EFF6FF;">
+                            <div style="{{ $row }}"><span>Tarif sesi saat ini (belum dibayar):</span><span style="font-weight:700;">{{ $rp($selectedBookingData['original_court_fee']) }}</span></div>
+                            <div style="{{ $row }}"><span>Tarif sesi di jadwal baru:</span><span style="font-weight:700;">{{ $rp($rescheduleQuote['estimated_fee'] ?? 0) }}</span></div>
+                            <div style="border-top: 1px dashed #93C5FD; padding-top: 0.5rem; margin-top:0.35rem; font-size: 0.6875rem; color: #1E3A8A; line-height: 1.45;">
+                                Sesi ini tercatat pada <b>Tagihan Berkala</b> academy dan belum dibayar, jadi tidak ada selisih yang ditagih atau hangus.
+                                Tagihan transaksi ini (saat ini {{ $rp($selectedBookingData['tab_total'] ?? 0) }}) menyesuaikan tarif jadwal baru beserta pajak &amp; biaya layanannya,
+                                dan jatuh temponya mengikuti jadwal baru.
+                            </div>
+                        </div>
                     <!-- Perhitungan Selisih Tarif (rumus sama persis dengan yang ditagih: PadelBookingService::quoteReschedule) -->
-                    @if (!empty($availableSlots) && $rescheduleStartTime && !empty($rescheduleQuote))
+                    @elseif (!empty($availableSlots) && $rescheduleStartTime && !empty($rescheduleQuote))
                         @php
                             $q = $rescheduleQuote;
                             $rp = fn ($v) => 'Rp ' . number_format((float) $v, 0, ',', '.');
@@ -704,6 +740,38 @@
                     <button type="button" wire:click="executeCancelRefund" wire:loading.attr="disabled" class="c61-btn c61-btn-danger">
                         <span wire:loading.remove wire:target="executeCancelRefund">Batalkan &amp; Ajukan Refund</span>
                         <span wire:loading wire:target="executeCancelRefund">Membatalkan...</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- MODAL BATALKAN SESI TAGIHAN COACHING (Modul 31) -->
+    @if ($showCancelTabModal)
+        <div class="c61-modal-backdrop" style="z-index: 99999;">
+            <div class="c61-modal is-danger" style="max-width: 480px;">
+                <div class="c61-modal-head">
+                    <div>
+                        <div class="c61-modal-eyebrow">Tagihan Coaching &bull; Belum Dibayar</div>
+                        <div class="c61-modal-title">Batalkan Sesi Tagihan Berkala</div>
+                    </div>
+                    <button type="button" wire:click="$set('showCancelTabModal', false)" class="c61-modal-close">&times;</button>
+                </div>
+                <div class="c61-modal-body">
+                    <div class="c61-note c61-note-orange">
+                        Seluruh jam dalam transaksi ini dihapus dari tagihan academy dan slot kembali tersedia. Tidak ada refund karena sesi belum dibayar.
+                        Pembatalan hanya dapat dilakukan sebelum batas waktu reschedule; setelah itu atau apabila tidak hadir, sesi tetap ditagihkan.
+                    </div>
+                    <div class="c61-field">
+                        <label class="c61-label">Alasan (wajib):</label>
+                        <textarea wire:model="cancelTabReason" rows="2" maxlength="255" placeholder="Contoh: coach berhalangan, jadwal dipindah ke Kamis" class="c61-textarea"></textarea>
+                    </div>
+                </div>
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="$set('showCancelTabModal', false)" class="c61-btn c61-btn-ghost">Tutup</button>
+                    <button type="button" wire:click="executeCancelTab" wire:loading.attr="disabled" wire:target="executeCancelTab" class="c61-btn c61-btn-danger">
+                        <span wire:loading.remove wire:target="executeCancelTab">Batalkan Sesi</span>
+                        <span wire:loading wire:target="executeCancelTab">Membatalkan...</span>
                     </button>
                 </div>
             </div>

@@ -442,7 +442,9 @@ class RefundRequestAndCreditVoucherTest extends TestCase
         $booking->update(['status' => 'REFUND_PENDING', 'cancel_reason' => 'Diajukan customer H-3 (fitur lama)']);
 
         $this->actingAs($this->owner);
+        // Periode "Semua": booking 2 hari lalu bisa jatuh di bulan sebelumnya (default = bulan berjalan).
         Livewire::test(KelolaPemesanan::class)
+            ->set('period', 'all')
             ->call('setTab', 'CANCELLED')
             ->assertSee('Ajukan Pembatalan &amp; Refund', false)
             ->call('openCancelRefundModal', $booking->id)

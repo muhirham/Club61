@@ -227,6 +227,16 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
 - **DOKU SNAP VA Mandiri / BRI / BNI / BSI (22 Okt 2026, belum diuji sandbox):** Partner Service ID (BIN) + prefix customer no. per bank diisi admin di form Edit metode VA-nya, bagian "DOKU SNAP" (tampil hanya saat DOKU dipakai di Gateway Pembayaran; ubah butuh izin `manage_payment_gateway`, log KRITIS), disimpan di `payment_gateway_settings.doku_snap_va` (migrasi 2026_10_22_120001). Bank yang kosong tetap DOKU Checkout; kolom "Jalur DOKU" (saat DOKU dipakai) menunjukkan SNAP / Checkout. BSI: metode bawaan baru `BSI_SYARIAH_VA` (DOKU saja, nonaktif; kanal SNAP `VIRTUAL_ACCOUNT_BSI`), "VA Bank Lain" di DOKU jadi Permata saja. Invoice: langkah bayar umum untuk VA selain BCA. POS: SNAP otomatis kalau "QR otomatis di kasir" = DOKU.
   - Pengingat di POS: shift dibuka sejak kemarin / > 12 jam, EDC belum di-settle menjelang 22.00, EDC kemarin belum di-settle saat buka shift.
   - Halaman Keuangan → **Review Shift Kasir** + detail shift. Z-Report bisa dicetak di kedua loket.
+  - **Perbaikan shift lupa ditutup** (1 Nov 2026, tanpa migrasi; kasus production shift dibuka 30 Okt belum ditutup):
+    Cetak Rekap (Rekap Penjualan Harian / X-Report) sekarang per tanggal kalender — shift yang sempat buka di tanggal
+    itu (termasuk shift hari sebelumnya yang belum ditutup), hanya pembayaran yang dibayar di tanggal itu, periode
+    00:00–23:59 bila shift melewati pergantian hari; struk menulis "Shift sejak dd/mm HH:MM — BELUM DITUTUP". Dulu
+    hanya shift yang DIBUKA di tanggal itu → tanggal berikutnya "Belum Ada Shift" dan tanggal buka ikut menghitung semua
+    hari. Shift yang masih buka sejak sebelum hari ini juga dicetak bagian **SHIFT BELUM DITUTUP**: total seluruh
+    shift sejak dibuka s/d sekarang per metode (kelompok sama dengan form Tutup Shift), untuk dicocokkan dengan jumlah
+    struk settlement EDC / mutasi QRIS saat menutup shift. Shift normal (buka & tutup di hari yang sama) angkanya tidak berubah. Rekap Shift Kasir: kolom Penjualan
+    shift yang masih buka = total berjalan (dulu Rp 0 sampai ditutup). Data tidak diubah — shift lama cukup ditutup
+    biasa (angka settlement EDC / mutasi QRIS seluruh periode dijumlahkan), selisih → Perlu Review.
 - [ ] **Riwayat shift kasir Fase 2:** filter lengkap, Excel per shift, cetak ulang Z dari panel, kasir melihat shift miliknya. **Fase 3:** Tutup Harian per tanggal (dana masuk rekening H+1, MDR) + Excel per hari + kolom Shift di Excel Buku Transaksi.
 - [ ] **Split bill** EQUAL & BY_ITEM (SKEMA SAJA).
 - [ ] Keranjang terpadu (padel + kafe + raket + merch dalam 1 struk).
@@ -271,6 +281,23 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
 - [x] Pajak & biaya layanan dari Pengaturan Biaya & Pajak.
 - [x] Shift kasir + ringkasan tutup shift.
 - [x] Struk cetak.
+- [x] **Tambah Alat ke Booking** (1 Nov 2026, tanpa migrasi; izin `add_booking_equipment`, tidak masuk role bawaan —
+  dicentang manual oleh super admin): tombol "+ Tambah Alat ke Booking" di baris tanggal POS Walk-In. Alur kasir yang
+  sama tanpa memilih lapangan: 1 pilih booking hari ini / ke depan — yang sudah lewat tidak bisa (ketuk blok booking di jadwal / cari kode, nama, HP; hasil cari menampilkan tanggal), customer
+  otomatis dari booking, 3 pilih alat, 4 layar pembayaran yang sama (QRIS otomatis payment gateway / QRIS statis / EDC). QR otomatis: order alat menunggu sampai lunas — batal / kedaluwarsa → order batal & stok bola kembali; alat dari order yang belum lunas tidak dihitung saat check-in, retur, maupun di Kelola Pemesanan.
+  - Booking lunas / sudah check-in → transaksi baru (order WALK_IN berisi alat saja) masuk shift yang buka, struk
+    "Tambahan Alat untuk Booking", Riwayat Transaksi jenis "Tambahan Alat". Order & pembayaran booking lama tidak diubah.
+  - Sesi coaching Tagihan Berkala yang belum dilunasi → alat masuk order tagihannya (pajak & biaya layanan dihitung
+    ulang sekali per transaksi), ikut ditagih di Pelunasan Tagihan Coaching & invoice.
+  - Stok: bola dipotong saat itu; raket / handuk saat itu bila sudah check-in, selain itu saat check-in. Check-in &
+    retur alat sekarang juga membaca alat yang ditautkan ke booking lewat transaksi terpisah.
+  - Server mengecek ulang di dalam kunci: booking hari ini & statusnya, cara bayar (transaksi baru / tagihan), stok,
+    dan total yang tampil di layar. Kelola Pemesanan menampilkan "+ Alat: … · Rp …" di bawah kode booking.
+  - Belum: refund booking tidak ikut mengembalikan uang tambahan alat (transaksi terpisah).
+- [x] **Perapian UI tablet POS** (1 Nov 2026, hanya tampilan): di layar sentuh, sidebar halaman POS otomatis diciutkan
+  sampai lebar 1440px (dulu hanya 1024–1279px); aturan "layar pendek" laptop tidak lagi mengecilkan tombol & kotak jam
+  di tablet; semua tombol ≥44px (tombol +/− alat 48px dengan jarak 12px, tombol hapus slot, voucher, ganti customer);
+  teks kotak jam lebih besar; banner peringatan shift lebih tipis. Laptop / PC tidak berubah.
 
 ---
 
@@ -290,7 +317,30 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
   GAGAL dan dicoba lagi, tidak pernah jadi tagihan. Lewati tanggal (booking dibatalkan, jam kembali) & batal lewati.
   Batas reschedule sekarang SATU pengaturan global untuk semua booking (tombol Batas Reschedule di Jadwal Tetap Mingguan,
   jam / hari, bawaan 2 jam, izin `manage_booking_time_limits`); lewat batas, tombol Reschedule di Kelola Pemesanan
-  nonaktif & server menolak. Belum: kuota off-peak IM3 Premium (menunggu klien), blokir tanggal Grand Opening.
+  nonaktif & server menolak. Belum: kuota off-peak IM3 Premium (menunggu klien).
+- [x] **Batas tanggal booking & tanggal tutup** (hotfix Grand Opening, 1 Nov 2026, PR #26, tanpa migrasi): `.env`
+  `BOOKING_OPEN_UNTIL` (tanggal main terakhir yang boleh dibooking), `BOOKING_CLOSED_DATES` (tutup sehari penuh,
+  dipisah koma), `BOOKING_CLOSED_REASON` (keterangan di pesan) lewat `App\Support\BookingWindow` + `config/booking_window.php`.
+  Jadwal Tetap pada tanggal tutup dilewati tanpa memotong kuota. Setelah diubah: `php artisan config:cache`, cek dengan
+  `php artisan booking:window`.
+- [x] **Jadwal Tetap Mingguan — perbaikan** (1 Nov 2026, tanpa migrasi baru):
+  - Form punya bagian **Lama jadwal**: Sampai membership habis / Selama N minggu / Sampai tanggal tertentu. Dulu jadwal
+    selalu berjalan sampai masa aktif membership habis. Isian lama "minggu ke depan" diganti nama **Kunci slot lebih
+    dulu**: hanya seberapa jauh booking dibuat di depan (bergulir tiap malam), bukan lama jadwal. Jadwal lama di production
+    terbaca otomatis (tanggal akhir = akhir membership → "Sampai membership habis"); tidak ada data yang diubah.
+  - **Lewati tanggal**: tanggal yang sudah dilewati tidak muncul lagi di pilihan; label tiap tanggal menjelaskan
+    "sudah dibooking, X jam kuota dikembalikan" atau "belum dibooking, kuota belum terpotong". Batal lewati tetap ada.
+  - **Perkiraan kuota** di tabel: kolom Periode menampilkan "booking dibuat s/d …"; kolom Sisa kuota menampilkan
+    "Kuota cukup sampai akhir periode" (hijau) atau "Kuota kurang X jam … Cukup sampai … hanya n dari m lapangan …
+    dst. tidak akan dibuat" (merah). Dihitung per tanggal lalu per lapangan seperti pembuat booking, melewati tanggal
+    yang dilewati / tutup, menggabungkan semua jadwal aktif satu membership (kuotanya satu). Hanya perkiraan: jam yang
+    dirilis ke karyawan sponsor ikut memakai kuota yang sama.
+- [x] **Kustomer → tab Anggota Tim Sponsor** (1 Nov 2026, tanpa migrasi): dulu daftar & KPI hardcoded (data contoh
+  sinarharapan.com). Sekarang data asli dari kartu corporate: KPI Kuota Kontrak / Dipakai Jadwal Tetap / Diberikan ke
+  Karyawan (+ terpakai) / Sisa Kuota, tabel **Jadwal Tetap Mingguan** (sponsor tanpa anggota, mis. IM3, tetap terbaca),
+  tabel anggota dengan status Aktif Bermain / Belum Pernah Main / Nonaktif, pengingat WhatsApp ke PIC hanya bila ada
+  anggota yang belum main. **Jam favorit** customer dihitung dari booking asli (jam mulai terbanyak, booking lunas /
+  check-in / selesai).
 
 ---
 
@@ -474,6 +524,7 @@ PRD: [`PRD_MODUL_28_HASIL_MEETING_TRAINING_28_OKT_2026.md`](PRD_MODUL_28_HASIL_M
 - [x] **Revoke dihapus** dari portal corporate (tombol & endpoint API). Anggota lama berstatus REVOKED tetap bisa diaktifkan lagi.
 - [~] ~~Selisih prime → regular jadi voucher~~ — batal (28 Okt 2026); selisih tetap HANGUS.
 - [x] **Batch 2 — aturan akses paket** (migrasi `2026_10_29_100001`): benefit Padel paket punya satu pilihan **Waktu Berlaku** (Kapan saja / Hanya di luar jam peak / Hanya di jam peak / Atur manual hari + jam 24 jam) dengan ringkasan "Paket Dapat Digunakan" dan tolak simpan kalau nol jam; satu pengecek `PadelAccessRule` dipakai checkout online, kasir Walk-In, **voucher jam karyawan corporate** (dulu tidak dicek), reschedule & Jadwal Tetap. Di luar aturan = harga normal + alasan di layar. Kartu memegang salinan aturan saat dibeli; tombol **Terapkan Aturan** (izin `apply_membership_plan_rules`, super admin) menyamakan kartu aktif dengan paket terbaru.
+- [x] **Terapkan Kuota & Masa Aktif** (31 Okt 2026, tanpa migrasi baru): tombol di Paket Membership (izin `apply_membership_plan_quota`, bawaan super admin saja; izinnya dibuat oleh migrasi `2026_10_31_100001` saat deploy). Pratinjau per kartu dulu, lalu kartu aktif / menunggu bayar disamakan dengan kuota & masa aktif paket terbaru: selisih kuota ditambahkan ke sisa (jam terpakai tetap dihitung, tidak pernah minus), tanggal berakhir = tanggal mulai + masa aktif paket (dilewati bila sudah lewat, atau bila kartu sudah pernah diperpanjang supaya masa perpanjangan tidak terpotong). Kuota unlimited / jenis berbeda tidak disentuh; diskon & aturan akses tetap lewat Terapkan Aturan. Tercatat di Audit Log Mutasi Kuota ("PENYESUAIAN (ADMIN)") & Log Aktivitas. Bila member memakai kuota tepat saat diterapkan, semua dibatalkan dan admin diminta membuka ulang pratinjau. Sejak 1 Nov 2026: paket dikunci lebih dulu & kuota tiap kartu dibaca ulang di dalam kunci, jadi dua admin yang menerapkan bersamaan tidak menambah kuota dua kali (yang kedua ditolak); bila masa aktif kartu jadi lebih pendek, batas akhir Jadwal Tetap Mingguan kartu itu (aktif / dijeda) ikut dipotong — booking yang sudah dibuat setelahnya tidak dibatalkan, hanya diinfokan di pratinjau. Tabel Paket Membership: Edit + menu ⋯ (Terapkan Aturan / Terapkan Kuota & Masa Aktif / Hapus); tombol Terapkan hanya untuk paket yang sudah terjual, tombol simpan disembunyikan bila tidak ada kartu yang berubah, kolom Catatan hanya bila ada catatan.
 - [x] **Saluran Penjualan paket**: *Khusus Front Desk / Admin* tidak tampil & tidak bisa dibeli di web / aplikasi (dicek di server); bawaan *Online (Web & Aplikasi) dan Front Desk* = perilaku lama.
 - [ ] Waktu Berlaku untuk gym & wellness; menu Jadwal Akses Sponsor (dibiarkan dulu). Master Data Jam Peak tiap server disesuaikan proposal harga (peak hanya Sen–Jum 17–24).
 - [x] **Batch 3 — Monitoring Lapangan Harian / Mingguan / Bulanan** (`ScheduleOverview`): grid jam × hari dengan warna jenis booking, kalender bulanan dengan jumlah booking & persen terisi (klik tanggal → daftar / Buka Harian), Rekap Pemain, filter lapangan / jenis / cari. Hanya baca; export ditunda.
@@ -556,6 +607,40 @@ Migrasi `2026_10_29_100003_create_fnb_stock_and_cashbook_tables`. Sidebar mendap
   - Dua bahasa: `lang/en/passwords.php` memakai satu pesan untuk email terdaftar / tidak (anti tebak akun); request Livewire, `/pos`, `/kitchen` selalu Bahasa Indonesia walau browser pernah memilih EN; `lang.switch` hanya kembali ke halaman situs sendiri; pesan lupa / reset password ikut bahasa.
   - Modul 29: tanggal pengeluaran memakai WIB; pelunasan F&B mengunci menu berurutan id (anti deadlock), impor Excel mengunci semua menunya di awal; HPP Rp0 dihitung "belum memiliki HPP" + nama menunya ditampilkan; mengaktifkan ulang Lacak Persediaan menolkan stok lama lewat Kartu Stok (nilai 0, bukan kerugian); batal penerimaan tidak mengubah stok menu yang tidak dilacak; jenis kategori pengeluaran terkunci bila sudah ada catatan; batas angka (qty 100.000, harga Rp100 jt) di service, impor & opname; migrasi `2026_10_29_100003` aman dijalankan ulang bila sempat berhenti.
   - Lapangan: dropdown lapangan Kelola Pemesanan langsung diperbarui saat lapangan diubah; scope `ordered()` memakai nama kolom berprefix tabel.
+
+---
+## MODUL 31: TAGIHAN COACHING (TAGIHAN BERKALA ACADEMY)
+PRD: `docs/PRD_MODUL_31_TAGIHAN_COACHING.md`. Permintaan klien: booking coaching tidak ditagih per transaksi, tetapi digantung dan dilunasi sekaligus.
+- [x] **Tahap 1** (31 Okt 2026, migrasi `2026_10_31_100001`, hanya menambah):
+  - Menu Coaching → Academy: Metode Pembayaran (Bayar Langsung / Tagihan Berkala), Periode (Per Shift / Harian / Mingguan / Dua Mingguan + tanggal mulai siklus), sakelar blok booking bila tagihan lewat jatuh tempo. Academy baru default Tagihan Berkala – Per Shift; academy lama tetap Bayar Langsung.
+  - POS Walk-In tab Coaching: academy Tagihan Berkala → "Catat ke Tagihan Berkala" tanpa EDC / QRIS (server yang menentukan dari pengaturan academy). Booking `PENDING_PAYMENT` tanpa batas bayar, order `UNPAID`, struk "Tagihan Berkala Academy (belum lunas)". Peringatan tagihan lewat jatuh tempo; blok bila sakelar aktif.
+  - Pengecualian di satu helper `CoachingBillingService`: tidak dilepas pembersih otomatis / keranjang customer, boleh check-in, tidak bisa dibayar online. Reschedule ikut aturan global (sejak 1 Nov 2026, lihat Perbaikan di bawah).
+  - Kelola Pemesanan: label "Tagihan Berkala · academy", tombol Batalkan Sesi Tagihan Berkala (sebelum batas waktu global; lewat batas / tidak datang tetap ditagih).
+  - Izin baru `settle_coaching_bill` (resepsionis, admin) & `View:TagihanCoaching` (admin) sudah didaftarkan untuk Tahap 2–3.
+- [x] **Tahap 2** (31 Okt 2026, tanpa migrasi baru):
+  - POS Walk-In → tombol **Pelunasan Tagihan Coaching** (izin `settle_coaching_bill`): pilih academy, centang transaksi yang dibayar (boleh sebagian), metode QRIS / Mesin EDC BCA / Transfer Bank (+ foto bukti wajib, disk privat). Satu bukti melunasi banyak transaksi; tiap order dilunasi lewat `PaymentOrchestratorService` (Buku Transaksi kategori Coaching, shift kasir yang buka). Nomor `TC-yymmdd-XXXXX`, bukti pelunasan bisa dicetak, Log Aktivitas `coaching_tab.settled`. Bukti (RRN / approval / referensi transfer) tidak bisa dipakai ulang.
+  - Tutup Shift: transfer pelunasan coaching = baris **Transfer Bank — Pelunasan Tagihan Coaching** (tidak diketik kasir, dicek admin pada mutasi rekening). Transfer lain (mis. selisih reschedule) tetap seperti sebelumnya. Peringatan bila tagihan Per Shift dari shift itu belum dilunasi.
+- [x] **Tahap 3** (31 Okt 2026, tanpa migrasi baru):
+  - Halaman **Coaching → Tagihan Coaching** (izin `View:TagihanCoaching`): KPI belum lunas / melewati jatuh tempo / dilunasi bulan ini, tabel sesi (filter academy, status, periode tanggal main), riwayat 30 pelunasan terakhir + unduh bukti transfer (disk privat).
+  - **Unduh Invoice PDF** per academy + periode: sesi belum lunas saja, memakai Template Invoice yang sama (`emails.invoice.pdf`) lewat isian opsional judul / status "Belum Lunas" / "Total tagihan" / catatan jatuh tempo — invoice lunas customer tidak berubah. Tercatat di Log Aktivitas.
+  - Tampilan: sesi tagihan berkala tampil sebagai booking (nama pemain + "Tagihan Berkala") di grid POS Walk-In, "TAGIHAN BERKALA" di Monitoring Lapangan, tidak bergaris putus di tampilan Mingguan, status "Tagihan Berkala" di Jadwal Coaching (dulu terbaca Hold / Menunggu bayar).
+- [x] **Perbaikan** (1 Nov 2026, tanpa migrasi baru):
+  - Sesi tagihan bisa di-reschedule di Kelola Pemesanan (batas waktu global, maks. 3x): tagihan ikut tarif jadwal baru, tanpa selisih / hangus, pajak & biaya layanan dihitung ulang sekali per transaksi, jatuh tempo dihitung ulang.
+  - Academy tidak bisa dihapus selama masih punya sesi tagihan belum lunas.
+  - Modal Pelunasan: bukti transfer tampil pratinjau foto + nama file + "Mengunggah…", langsung dicek saat dipilih.
+  - Pojok POS "Omzet Walk-In" hanya menghitung order lunas (tagihan coaching belum lunas / order batal tidak ikut).
+- [x] **Pemeriksaan keamanan sebelum rilis** (1 Nov 2026, tanpa migrasi baru): review seluruh perubahan Modul 31,
+  Terapkan Kuota, Kustomer & Jadwal Tetap. Hak akses dicek di server, tidak ada IDOR / XSS, upload bukti aman (gambar
+  maks. 4 MB, diproses ulang, disk privat), migrasi hanya menambah. Diperbaiki:
+  - Pelunasan: tombol Terima mengirim total yang tampil di layar; tagihan berubah sebelum ditekan (mis. sesi dipindah
+    jadwalnya) → ditolak "Total tagihan berubah dari … menjadi …", tidak ada yang tersimpan.
+  - Modal Pelunasan: daftar academy & tagihan kosong untuk user tanpa izin `settle_coaching_bill` walau dibuka paksa
+    dari browser; ringkasan pelunasan untuk dicetak tidak bisa diisi dari browser.
+  - Log Aktivitas reschedule sesi tagihan mencatat "tagihan Rp X → Rp Y", bukan selisih ditagih / hangus.
+  - **Keputusan:** Transfer Bank pelunasan belum punya tanda "sudah dicek mutasi"; admin mencocokkan manual dengan
+    bukti transfer di halaman Tagihan Coaching (opsi B, 1 Nov 2026).
+- **Izin Modul 31:** `manage_coaching` (pengaturan metode pembayaran academy), `book_coaching` (catat ke tagihan & batalkan sesi tagihan), `settle_coaching_bill` (Pelunasan Tagihan Coaching), `View:TagihanCoaching` (halaman, invoice, bukti transfer).
+- **Production:** hanya migrasi `2026_10_31_100001` (menambah kolom / tabel). Academy yang sudah ada tetap Bayar Langsung sampai diubah admin, jadi perilaku kasir tidak berubah setelah deploy. Jangan di-rollback setelah ada tagihan.
 
 ---
 ## MODUL 20: HALAMAN ADMIN PENDUKUNG

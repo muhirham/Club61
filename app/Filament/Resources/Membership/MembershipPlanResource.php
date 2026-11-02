@@ -12,6 +12,7 @@ use App\Services\Membership\MembershipFacilityService;
 use App\Services\Membership\PadelAccessRule;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Actions\ActionGroup;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -450,10 +451,17 @@ class MembershipPlanResource extends Resource
                     ->formatStateUsing(fn (?string $state) => MembershipPlan::SALES_CHANNELS[$state ?? MembershipPlan::SALES_ALL] ?? $state)
                     ->color(fn (?string $state) => $state === MembershipPlan::SALES_POS_ONLY ? 'warning' : 'gray'),
             ])
+            // in_use = masih ada kartu aktif / menunggu bayar → tombol Terapkan hanya muncul untuk paket yang sudah terjual.
+            ->modifyQueryUsing(fn ($query) => $query->withExists([
+                'userMemberships as in_use' => fn ($q) => $q->whereIn('status', MembershipPlan::IN_USE_STATUSES),
+            ]))
             ->recordActions([
                 EditAction::make(),
-                self::applyRulesAction(),
-                self::guardedDeleteAction(),
+                ActionGroup::make([
+                    self::applyRulesAction(),
+                    self::applyQuotaAction(),
+                    self::guardedDeleteAction(),
+                ])->tooltip('Aksi lainnya'),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
@@ -479,7 +487,7 @@ class MembershipPlanResource extends Resource
             ->label('Terapkan Aturan')
             ->icon('heroicon-o-arrow-path')
             ->color('warning')
-            ->visible(fn () => (bool) auth()->user()?->can('apply_membership_plan_rules'))
+            ->visible(fn (MembershipPlan $record) => (bool) auth()->user()?->can('apply_membership_plan_rules') && self::isSold($record))
             ->authorize(fn () => (bool) auth()->user()?->can('apply_membership_plan_rules'))
             ->requiresConfirmation()
             ->modalHeading(fn (MembershipPlan $record) => 'Terapkan aturan '.$record->name.' ke membership aktif?')
@@ -491,6 +499,51 @@ class MembershipPlanResource extends Resource
                 $result = app(MembershipBalanceService::class)->applyPlanAccessRules($record, auth()->user());
                 Notification::make()->title('Aturan paket diterapkan')
                     ->body("{$result['memberships']} membership kini mengikuti aturan terbaru paket {$record->name}.")
+                    ->success()->send();
+            });
+    }
+
+    /**
+     * Kuota & masa aktif kartu yang sudah terjual mengikuti paket saat dibeli; tombol ini (izin apply_membership_plan_quota,
+     * bawaan hanya super admin) menyamakannya dengan paket terbaru setelah admin melihat pratinjau per kartu.
+     */
+    public static function applyQuotaAction(): Action
+    {
+        return Action::make('applyQuota')
+            ->label('Terapkan Kuota & Masa Aktif')
+            ->icon('heroicon-o-adjustments-horizontal')
+            ->color('warning')
+            ->visible(fn (MembershipPlan $record) => (bool) auth()->user()?->can('apply_membership_plan_quota') && self::isSold($record))
+            ->authorize(fn () => (bool) auth()->user()?->can('apply_membership_plan_quota'))
+            ->modalHeading(fn (MembershipPlan $record) => 'Terapkan kuota & masa aktif '.$record->name.' ke kartu yang sudah terjual')
+            ->modalDescription('Periksa perubahan per kartu di bawah. Kuota yang sudah terpakai tetap dihitung; sisa kuota tidak pernah menjadi minus. Diskon dan aturan akses tidak berubah (gunakan Terapkan Aturan).')
+            ->modalContent(fn (MembershipPlan $record) => view('filament.resources.membership.plan-quota-preview', [
+                'rows' => app(\App\Services\Membership\MembershipPlanQuotaService::class)->preview($record),
+            ]))
+            ->modalWidth('4xl')
+            ->modalSubmitActionLabel('Ya, terapkan')
+            // Tidak ada kartu yang berubah → hanya tombol tutup.
+            ->modalSubmitAction(fn (Action $action, MembershipPlan $record) => collect(app(\App\Services\Membership\MembershipPlanQuotaService::class)->preview($record))
+                ->contains('changes', true) ? $action : false)
+            ->action(function (MembershipPlan $record) {
+                try {
+                    $result = app(\App\Services\Membership\MembershipPlanQuotaService::class)->apply($record, auth()->user());
+                } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                    if ($e->getStatusCode() !== 409) {
+                        throw $e;
+                    }
+                    Notification::make()->title('Belum diterapkan')->body($e->getMessage())->warning()->persistent()->send();
+
+                    return;
+                }
+                if ($result['memberships'] === 0) {
+                    Notification::make()->title('Tidak ada perubahan')->body("Semua kartu {$record->name} sudah sesuai dengan kuota & masa aktif paket.")->info()->send();
+
+                    return;
+                }
+                Notification::make()->title('Kuota & masa aktif diterapkan')
+                    ->body("{$result['memberships']} kartu diperbarui ({$result['quotas']} kuota, {$result['end_dates']} tanggal berakhir"
+                        .($result['schedules'] > 0 ? ", {$result['schedules']} batas akhir Booking Mingguan" : '').'). Rincian tercatat di Audit Log Mutasi Kuota & Log Aktivitas.')
                     ->success()->send();
             });
     }
@@ -508,6 +561,12 @@ class MembershipPlanResource extends Resource
                     $action->cancel();
                 }
             });
+    }
+
+    /** Paket sudah terjual (ada kartu aktif / menunggu bayar) — pakai in_use dari query tabel bila ada. */
+    private static function isSold(MembershipPlan $record): bool
+    {
+        return (bool) ($record->in_use ?? $record->isInUse());
     }
 
     private static function notifyPlanInUse(string $names): void

@@ -80,6 +80,11 @@ class KelolaPemesanan extends Page
     public string $refundCategory = 'PERMINTAAN_CUSTOMER';
     public string $refundNotes = '';
 
+    // Batalkan sesi tagihan berkala coaching (Modul 31) — belum dibayar, jadi tanpa refund.
+    public bool $showCancelTabModal = false;
+    public ?string $cancelTabBookingId = null;
+    public string $cancelTabReason = '';
+
     // Check-In Gate Modal State
     public bool $showCheckInModal = false;
     public string $checkInQuery = '';
@@ -220,6 +225,47 @@ class KelolaPemesanan extends Page
         );
     }
 
+    /** Sesi tagihan berkala coaching yang belum dilunasi (status PENDING_PAYMENT). */
+    public function isUnpaidCoachingTab(PadelBooking $booking): bool
+    {
+        return $booking->status === 'PENDING_PAYMENT' && (bool) $booking->coachingBooking?->isTab();
+    }
+
+    /** Sesi tagihan coaching yang belum lunas & belum dimulai (batas waktunya dicek lagi di server). */
+    public function canCancelTabFor(PadelBooking $booking): bool
+    {
+        return (bool) auth()->user()?->can('book_coaching')
+            && $booking->status === 'PENDING_PAYMENT'
+            && $booking->coachingBooking?->isTab()
+            && $booking->start_time->gt(now());
+    }
+
+    public function openCancelTabModal(string $bookingId): void
+    {
+        if ($this->deniedWithout('book_coaching')) {
+            return;
+        }
+        $this->cancelTabBookingId = PadelBooking::whereKey($bookingId)->value('id');
+        $this->cancelTabReason = '';
+        $this->showCancelTabModal = $this->cancelTabBookingId !== null;
+    }
+
+    public function executeCancelTab(\App\Services\Coaching\CoachingBillingService $billing): void
+    {
+        if ($this->deniedWithout('book_coaching')) {
+            return;
+        }
+
+        try {
+            $billing->cancelTab(PadelBooking::findOrFail($this->cancelTabBookingId), $this->cancelTabReason, auth()->user());
+            Cache::forget('kelola_pemesanan_tab_counts');
+            Notification::make()->title('Sesi Dibatalkan')->body('Sesi dihapus dari tagihan academy dan slot kembali tersedia.')->success()->send();
+            $this->showCancelTabModal = false;
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            Notification::make()->title('Tidak Bisa Dibatalkan')->body($e->getMessage())->danger()->send();
+        }
+    }
+
     public function getCanSettleProperty(): bool
     {
         return (bool) auth()->user()?->can('settle_unpaid_booking');
@@ -259,9 +305,11 @@ class KelolaPemesanan extends Page
             return;
         }
 
-        $booking = PadelBooking::with(['court', 'user', 'order'])->findOrFail($bookingId);
+        $booking = PadelBooking::with(['court', 'user', 'order', 'coachingBooking'])->findOrFail($bookingId);
+        // Modul 31: sesi tagihan berkala coaching belum dibayar juga boleh dipindah (tagihannya ikut tarif jadwal baru).
+        $isTab = $this->isUnpaidCoachingTab($booking);
 
-        if ($booking->status !== 'PAID') {
+        if ($booking->status !== 'PAID' && ! $isTab) {
             Notification::make()
                 ->title('Tidak Bisa Dipindah')
                 ->body($booking->status === 'LOCKED' && $booking->reschedule_count > 0
@@ -315,6 +363,8 @@ class KelolaPemesanan extends Page
             'original_benefit' => (float) $booking->member_discount_court + (float) $booking->sponsor_discount_court,
             'duration_hours' => $this->rescheduleDurationHours,
             'reschedule_count' => (int) $booking->reschedule_count,
+            'is_tab' => $isTab,
+            'tab_total' => $isTab ? (float) $booking->order?->grand_total : null,
         ];
 
         $this->rescheduleReason = '';
@@ -445,6 +495,8 @@ class KelolaPemesanan extends Page
             Notification::make()
                 ->title('Reschedule Berhasil')
                 ->body((! empty($result['benefit_dropped_reason']) ? 'Benefit gugur: '.$result['benefit_dropped_reason'].' ' : '').match (true) {
+                    ! empty($result['coaching_tab']) => 'Sesi coaching dipindahkan. Tagihan berkala academy untuk transaksi ini '
+                        .$rupiah($result['coaching_tab']['before']).' → '.$rupiah($result['coaching_tab']['after']).', tetap belum dibayar dan dilunasi melalui Pelunasan Tagihan Coaching.',
                     ($result['total_charge'] ?? 0) > 0 => 'Jadwal dipindahkan & slot ditahan. Selisih '.$rupiah($result['total_charge']).($this->rescheduleDeltaChannel === 'ONLINE'
                         ? ' dibayar customer lewat pembayaran online dari halaman invoice-nya.'
                         : ' dilunasi di POS Walk-In (klik slot "Bayar" di grid jadwal) saat customer datang.').' QR & check-in terkunci sampai lunas.',
@@ -691,7 +743,7 @@ class KelolaPemesanan extends Page
         // REAKTIF FAIL-SAFE: Otomatis sinkronkan tiket kedaluwarsa & selesai setiap halaman dibuka
         app(PadelBookingService::class)->syncExpiredAndCompletedBookings();
 
-        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'recurringSchedule'])
+        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'equipments.order:id,payment_status', 'recurringSchedule', 'coachingBooking.academy'])
             ->latest('start_time');
 
         // Pencarian (kode tiket / nama / HP …) mencakup semua periode — customer bisa datang membawa tiket lama.

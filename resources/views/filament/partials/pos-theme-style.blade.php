@@ -312,11 +312,64 @@
     .pos-sum-total span:last-child { font-size: 1.1875rem; color: var(--pos-terra); font-variant-numeric: tabular-nums; }
     .pos-empty-note { text-align: center; padding: 2rem 1rem; color: var(--pos-faint); font-size: 0.8125rem; line-height: 1.5; }
 
+    /* Peringatan shift: jarak antar-baris sudah diatur gap halaman POS. */
+    .walkin-pos-root > .pos-shift-warning { margin-bottom: 0 !important; flex-shrink: 0; }
+
+    /* ===== Tombol kecil & kontrol jumlah alat ===== */
+    .pos-mini-btn { display: inline-flex; align-items: center; justify-content: center; height: 30px; padding: 0 0.6rem; border-radius: 7px; border: 1px solid var(--pos-line); background: #FFFFFF; color: var(--pos-brown); font-size: 0.75rem; font-weight: 800; cursor: pointer; white-space: nowrap; }
+    .pos-mini-btn.is-danger { background: #FEF2F2; border-color: #FECACA; color: #DC2626; }
+    .pos-slot-remove { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; font-weight: 900; font-size: 0.625rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .pos-qty-ctrl { display: flex; align-items: center; gap: 0.3rem; }
+    .pos-qty-val { min-width: 20px; text-align: center; font-weight: 900; font-size: 0.8125rem; color: var(--pos-brown); }
+
+    /* ===== Tambah Alat ke Booking (tanpa memilih lapangan) ===== */
+    .pos-toolbar-mid { display: flex; align-items: center; flex: 1; justify-content: center; min-width: 0; }
+    .pos-addon-chip { display: inline-flex; align-items: center; gap: 0.6rem; height: 38px; padding: 0 0.4rem 0 0.9rem; border-radius: 999px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E3A8A; font-size: 0.8125rem; font-weight: 800; white-space: nowrap; }
+    .pos-addon-chip-close { height: 30px; padding: 0 0.75rem; border-radius: 999px; border: 1px solid #FECACA; background: #FFFFFF; color: #DC2626; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
+    .pos-addon-pick { display: flex; align-items: center; gap: 0.5rem 0.9rem; flex-wrap: wrap; padding: 0.6rem 0.9rem; background: #EFF6FF; border-bottom: 1px solid #BFDBFE; }
+    .pos-addon-pick-text { font-size: 0.8125rem; font-weight: 700; color: #1E3A8A; display: flex; align-items: center; gap: 0.5rem; }
+    .pos-addon-pick-search { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
+    .pos-addon-pick-empty { font-size: 0.75rem; color: var(--pos-muted); margin-top: 0.25rem; }
+    button.slot-btn.slot-booked.is-pickable { cursor: pointer; border: 1.5px dashed #2563EB; background: #EFF6FF; color: #1E3A8A; }
+    button.slot-btn.slot-booked.is-pickable:hover { background: #DBEAFE; }
+    .slot-booked.is-addon-target { border: 2px solid #2563EB; }
+    .pos-addon-card { background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 12px; padding: 0.85rem; }
+    .pos-addon-card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.6875rem; font-weight: 900; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.05em; }
+    .pos-addon-card-name { font-size: 0.9375rem; font-weight: 900; color: var(--pos-brown); margin-top: 0.3rem; }
+    .pos-addon-card-sub { font-size: 0.75rem; color: #1E3A8A; }
+    .pos-addon-card-note { font-size: 0.75rem; color: #1E40AF; border-top: 1px dashed #BFDBFE; margin-top: 0.6rem; padding-top: 0.5rem; line-height: 1.45; }
+
+    /* ===== Layar sentuh (tablet kasir): target sentuh ≥44px, teks jadwal lebih besar. Laptop / PC tidak berubah. ===== */
+    @media (pointer: coarse) {
+        .pos-btn, .pos-today-btn, .pos-date-input, .pos-shift-chip, .pos-kpi, .pos-addon-chip { height: 44px; }
+        .pos-icon-btn { width: 44px; height: 44px; }
+        .pos-headbar-left a, .pos-headbar-left button { height: 44px !important; }
+        .pos-stepper-item { height: 44px; }
+        .pos-stepper-num { width: 30px; height: 30px; }
+        .pos-tab, .pos-main.is-selection .pos-col-cust .pos-tab { height: 44px; }
+        .pos-input { height: 44px; }
+        .pos-main.is-selection .tl-cell { height: 60px; }
+        .pos-mini-btn, .pos-addon-chip-close { height: 44px; padding: 0 0.9rem; }
+        .pos-touch { min-height: 44px; min-width: 44px; }
+        .pos-link-danger { min-height: 44px; padding: 0 0.5rem; display: inline-flex; align-items: center; }
+        .pos-slot-remove { width: 44px; height: 44px; font-size: 1rem; }
+        .pos-qty-btn, .pos-main.is-selection .pos-qty-btn { width: 48px; height: 48px; font-size: 1.25rem; }
+        .pos-qty-ctrl { gap: 0.75rem; }
+        .pos-qty-val { min-width: 28px; font-size: 1rem; }
+        .pos-search-item { min-height: 48px; }
+        .pos-draft-resume-btn, .pos-draft-discard-btn, .quick-cash-btn { height: 44px; }
+        .pos-timeline .tl-th { font-size: 0.75rem; }
+        .pos-timeline .slot-btn .lbl { font-size: 0.8125rem; }
+        .pos-timeline .slot-btn .sub { font-size: 0.6875rem; }
+        .pos-timeline .slot-btn .prc { font-size: 0.875rem; }
+    }
+
     /* ===== Tablet tegak / layar sempit: panel checkout di bawah jadwal ===== */
 
     /* ===== Laptop 14"–15" (layar pendek): seluruh POS muat satu layar, halaman tidak bisa di-scroll.
-       Jarak, tinggi tombol & baris timeline dirapatkan bertahap mengikuti tinggi layar. ===== */
-    @media (min-width: 1024px) and (max-height: 820px) {
+       Jarak, tinggi tombol & baris timeline dirapatkan bertahap mengikuti tinggi layar. Hanya untuk mouse / touchpad
+       (pointer: fine) — tablet sentuh tetap memakai ukuran normal supaya tidak salah ketuk. ===== */
+    @media (min-width: 1024px) and (max-height: 820px) and (pointer: fine) {
         .walkin-pos-root { gap: 0.5rem; }
         .pos-toolbar { padding: 0.4rem 0.6rem; }
         .pos-icon-btn, .pos-today-btn, .pos-date-input, .pos-kpi, .pos-btn, .pos-shift-chip { height: 34px; }
@@ -331,7 +384,7 @@
         .pos-actionbar { padding: 0.45rem 0.5rem 0.45rem 0.9rem; }
         .pos-actionbar .pos-submit-btn, .pos-actionbar-back { height: 44px; }
     }
-    @media (min-width: 1024px) and (max-height: 700px) {
+    @media (min-width: 1024px) and (max-height: 700px) and (pointer: fine) {
         .pos-grid-sub { display: none; }
         .pos-stage { min-height: 200px; }
         .pos-main.is-selection .tl-cell { height: 46px; }
@@ -340,7 +393,7 @@
         .pos-actionbar .pos-submit-btn, .pos-actionbar-back { height: 40px; }
         .pos-sum-item.is-total .v { font-size: 1rem; }
     }
-    @media (min-width: 1024px) and (max-height: 600px) { .pos-main.is-selection .tl-cell { height: 42px; } }
+    @media (min-width: 1024px) and (max-height: 600px) and (pointer: fine) { .pos-main.is-selection .tl-cell { height: 42px; } }
     @media (max-width: 1023px) {
         .walkin-pos-root { height: auto; min-height: 0; overflow: visible; }
         .pos-main { grid-template-columns: 1fr; }

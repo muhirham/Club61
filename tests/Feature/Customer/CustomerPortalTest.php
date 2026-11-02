@@ -75,6 +75,21 @@ class CustomerPortalTest extends TestCase
         $this->assertNotNull($usable->id && $soon->id);
     }
 
+    public function test_booking_calendar_input_can_be_tapped_directly_on_ios(): void
+    {
+        // iOS (semua browser = WebKit) hanya membuka pemilih tanggal bila input tanggal disentuh langsung — dulu input
+        // disembunyikan (pointer-events-none) di dalam tombol, jadi kalender tidak pernah terbuka di iPhone.
+        $html = $this->actingAs($this->customer)->get(route('customer.booking'))->assertOk()->getContent();
+
+        $this->assertMatchesRegularExpression('/<div[^>]*data-calendar-picker/', $html);
+        preg_match('/<input type="date" x-ref="calendarInput"[^>]*>/', $html, $input);
+        $this->assertNotEmpty($input, 'input tanggal kalender ada');
+        $this->assertStringNotContainsString('pointer-events-none', $input[0]);
+        $this->assertStringNotContainsString('aria-hidden', $input[0]);
+        $this->assertStringContainsString('@click="openCalendarPicker()"', $input[0]);
+        $this->assertStringContainsString('font-size:16px', $input[0], 'iPhone tidak zoom saat kalender dibuka');
+    }
+
     public function test_empty_voucher_page_offers_booking(): void
     {
         $this->actingAs($this->customer)->get('/profile/vouchers')->assertOk()

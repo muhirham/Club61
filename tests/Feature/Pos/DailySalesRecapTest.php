@@ -100,6 +100,7 @@ class DailySalesRecapTest extends TestCase
         $this->assertSame('14:30', $recap['until']);
         $this->assertTrue($recap['still_open']);
         $this->assertSame(2, $recap['shift_count']);
+        $this->assertSame([], $recap['running_shifts'], 'shift dibuka hari ini = rekap harian, tidak diulang');
         $this->assertSame(4, $recap['transactions']);
         $this->assertSame(700000.0, $recap['total']);
         $this->assertSame('Senin, 26/10/2026', $recap['date_label']);
@@ -127,6 +128,50 @@ class DailySalesRecapTest extends TestCase
     public function test_no_shift_that_day_means_no_recap(): void
     {
         $this->assertNull($this->build());
+    }
+
+    public function test_shift_left_open_since_an_earlier_day_is_recapped_per_calendar_day(): void
+    {
+        // Shift dibuka 24/10 dan lupa ditutup sampai sekarang (26/10 14:30).
+        $shift = $this->shift('PADEL_FRONTDESK', '2026-10-24 15:05');
+        $qris = ['qris_details' => ['provider' => 'BCA_QRIS']];
+        $this->payment($shift, 100000, 'QRIS', $qris, paidAt: '2026-10-24 16:00');
+        $this->payment($shift, 200000, 'QRIS', $qris, paidAt: '2026-10-25 10:00');
+        $this->payment($shift, 300000, 'QRIS', $qris, paidAt: '2026-10-26 09:00');
+
+        // Hari ini: hanya pembayaran hari ini, periode mulai 00:00, ada tanda shift belum ditutup.
+        $today = $this->build();
+        $this->assertSame([1, 300000.0, '00:00', '14:30', true], [$today['transactions'], $today['total'], $today['opened_at'], $today['until'], $today['still_open']]);
+        $this->assertSame([['since' => '24/10 15:05', 'still_open' => true]], $today['carried_over']);
+        $html = view('pos.partials.sales-recap-body', ['recap' => $today])->render();
+        $this->assertStringContainsString('Shift sejak 24/10 15:05', $html);
+        $this->assertStringContainsString('BELUM DITUTUP', $html);
+
+        // Plus total seluruh shift yang belum ditutup (24/10 s/d sekarang), kelompok metode = form Tutup Shift.
+        $this->assertSame([[
+            'shift_number' => $shift->shift_number, 'since' => '24/10 15:05', 'transactions' => 3, 'total' => 600000.0,
+            'methods' => [['label' => 'QRIS BCA', 'count' => 3, 'amount' => 600000.0]],
+        ]], $today['running_shifts']);
+        $this->assertSame(600000.0, (float) collect(app(ShiftClosingService::class)->systemRows($shift))->firstWhere('key', 'QRIS_BCA_QRIS')['system_amount']);
+        $this->assertStringContainsString('SHIFT BELUM DITUTUP', $html);
+        $this->assertStringContainsString('Sejak 24/10 15:05 s/d skrg', $html);
+        $this->assertStringContainsString('Rp 600.000', $html);
+        $this->assertLessThanOrEqual(ReceiptPaper::PC_COLUMNS, mb_strlen('Sejak 24/10 15:05 s/d skrg'));
+
+        // Hari-hari sebelumnya: masing-masing hanya pembayaran tanggal itu (dulu tanggal buka shift ikut menghitung semuanya).
+        $first = $this->build(date: '2026-10-24');
+        $this->assertSame([1, 100000.0, '15:05', '23:59', []], [$first['transactions'], $first['total'], $first['opened_at'], $first['until'], $first['carried_over']]);
+        $middle = $this->build(date: '2026-10-25');
+        $this->assertSame([1, 200000.0, '00:00', '23:59'], [$middle['transactions'], $middle['total'], $middle['opened_at'], $middle['until']]);
+
+        // Ditutup hari ini → rekap hari ini berakhir saat ditutup; tanggal yang belum tiba tidak punya rekap.
+        $shift->update(['status' => 'CLOSED', 'closed_at' => CarbonImmutable::parse('2026-10-26 12:00', 'Asia/Jakarta')]);
+        $closed = $this->build();
+        $this->assertSame(['12:00', false, 300000.0], [$closed['until'], $closed['still_open'], $closed['total']]);
+        $this->assertSame([['since' => '24/10 15:05', 'still_open' => false]], $closed['carried_over']);
+        $this->assertSame([], $closed['running_shifts'], 'sudah ditutup → total shift ada di Z-Report');
+        $this->assertNull($this->build(date: '2026-10-27'));
+        $this->assertNull($this->build(date: '2026-10-23'));
     }
 
     public function test_online_payments_are_listed_separately_for_the_padel_counter_only(): void
@@ -197,7 +242,7 @@ class DailySalesRecapTest extends TestCase
     public function test_recap_follows_the_selected_history_date(): void
     {
         $yesterday = $this->shift('PADEL_FRONTDESK', '2026-10-25 09:00', '2026-10-25 22:00');
-        $this->payment($yesterday, 77000, 'QRIS', ['qris_details' => ['provider' => 'BCA_QRIS']]);
+        $this->payment($yesterday, 77000, 'QRIS', ['qris_details' => ['provider' => 'BCA_QRIS']], paidAt: '2026-10-25 15:00');
         $this->actingAs($this->cashier);
 
         Livewire::test(BookOfflineCourt::class)
