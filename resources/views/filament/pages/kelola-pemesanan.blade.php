@@ -162,6 +162,14 @@
                                     <div class="sub c61-truncate" style="color: var(--c-terra); font-family: var(--font-sans); font-weight: 600;"
                                         title="Jadwal Tetap: {{ $b->recurringSchedule->name }}">Jadwal Tetap · {{ $b->recurringSchedule->name }}</div>
                                 @endif
+                                @php
+                                    // Tambah Alat ke Booking: alat yang dibeli terpisah (transaksi lain) untuk booking ini.
+                                    $addonEquipments = $b->equipments->filter(fn ($e) => $e->order_id && $e->order_id !== $b->order_id && $e->order?->payment_status === 'PAID');
+                                @endphp
+                                @if ($addonEquipments->isNotEmpty())
+                                    <div class="sub c61-truncate" data-booking-addons style="color: #1E40AF; font-family: var(--font-sans); font-weight: 600;"
+                                        title="Tambahan alat (transaksi terpisah)">+ Alat: {{ $addonEquipments->map(fn ($e) => ($e->equipment?->name ?? 'Alat').' ×'.$e->quantity)->implode(', ') }} · Rp {{ number_format($addonEquipments->sum('subtotal'), 0, ',', '.') }}</div>
+                                @endif
                             </td>
                             <td>
                                 <div class="c61-truncate strong"

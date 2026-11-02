@@ -227,6 +227,16 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
 - **DOKU SNAP VA Mandiri / BRI / BNI / BSI (22 Okt 2026, belum diuji sandbox):** Partner Service ID (BIN) + prefix customer no. per bank diisi admin di form Edit metode VA-nya, bagian "DOKU SNAP" (tampil hanya saat DOKU dipakai di Gateway Pembayaran; ubah butuh izin `manage_payment_gateway`, log KRITIS), disimpan di `payment_gateway_settings.doku_snap_va` (migrasi 2026_10_22_120001). Bank yang kosong tetap DOKU Checkout; kolom "Jalur DOKU" (saat DOKU dipakai) menunjukkan SNAP / Checkout. BSI: metode bawaan baru `BSI_SYARIAH_VA` (DOKU saja, nonaktif; kanal SNAP `VIRTUAL_ACCOUNT_BSI`), "VA Bank Lain" di DOKU jadi Permata saja. Invoice: langkah bayar umum untuk VA selain BCA. POS: SNAP otomatis kalau "QR otomatis di kasir" = DOKU.
   - Pengingat di POS: shift dibuka sejak kemarin / > 12 jam, EDC belum di-settle menjelang 22.00, EDC kemarin belum di-settle saat buka shift.
   - Halaman Keuangan → **Review Shift Kasir** + detail shift. Z-Report bisa dicetak di kedua loket.
+  - **Perbaikan shift lupa ditutup** (1 Nov 2026, tanpa migrasi; kasus production shift dibuka 30 Okt belum ditutup):
+    Cetak Rekap (Rekap Penjualan Harian / X-Report) sekarang per tanggal kalender — shift yang sempat buka di tanggal
+    itu (termasuk shift hari sebelumnya yang belum ditutup), hanya pembayaran yang dibayar di tanggal itu, periode
+    00:00–23:59 bila shift melewati pergantian hari; struk menulis "Shift sejak dd/mm HH:MM — BELUM DITUTUP". Dulu
+    hanya shift yang DIBUKA di tanggal itu → tanggal berikutnya "Belum Ada Shift" dan tanggal buka ikut menghitung semua
+    hari. Shift yang masih buka sejak sebelum hari ini juga dicetak bagian **SHIFT BELUM DITUTUP**: total seluruh
+    shift sejak dibuka s/d sekarang per metode (kelompok sama dengan form Tutup Shift), untuk dicocokkan dengan jumlah
+    struk settlement EDC / mutasi QRIS saat menutup shift. Shift normal (buka & tutup di hari yang sama) angkanya tidak berubah. Rekap Shift Kasir: kolom Penjualan
+    shift yang masih buka = total berjalan (dulu Rp 0 sampai ditutup). Data tidak diubah — shift lama cukup ditutup
+    biasa (angka settlement EDC / mutasi QRIS seluruh periode dijumlahkan), selisih → Perlu Review.
 - [ ] **Riwayat shift kasir Fase 2:** filter lengkap, Excel per shift, cetak ulang Z dari panel, kasir melihat shift miliknya. **Fase 3:** Tutup Harian per tanggal (dana masuk rekening H+1, MDR) + Excel per hari + kolom Shift di Excel Buku Transaksi.
 - [ ] **Split bill** EQUAL & BY_ITEM (SKEMA SAJA).
 - [ ] Keranjang terpadu (padel + kafe + raket + merch dalam 1 struk).
@@ -271,6 +281,23 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
 - [x] Pajak & biaya layanan dari Pengaturan Biaya & Pajak.
 - [x] Shift kasir + ringkasan tutup shift.
 - [x] Struk cetak.
+- [x] **Tambah Alat ke Booking** (1 Nov 2026, tanpa migrasi; izin `add_booking_equipment`, tidak masuk role bawaan —
+  dicentang manual oleh super admin): tombol "+ Tambah Alat ke Booking" di baris tanggal POS Walk-In. Alur kasir yang
+  sama tanpa memilih lapangan: 1 pilih booking hari ini / ke depan — yang sudah lewat tidak bisa (ketuk blok booking di jadwal / cari kode, nama, HP; hasil cari menampilkan tanggal), customer
+  otomatis dari booking, 3 pilih alat, 4 layar pembayaran yang sama (QRIS otomatis payment gateway / QRIS statis / EDC). QR otomatis: order alat menunggu sampai lunas — batal / kedaluwarsa → order batal & stok bola kembali; alat dari order yang belum lunas tidak dihitung saat check-in, retur, maupun di Kelola Pemesanan.
+  - Booking lunas / sudah check-in → transaksi baru (order WALK_IN berisi alat saja) masuk shift yang buka, struk
+    "Tambahan Alat untuk Booking", Riwayat Transaksi jenis "Tambahan Alat". Order & pembayaran booking lama tidak diubah.
+  - Sesi coaching Tagihan Berkala yang belum dilunasi → alat masuk order tagihannya (pajak & biaya layanan dihitung
+    ulang sekali per transaksi), ikut ditagih di Pelunasan Tagihan Coaching & invoice.
+  - Stok: bola dipotong saat itu; raket / handuk saat itu bila sudah check-in, selain itu saat check-in. Check-in &
+    retur alat sekarang juga membaca alat yang ditautkan ke booking lewat transaksi terpisah.
+  - Server mengecek ulang di dalam kunci: booking hari ini & statusnya, cara bayar (transaksi baru / tagihan), stok,
+    dan total yang tampil di layar. Kelola Pemesanan menampilkan "+ Alat: … · Rp …" di bawah kode booking.
+  - Belum: refund booking tidak ikut mengembalikan uang tambahan alat (transaksi terpisah).
+- [x] **Perapian UI tablet POS** (1 Nov 2026, hanya tampilan): di layar sentuh, sidebar halaman POS otomatis diciutkan
+  sampai lebar 1440px (dulu hanya 1024–1279px); aturan "layar pendek" laptop tidak lagi mengecilkan tombol & kotak jam
+  di tablet; semua tombol ≥44px (tombol +/− alat 48px dengan jarak 12px, tombol hapus slot, voucher, ganti customer);
+  teks kotak jam lebih besar; banner peringatan shift lebih tipis. Laptop / PC tidak berubah.
 
 ---
 

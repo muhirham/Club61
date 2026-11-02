@@ -137,6 +137,7 @@ class Club61PermissionMatrix
                             'View:BookOfflineCourt' => 'Akses Halaman Walk-In Booking',
                             'manage_court_slots' => 'Kelola Jadwal & Ketersediaan Slot',
                             'process_walkin_booking' => 'Proses Pemesanan & Pembayaran Walk-In',
+                            'add_booking_equipment' => 'Tambah Alat (Bola / Raket / Handuk) ke Booking Hari Ini di POS Walk-In',
                         ],
                     ],
                     'padel_bookings' => [

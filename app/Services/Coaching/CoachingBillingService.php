@@ -162,6 +162,45 @@ class CoachingBillingService
     }
 
     /**
+     * Tambah Alat ke sesi tagihan (BookingAddonService): alat masuk order tagihan yang belum dilunasi sebagai item
+     * EQUIPMENT, pajak & biaya layanan dihitung ulang sekali per transaksi. Order sudah dikunci & dicek UNPAID oleh pemanggil.
+     *
+     * @param  list<array{equipment_id: string, name: string, quantity: int, unit_price: float, subtotal: float}>  $items
+     */
+    public function addEquipmentToTab(Order $order, float $itemsSubtotal, array $items): void
+    {
+        foreach ($items as $item) {
+            $order->items()->create([
+                'item_type' => 'EQUIPMENT',
+                'reference_id' => $item['equipment_id'],
+                'item_name' => $item['name'],
+                'quantity' => $item['quantity'],
+                'unit_price' => $item['unit_price'],
+                'subtotal' => $item['subtotal'],
+            ]);
+        }
+
+        $calc = self::tabTotalsWith($order, $itemsSubtotal);
+        $order->update([
+            'subtotal' => $calc['subtotal'],
+            'tax_amount' => $calc['tax_amount'],
+            'service_charge' => $calc['admin_fee_amount'],
+            'grand_total' => $calc['grand_total'],
+        ]);
+    }
+
+    /** Total order tagihan bila ditambah $extraSubtotal (rumus yang sama dengan repriceForReschedule). */
+    public static function tabTotalsWith(Order $order, float $extraSubtotal): array
+    {
+        return app(\App\Services\Finance\TaxAndFeeService::class)->calculate(
+            subtotal: (float) $order->subtotal + $extraSubtotal,
+            discountAmount: (float) $order->discount_amount,
+            channel: 'POS_WALKIN',
+            module: 'PADEL'
+        );
+    }
+
+    /**
      * Jatuh tempo dihitung ulang dari jam main paling awal setelah reschedule, dengan periode yang tersimpan saat sesi
      * dicatat. Per shift tetap mengikuti shift tempat sesi dicatat (tanpa due_at).
      */

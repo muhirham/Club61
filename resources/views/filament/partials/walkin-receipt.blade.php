@@ -48,7 +48,17 @@
                             </div>
 
                             <div style="border-bottom:1px dashed #000; padding-bottom:0.5rem; margin-bottom:0.5rem;">
-                                <div style="font-weight:800; margin-bottom:0.25rem;">ITEM LAPANGAN:</div>
+                                @if (! empty($receipt['addon_for']))
+                                    {{-- Tambah Alat ke Booking: transaksi alat saja untuk booking yang sudah ada. --}}
+                                    <div style="font-weight:800; margin-bottom:0.25rem;">TAMBAHAN ALAT UNTUK BOOKING:</div>
+                                    <div style="margin-bottom:0.35rem;">
+                                        <div>{{ $receipt['addon_for']['court'] }}</div>
+                                        <div style="font-size:0.625rem; color:#4B5563;">{{ $receipt['booking_date'] }} &bull; {{ $receipt['addon_for']['schedule'] }} WIB</div>
+                                        <div style="font-size:0.625rem; font-weight:800; color:#1F170D;">Kode: {{ $receipt['addon_for']['code'] }}</div>
+                                    </div>
+                                @else
+                                    <div style="font-weight:800; margin-bottom:0.25rem;">ITEM LAPANGAN:</div>
+                                @endif
                                 @foreach ($receipt['bookings'] as $b)
                                     <div wire:key="receipt-booking-{{ $b['booking_code'] }}"
                                         style="margin-bottom:0.35rem;">

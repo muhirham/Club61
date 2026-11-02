@@ -7,7 +7,7 @@
         go(n) { this.step = n },
         prev() { if (this.step > 1) this.step-- },
         customerMissing() {
-            if (this.$wire.settleBill) return false;
+            if (this.$wire.settleBill || this.$wire.bookingAddon) return false;
             return this.$wire.customerMode === 'search'
                 ? ! this.$wire.selectedCustomerId
                 : (! String(this.$wire.walkInName || '').trim() || ! String(this.$wire.walkInPhone || '').trim());
@@ -21,7 +21,8 @@
             if (this.$wire.posStep === 'selection') {
                 const slotsAfter = Object.keys(this.$wire.selectedSlots || {}).length;
                 // Slot keburu diambil customer lain (dihapus dari pilihan) → tampilkan jadwal untuk pilih jam lain.
-                if ((! slotsAfter || slotsAfter < slotsBefore) && ! this.$wire.settleBill) this.step = 1;
+                if (this.$wire.bookingAddon) this.step = 3;
+                else if ((! slotsAfter || slotsAfter < slotsBefore) && ! this.$wire.settleBill) this.step = 1;
                 else if (this.customerMissing()) this.step = 2;
             }
         },
@@ -38,10 +39,13 @@
             if (Math.abs(dx) < 70 || Math.abs(dy) > 50) return;
             const stage = this.$refs.stage;
             if (dx > 0) return this.prev();
-            if (this.step === 1 && Number(stage?.dataset.slots || 0) > 0) this.step = 2;
+            if (this.step === 1 && stage?.dataset.addon === '1') this.step = 3;
+            else if (this.step === 1 && Number(stage?.dataset.slots || 0) > 0) this.step = 2;
             else if (this.step === 2 && stage?.dataset.settle !== '1') this.step = 3;
         },
-    }">
+    }"
+    {{-- Tambah Alat ke Booking: server memindahkan langkah (pilih booking → Tambahan). --}}
+    x-on:pos-go-step.window="go($event.detail.step)">
     @include('filament.partials.pos-theme-style')
 
     {{-- ============================
@@ -109,6 +113,22 @@
             <span class="pos-date-label"><span class="pos-only-wide">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</span><span class="pos-only-narrow">{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('D, d M Y') }}</span></span>
         </div>
 
+        {{-- Tambah Alat ke Booking (izin add_booking_equipment): alur kasir yang sama, tanpa memilih lapangan. --}}
+        @if ($posStep === 'selection' && $this->canAddBookingEquipment)
+            <div class="pos-toolbar-mid">
+                @if ($this->isBookingAddonMode)
+                    <span class="pos-addon-chip">
+                        Mode Tambah Alat{{ $bookingAddon ? ' · #'.$bookingAddon['code'] : '' }}
+                        <button type="button" wire:click="cancelBookingAddon" class="pos-addon-chip-close">Batal</button>
+                    </span>
+                @else
+                    <button type="button" wire:click="startBookingAddon" class="pos-btn pos-btn-ghost" data-addon-start>
+                        + Tambah Alat ke Booking
+                    </button>
+                @endif
+            </div>
+        @endif
+
         <div class="pos-kpis">
             <div class="pos-kpi"><span class="pos-kpi-value">{{ $bookedSlotsAll }}/{{ $totalSlotsAll }}</span><span class="pos-kpi-label">Slot Terisi</span></div>
             <div class="pos-kpi"><span class="pos-kpi-value">{{ $walkInStatsToday['count'] }}</span><span class="pos-kpi-label">Transaksi</span></div>
@@ -128,7 +148,7 @@
                                     <div style="min-width:0;">
                                         <div class="pos-recent-name">{{ $ro->user?->name ?? 'Walk-In' }}</div>
                                         <div class="pos-recent-sub">
-                                            {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Lapangan' }}
+                                            {{ $ro->padelBookings->pluck('court.name')->filter()->unique()->implode(', ') ?: 'Tambahan Alat' }}
                                             &bull; {{ $ro->created_at->format('H:i') }}
                                         </div>
                                     </div>
@@ -185,7 +205,7 @@
      ALUR KASIR: 1 Jadwal → 2 Customer → 3 Tambahan → 4 Pembayaran → konfirmasi → struk
      ============================ --}}
     @php
-        $flowSteps = [1 => 'Jadwal', 2 => 'Customer', 3 => 'Tambahan', 4 => 'Pembayaran'];
+        $flowSteps = [1 => $this->isBookingAddonMode ? 'Booking' : 'Jadwal', 2 => 'Customer', 3 => 'Tambahan', 4 => 'Pembayaran'];
         $serverStep = ['payment' => 4, 'receipt' => 5][$posStep] ?? null;
     @endphp
     <nav class="pos-stepper" aria-label="Langkah transaksi">
@@ -206,7 +226,7 @@
     </nav>
 
     @if ($posStep === 'selection')
-    <div class="pos-stage" x-ref="stage" data-slots="{{ count($selectedSlots) }}" data-settle="{{ $settleBill ? 1 : 0 }}"
+    <div class="pos-stage" x-ref="stage" data-slots="{{ count($selectedSlots) }}" data-settle="{{ $settleBill ? 1 : 0 }}" data-addon="{{ $bookingAddon ? 1 : 0 }}"
         @touchstart.passive="touchStart($event)" @touchend="touchEnd($event)">
         {{-- Kembali dari pembayaran → layar Tambahan; setelah transaksi selesai → mulai dari Jadwal. --}}
         <span hidden x-init="if (step === 4) step = 3; else if (step > 4) step = 1;"></span>
@@ -269,6 +289,36 @@
                 @elseif ($bookingWindowNotice)
                     <div class="pos-past-note" style="color:#991B1B; background:#FEF2F2; font-weight:700;">{{ $bookingWindowNotice }}</div>
                 @endif
+                @php $addonDateOpen = $bookingDate >= now()->format('Y-m-d'); @endphp
+                @if ($addonPicking)
+                    {{-- Tambah Alat ke Booking: pilih booking hari ini / ke depan — ketuk bloknya di jadwal atau cari. --}}
+                    <div class="pos-addon-pick">
+                        <div class="pos-addon-pick-text">
+                            @if ($addonDateOpen)
+                                Ketuk booking di jadwal yang mau ditambah alat, atau cari:
+                            @else
+                                Tanggal sudah lewat — tambah alat hanya untuk booking hari ini dan ke depan.
+                                <button type="button" wire:click="today" class="pos-mini-btn">Ke Hari Ini</button>
+                            @endif
+                        </div>
+                        <div class="pos-addon-pick-search">
+                            <input type="text" wire:model.live.debounce.300ms="addonSearch" class="pos-input" autocomplete="off"
+                                placeholder="Kode booking, nama, atau nomor HP">
+                            @if ($this->addonSearchResults !== [])
+                                <div class="pos-search-results">
+                                    @foreach ($this->addonSearchResults as $res)
+                                        <button type="button" wire:key="addon-res-{{ $res['id'] }}" wire:click="pickAddonBooking('{{ $res['id'] }}')" class="pos-search-item">
+                                            <div style="font-weight:800; color:#4F2F2A;">{{ $res['customer'] }} &middot; #{{ $res['code'] }}</div>
+                                            <div style="font-size:0.75rem; color:#662721;">{{ $res['court'] }} &bull; {{ $res['schedule'] }} WIB{{ $res['tab'] ? ' · Tagihan Berkala' : '' }}</div>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @elseif (mb_strlen(trim($addonSearch)) >= 2)
+                                <div class="pos-addon-pick-empty">Tidak ada booking hari ini yang cocok.</div>
+                            @endif
+                        </div>
+                    </div>
+                @endif
                 @if (empty($gridData))
                     <div class="pos-past-note">Belum ada lapangan aktif.</div>
                 @else
@@ -317,8 +367,15 @@
                                             title="Pilih: {{ $slot['full_label'] }} – Rp{{ number_format($slot['rate'], 0, ',', '.') }}">
                                             <span class="prc">{{ $rate }}</span>
                                         </button>
+                                    @elseif($st === 'BOOKED' && $addonPicking && $addonDateOpen && ! empty($slot['booking']['addon_ok']))
+                                        <button type="button" wire:click="pickAddonBooking('{{ $slot['booking']['id'] }}')"
+                                            class="slot-btn slot-booked is-pickable"
+                                            title="Tambah alat untuk {{ $slot['booking']['player'] ?? 'Pemain' }} (#{{ $slot['booking']['code'] }})">
+                                            <span class="lbl">{{ $slot['booking']['player'] ?? 'Main' }}</span>
+                                            <span class="sub">+ Alat</span>
+                                        </button>
                                     @elseif($st === 'BOOKED')
-                                        <div class="slot-btn slot-booked"
+                                        <div class="slot-btn slot-booked {{ ($bookingAddon['booking_id'] ?? null) && ($slot['booking']['id'] ?? null) === $bookingAddon['booking_id'] ? 'is-addon-target' : '' }}"
                                             title="Terisi: {{ $slot['booking']['player'] ?? 'Pemain' }} ({{ $slot['label'] }}–{{ $seg['end_label'] }}){{ ! empty($slot['booking']['tab']) ? ' — Tagihan Berkala, belum lunas' : '' }}">
                                             <span class="lbl">{{ $slot['booking']['player'] ?? 'Main' }}</span>
                                             @if (! empty($slot['booking']['tab']))<span class="sub">Tagihan Berkala</span>
@@ -358,7 +415,7 @@
                         <div class="pos-terminal-title">Layar Pembayaran &amp; Penyelesaian Transaksi</div>
                     </div>
                     <button type="button" wire:click="backToSelection" class="pos-btn pos-btn-ghost">
-                        &larr; Ubah Pilihan Slot
+                        &larr; {{ $bookingAddon ? 'Ubah Pilihan Alat' : 'Ubah Pilihan Slot' }}
                     </button>
                 </div>
 
@@ -375,11 +432,15 @@
                     @endif
 
                     {{-- Form metode pembayaran bersama (dipakai juga oleh Kasir F&B) --}}
-                    @if (! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy)
+                    @if ($bookingAddon && $this->isAddonTab)
+                        <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:0.9rem 1rem; color:#1E3A8A; font-size:0.875rem; font-weight:700; line-height:1.5;">
+                            Alat untuk sesi coaching #{{ $bookingAddon['code'] }} dicatat pada tagihan berkala {{ $bookingAddon['academy'] }}. Tidak ada pembayaran EDC / QRIS saat ini; dilunasi bersama tagihan melalui Pelunasan Tagihan Coaching.
+                        </div>
+                    @elseif (! $settleBill && ! $bookingAddon && $this->grandTotal > 0 && $this->coachingTabAcademy)
                         <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:12px; padding:0.9rem 1rem; color:#1E3A8A; font-size:0.875rem; font-weight:700; line-height:1.5;">
                             Sesi ini dicatat pada tagihan berkala {{ $this->coachingTabAcademy->name }} ({{ $this->coachingTabAcademy->billingLabel() }}). Tidak ada pembayaran EDC / QRIS saat ini; tagihan dilunasi melalui Pelunasan Tagihan Coaching.
                         </div>
-                    @elseif (! $settleBill && $this->grandTotal <= 0)
+                    @elseif (! $settleBill && ! $bookingAddon && $this->grandTotal <= 0)
                         @php
                             $coveredBy = collect([
                                 $this->membershipDiscountAmount > 0 ? 'kuota member' : null,
@@ -397,11 +458,11 @@
                     {{-- Action Buttons --}}
                     <div class="pos-terminal-actions">
                         <button type="button" wire:click="backToSelection" class="pos-btn pos-btn-ghost" style="height:50px; padding:0 1.2rem;">
-                            &larr; Kembali ke Pilih Jadwal
+                            &larr; {{ $bookingAddon ? 'Ubah Pilihan Alat' : 'Kembali ke Pilih Jadwal' }}
                         </button>
                         {{-- Konfirmasi dulu (atas nama, jadwal, tambahan, total, metode) sebelum diproses. --}}
                         <button type="button" x-on:click="$dispatch('open-modal', { id: 'walkin-confirm-payment' })" wire:loading.attr="disabled" wire:target="submitWalkInBooking" class="pos-submit-btn" style="flex:1;">
-                            <span wire:loading.remove wire:target="submitWalkInBooking">{{ ! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy ? 'Catat ke Tagihan Berkala' : 'Bayar Lunas & Cetak Struk' }}</span>
+                            <span wire:loading.remove wire:target="submitWalkInBooking">{{ ($bookingAddon && $this->isAddonTab) || (! $settleBill && ! $bookingAddon && $this->grandTotal > 0 && $this->coachingTabAcademy) ? 'Catat ke Tagihan Berkala' : 'Bayar Lunas & Cetak Struk' }}</span>
                             <span wire:loading wire:target="submitWalkInBooking">Memproses Transaksi...</span>
                         </button>
                     </div>
@@ -452,7 +513,7 @@
                 </div>
                 <div>
                     <div class="pos-panel-total">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</div>
-                    <div class="pos-panel-count">{{ count($selectedSlots) }} slot dipilih</div>
+                    <div class="pos-panel-count">{{ $bookingAddon ? array_sum(array_map('intval', $rentalQuantities)).' alat' : count($selectedSlots).' slot dipilih' }}</div>
                 </div>
             </div>
 
@@ -488,6 +549,12 @@
                         </div>
                         <div style="font-size:0.625rem; color:#B45309; margin-top:0.35rem;">QR tiket aktif &amp; customer bisa check-in setelah lunas.</div>
                     </div>
+                </div>
+                @else
+                @if ($bookingAddon)
+                <div class="pos-col pos-col-cust" @if ($posStep === 'selection') x-bind:inert="step !== 2" @endif>
+                    {{-- TAMBAH ALAT KE BOOKING — customer otomatis dari booking --}}
+                    @include('filament.partials.pos-addon-booking-card', ['addon' => $bookingAddon, 'canCancel' => $posStep === 'selection'])
                 </div>
                 @else
                 <div class="pos-col pos-col-cust" @if ($posStep === 'selection') x-bind:inert="step !== 2" @endif>
@@ -594,7 +661,7 @@
                                     @include('filament.partials.walkin-benefit-badges', ['benefitQuote' => $this->benefitQuote])
                                 </div>
                                 @if ($posStep === 'selection')
-                                    <button type="button" wire:click="clearSelectedCustomer"
+                                    <button type="button" wire:click="clearSelectedCustomer" class="pos-touch"
                                         style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; font-size:0.625rem; font-weight:800; padding:0.2rem 0.45rem; border-radius:5px; cursor:pointer;">
                                         Ganti
                                     </button>
@@ -610,7 +677,7 @@
                                         style="position:absolute; top:100%; left:0; right:0; z-index:50; background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.1); margin-top:0.2rem; max-height:140px; overflow-y:auto;">
                                         @foreach ($searchResults as $res)
                                             <button type="button" wire:key="search-result-{{ $res->id }}"
-                                                wire:click="selectCustomer('{{ $res->id }}')"
+                                                wire:click="selectCustomer('{{ $res->id }}')" class="pos-touch"
                                                 style="width:100%; text-align:left; padding:0.4rem 0.65rem; border:none; border-bottom:1px solid #EFE6D2; background:#FFFFFF; cursor:pointer; font-size:0.75rem;"
                                                 onmouseover="this.style.background='#FCF8EE'"
                                                 onmouseout="this.style.background='#FFFFFF'">
@@ -631,8 +698,15 @@
                     @endif
                 </div>
                 </div>{{-- end pos-col-cust --}}
+                @endif
 
                 <div class="pos-col pos-col-items" @if ($posStep === 'selection') x-bind:inert="step !== 3" @endif>
+                @if ($bookingAddon)
+                    {{-- Di langkah Tambahan saja; di layar bayar kartunya sudah tampil di kolom customer (panel kanan). --}}
+                    @if ($posStep === 'selection')
+                        @include('filament.partials.pos-addon-booking-card', ['addon' => $bookingAddon, 'canCancel' => false])
+                    @endif
+                @else
                 {{-- 2. SLOT TERPILIH --}}
                 <div>
                     <div
@@ -668,8 +742,7 @@
                                         <span
                                             style="font-weight:900; font-size:0.75rem; color:#662721;">Rp{{ number_format($this->slotDisplayPrice($s), 0, ',', '.') }}</span>
                                         @if ($posStep === 'selection')
-                                            <button type="button" wire:click="removeSlot('{{ $sKey }}')"
-                                                style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; border-radius:50%; width:18px; height:18px; font-weight:900; font-size:0.625rem; cursor:pointer; display:flex; align-items:center; justify-content:center; line-height:1;">&times;</button>
+                                            <button type="button" wire:click="removeSlot('{{ $sKey }}')" class="pos-slot-remove" aria-label="Hapus slot">&times;</button>
                                         @endif
                                     </div>
                                 </div>
@@ -677,13 +750,14 @@
                         </div>
                     @endif
                 </div>
+                @endif
 
                 {{-- 3. SEWA ALAT --}}
                 @if (count($equipments) > 0)
                     <div>
                         <div
                             style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.4rem;">
-                            <span class="pos-section-label">Sewa Alat (Opsional)</span>
+                            <span class="pos-section-label">{{ $bookingAddon ? 'Pilih Alat' : 'Sewa Alat (Opsional)' }}</span>
                             <span style="font-size:0.6875rem; font-weight:800; color:#662721;">Rp
                                 {{ number_format($this->equipmentTotal, 0, ',', '.') }}</span>
                         </div>
@@ -699,18 +773,17 @@
                                             Rp{{ number_format($eq->rental_price, 0, ',', '.') }} &bull; Stok:
                                             {{ $eq->stock_quantity }}</div>
                                     </div>
-                                    <div style="display:flex; align-items:center; gap:0.3rem;">
+                                    <div class="pos-qty-ctrl">
                                         @if ($posStep === 'selection')
                                             <button type="button"
                                                 wire:click="decrementEquipment('{{ $eq->id }}')"
-                                                class="pos-qty-btn">-</button>
+                                                class="pos-qty-btn" aria-label="Kurangi {{ $eq->name }}">-</button>
                                         @endif
-                                        <span
-                                            style="min-width:20px; text-align:center; font-weight:900; font-size:0.8125rem; color:#4F2F2A;">{{ $qty }}</span>
+                                        <span class="pos-qty-val">{{ $qty }}</span>
                                         @if ($posStep === 'selection')
                                             <button type="button"
                                                 wire:click="incrementEquipment('{{ $eq->id }}', {{ $eq->stock_quantity }})"
-                                                class="pos-qty-btn">+</button>
+                                                class="pos-qty-btn" aria-label="Tambah {{ $eq->name }}">+</button>
                                         @endif
                                     </div>
                                 </div>
@@ -720,7 +793,7 @@
                 @endif
 
                 {{-- 3b. VOUCHER (promo / voucher saldo customer — Modul 21). Coaching: tarif khusus, tanpa voucher. --}}
-                @if (! $settleBill && ! $this->isCoaching)
+                @if (! $settleBill && ! $this->isCoaching && ! $bookingAddon)
                     <div style="margin-bottom:0.6rem;">
                         <div class="pos-section-label" style="margin-bottom:0.35rem;">Voucher</div>
                         @if ($appliedVoucherCode)
@@ -744,13 +817,13 @@
                                         </div>
                                     @endif
                                 </div>
-                                <button type="button" wire:click="removeVoucher" style="font-size:0.6875rem; font-weight:800; color:#B91C1C; background:none; border:none; cursor:pointer;">Hapus</button>
+                                <button type="button" wire:click="removeVoucher" class="pos-touch" style="font-size:0.6875rem; font-weight:800; color:#B91C1C; background:none; border:none; cursor:pointer;">Hapus</button>
                             </div>
                         @else
                             <div style="display:flex; gap:0.4rem;">
                                 <input type="text" wire:model="voucherInput" wire:keydown.enter.prevent="applyVoucher" maxlength="30" placeholder="Kode voucher"
                                     style="flex:1; min-width:0; border:1.5px solid #E6DAC0; border-radius:8px; padding:0.4rem 0.55rem; font-size:0.75rem; font-family:var(--font-mono, monospace); text-transform:uppercase;">
-                                <button type="button" wire:click="applyVoucher" wire:loading.attr="disabled"
+                                <button type="button" wire:click="applyVoucher" wire:loading.attr="disabled" class="pos-touch"
                                     style="padding:0.4rem 0.75rem; border-radius:8px; border:1.5px solid #E6DAC0; background:#FCF8EE; color:#662721; font-weight:800; font-size:0.75rem; cursor:pointer;">Pakai</button>
                             </div>
                             @foreach ($this->customerClaimedPromos as $cp)
@@ -758,7 +831,7 @@
                                     <div style="font-size:0.6875rem; color:#991B1B; min-width:0; overflow-wrap:anywhere;">
                                         <strong>{{ $cp['name'] ?: $cp['code'] }}</strong> &middot; {{ $cp['headline'] }} <span style="opacity:0.75;">(promo diklaim)</span>
                                     </div>
-                                    <button type="button" wire:click="applyVoucher('{{ $cp['code'] }}')"
+                                    <button type="button" wire:click="applyVoucher('{{ $cp['code'] }}')" class="pos-touch"
                                         style="font-size:0.6875rem; font-weight:800; color:#B91C1C; background:none; border:none; cursor:pointer; flex-shrink:0;">Pakai</button>
                                 </div>
                             @endforeach
@@ -768,7 +841,7 @@
                                         <strong style="font-family:var(--font-mono, monospace);">{{ $cv['code'] }}</strong>
                                         &middot; saldo Rp {{ number_format($cv['available'], 0, ',', '.') }}
                                     </div>
-                                    <button type="button" wire:click="applyVoucher('{{ $cv['code'] }}')"
+                                    <button type="button" wire:click="applyVoucher('{{ $cv['code'] }}')" class="pos-touch"
                                         style="font-size:0.6875rem; font-weight:800; color:#047857; background:none; border:none; cursor:pointer;">Pakai</button>
                                 </div>
                             @endforeach
@@ -779,7 +852,34 @@
                 @endif
 
                 <div class="pos-col pos-col-sum" @if ($posStep === 'selection') x-bind:inert="step !== 3" @endif>
-                @if (! $settleBill)
+                @if ($bookingAddon)
+                {{-- 4. TOTAL TAMBAH ALAT (dihitung server, sama dengan yang disimpan) --}}
+                @php $addonQuote = $this->bookingAddonQuote; @endphp
+                <div class="pos-total-box" data-addon-total>
+                    <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#7A5A52; margin-bottom:0.2rem;">
+                        <span>Alat:</span><span>Rp {{ number_format($addonQuote['subtotal'] ?? 0, 0, ',', '.') }}</span>
+                    </div>
+                    @if (($addonQuote['tax_amount'] ?? 0) > 0)
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#7A5A52; margin-bottom:0.2rem;">
+                            <span>{{ $this->taxName }}:</span><span>Rp {{ number_format($addonQuote['tax_amount'], 0, ',', '.') }}</span>
+                        </div>
+                    @endif
+                    @if (($addonQuote['service_charge'] ?? 0) > 0)
+                        <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:#7A5A52; margin-bottom:0.2rem;">
+                            <span>{{ $this->adminFeeName }}:</span><span>Rp {{ number_format($addonQuote['service_charge'], 0, ',', '.') }}</span>
+                        </div>
+                    @endif
+                    <div style="border-top:1.5px dashed #662721; padding-top:0.4rem; display:flex; justify-content:space-between; align-items:baseline;">
+                        <span style="font-size:0.8125rem; font-weight:900; color:#4F2F2A;">{{ $this->isAddonTab ? 'DITAMBAHKAN KE TAGIHAN:' : 'TOTAL:' }}</span>
+                        <span style="font-size:1.1875rem; font-weight:900; color:#662721;">Rp {{ number_format($this->grandTotal, 0, ',', '.') }}</span>
+                    </div>
+                    @if ($this->isAddonTab && $addonQuote)
+                        <div style="font-size:0.75rem; color:#1E3A8A; margin-top:0.4rem;">
+                            Tagihan {{ $bookingAddon['academy'] }}: Rp {{ number_format($addonQuote['tab_before'], 0, ',', '.') }} &rarr; Rp {{ number_format($addonQuote['tab_after'], 0, ',', '.') }}
+                        </div>
+                    @endif
+                </div>
+                @elseif (! $settleBill)
                 {{-- 4. TOTAL --}}
                 <div class="pos-total-box">
                     <div
@@ -852,7 +952,7 @@
                     </div>
                 @endif
 
-                @if (! $settleBill)
+                @if (! $settleBill && ! $bookingAddon)
                 {{-- 6. AUTO CHECK-IN --}}
                 <label
                     style="display:flex; align-items:center; gap:0.5rem; cursor:pointer; background:#F0FDF4; border:1px solid #BBF7D0; border-radius:7px; padding:0.45rem 0.65rem;">
@@ -879,7 +979,7 @@
                 @elseif($posStep === 'payment')
                     <button type="button" wire:click="backToSelection"
                         style="width:100%; padding:0.65rem; border-radius:10px; border:1.5px solid #E6DAC0; background:#FFFFFF; color:#4F2F2A; font-weight:800; font-size:0.8125rem; cursor:pointer;">
-                        &larr; Ubah Pilihan Slot
+                        &larr; {{ $bookingAddon ? 'Ubah Pilihan Alat' : 'Ubah Pilihan Slot' }}
                     </button>
                 @elseif($posStep === 'receipt')
                     <button type="button" wire:click="startNewTransaction" class="pos-submit-btn">
@@ -902,13 +1002,17 @@
     <div class="pos-actionbar">
         <div class="pos-actionbar-summary">
             <div class="pos-sum-item">
-                <span class="k">Jadwal</span>
-                <span class="v">{{ $settleBill ? ($settleBill['court'] . ' • ' . $settleBill['schedule']) : $slotSummary }}</span>
+                <span class="k">{{ $this->isBookingAddonMode ? 'Tambah alat untuk' : 'Jadwal' }}</span>
+                <span class="v">{{ $settleBill ? ($settleBill['court'] . ' • ' . $settleBill['schedule'])
+                    : ($bookingAddon ? ('#'.$bookingAddon['code'].' • '.$bookingAddon['court'].' '.$bookingAddon['schedule'])
+                    : ($addonPicking ? 'Belum pilih booking' : $slotSummary)) }}</span>
             </div>
             <div class="pos-sum-item">
                 <span class="k">Atas nama</span>
                 @if ($settleBill)
                     <span class="v">{{ $settleBill['customer'] }}</span>
+                @elseif ($bookingAddon)
+                    <span class="v">{{ $bookingAddon['customer'] }}</span>
                 @elseif ($customerMode === 'search')
                     <span class="v">{{ $selectedCustomerName ?: 'Belum dipilih' }}</span>
                 @else
@@ -922,8 +1026,14 @@
         </div>
         <div class="pos-actionbar-actions">
             <button type="button" class="pos-btn pos-btn-ghost pos-actionbar-back" x-show="step > 1" x-cloak @click="prev()">&larr; Kembali</button>
-            <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 1" {{ count($selectedSlots) === 0 && ! $settleBill ? 'disabled' : '' }}
-                @click="go(2)">Lanjut: Data Customer &rarr;</button>
+            @if ($this->isBookingAddonMode)
+                {{-- Tambah Alat: customer dari booking → langsung ke Tambahan. --}}
+                <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 1" {{ $bookingAddon ? '' : 'disabled' }}
+                    @click="go(3)">{{ $bookingAddon ? 'Lanjut: Pilih Alat →' : 'Pilih booking dulu' }}</button>
+            @else
+                <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 1" {{ count($selectedSlots) === 0 && ! $settleBill ? 'disabled' : '' }}
+                    @click="go(2)">Lanjut: Data Customer &rarr;</button>
+            @endif
             @if ($settleBill)
                 <button type="button" class="pos-submit-btn pos-actionbar-next" x-show="step === 2" x-cloak @click="toPayment()" :disabled="busy">Lanjut ke Pembayaran &rarr;</button>
             @else
@@ -939,8 +1049,8 @@
 
     @if ($posStep === 'payment')
         @php
-            $confirmName = $settleBill['customer'] ?? ($selectedCustomerId ? $selectedCustomerName : ($walkInName ?: '-'));
-            $confirmPhone = $settleBill['phone'] ?? ($selectedCustomerId ? $selectedCustomerPhone : $walkInPhone);
+            $confirmName = $settleBill['customer'] ?? $bookingAddon['customer'] ?? ($selectedCustomerId ? $selectedCustomerName : ($walkInName ?: '-'));
+            $confirmPhone = $settleBill['phone'] ?? $bookingAddon['phone'] ?? ($selectedCustomerId ? $selectedCustomerPhone : $walkInPhone);
             $confirmMethod = match ($paymentMethod) {
                 'DEBIT_CARD', 'DEBIT' => 'Kartu Debit (EDC)',
                 'CREDIT_CARD', 'CREDIT' => 'Kartu Kredit (EDC)',
@@ -949,10 +1059,13 @@
                 'QRIS', 'QRIS_STATIS' => $qrisMode === 'MIDTRANS' ? 'QRIS (QR otomatis)' : 'QRIS Kasir Frontdesk',
                 default => $paymentMethod,
             };
-            $confirmToTab = ! $settleBill && $this->grandTotal > 0 && $this->coachingTabAcademy;
-            if ($confirmToTab) {
+            $confirmToTab = ! $settleBill && ! $bookingAddon && $this->grandTotal > 0 && $this->coachingTabAcademy;
+            if ($bookingAddon && $this->isAddonTab) {
+                $confirmToTab = true;
+                $confirmMethod = 'Dicatat pada tagihan '.$bookingAddon['academy'];
+            } elseif ($confirmToTab) {
                 $confirmMethod = 'Dicatat pada tagihan '.$this->coachingTabAcademy->name.' ('.$this->coachingTabAcademy->billingLabel().')';
-            } elseif (! $settleBill && $this->grandTotal <= 0) {
+            } elseif (! $settleBill && ! $bookingAddon && $this->grandTotal <= 0) {
                 $confirmMethod = 'Gratis — ditanggung benefit (tanpa pembayaran)';
             }
             $confirmAddons = collect($equipments)->filter(fn ($eq) => ($rentalQuantities[$eq->id] ?? 0) > 0);
@@ -963,11 +1076,14 @@
 
             <div class="pos-confirm">
                 <div class="pos-confirm-row"><span>Atas nama</span><strong>{{ $confirmName }}@if ($confirmPhone)<small>{{ $confirmPhone }}</small>@endif</strong></div>
-                <div class="pos-confirm-row"><span>Tanggal</span><strong>{{ \Carbon\Carbon::parse($bookingDate)->translatedFormat('l, d F Y') }}</strong></div>
+                <div class="pos-confirm-row"><span>Tanggal</span><strong>{{ \Carbon\Carbon::parse($bookingAddon['date'] ?? $bookingDate)->translatedFormat('l, d F Y') }}</strong></div>
                 <div class="pos-confirm-row"><span>Jadwal</span>
                     <strong>
                         @if ($settleBill)
                             {{ $settleBill['court'] }} &bull; {{ $settleBill['schedule'] }}
+                        @elseif ($bookingAddon)
+                            <span class="pos-confirm-line">Tambah alat untuk #{{ $bookingAddon['code'] }}</span>
+                            <span class="pos-confirm-line">{{ $bookingAddon['court'] }} &bull; {{ $bookingAddon['schedule'] }}</span>
                         @else
                             @foreach ($selectedSlots as $s)
                                 <span class="pos-confirm-line">{{ $s['court_name'] }} &bull; {{ $s['time_label'] }} WIB</span>
@@ -1011,6 +1127,7 @@
                 <div class="pos-confirm-row"><span>Metode bayar</span><strong>{{ $confirmMethod }}</strong></div>
                 <div class="pos-confirm-total"><span>Total</span><strong>Rp {{ number_format($settleBill ? $settleBill['amount'] : $this->grandTotal, 0, ',', '.') }}</strong></div>
                 {{-- Ketentuan yang sama dengan checkout online — dibacakan kasir ke customer sebelum bayar. --}}
+                @unless ($bookingAddon)
                 <div class="pos-confirm-policy">
                     <b>Ketentuan booking</b>
                     <ul>
@@ -1019,6 +1136,7 @@
                         <li>Salah pilih tanggal, lapangan, atau jam menjadi <strong>tanggung jawab pemesan</strong>.</li>
                     </ul>
                 </div>
+                @endunless
             </div>
 
             <x-slot name="footer">
