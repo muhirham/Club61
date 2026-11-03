@@ -120,6 +120,112 @@ class SignatureStage2Test extends TestCase
         $this->assertNull($video->fresh());
     }
 
+    // ================================================================== DUA LAYAR
+
+    public function test_two_screens_each_show_their_own_template_through_their_own_link(): void
+    {
+        $lobbyTemplate = SignatureTemplate::find($this->screen->template_id);
+        $courtTemplate = SignatureTemplate::where('id', '!=', $lobbyTemplate->id)->orderBy('created_at')->firstOrFail();
+        $lobbyPromo = SignatureContent::create(['name' => 'Promo Lobby', 'type' => 'IMAGE', 'file_path' => 'signature/images/lobby.jpg', 'duration_seconds' => 10]);
+        $courtPromo = SignatureContent::create(['name' => 'Promo Lapangan', 'type' => 'IMAGE', 'file_path' => 'signature/images/court.jpg', 'duration_seconds' => 10]);
+        Storage::disk('public')->put('signature/images/lobby.jpg', 'x');
+        Storage::disk('public')->put('signature/images/court.jpg', 'x');
+        foreach ([[$lobbyTemplate, $lobbyPromo], [$courtTemplate, $courtPromo]] as [$template, $content]) {
+            $template->playlistItems()->delete();
+            $template->playlistItems()->create(['zone_key' => 'main', 'content_id' => $content->id, 'sort_order' => 1]);
+        }
+
+        $page = Livewire::test(Signature::class)->call('publish');
+        $page->call('addScreen')->assertNotified('Layar 2 ditambahkan');
+        $second = SignatureScreen::where('name', 'Layar 2')->sole();
+        $this->assertNotSame($this->screen->token, $second->token);
+        $this->assertSame($second->id, $page->get('screenId'));
+
+        $page->set('screenName', 'TV Lapangan')->set('screenTemplateId', $courtTemplate->id)->call('publish');
+        $this->assertSame($lobbyTemplate->id, $this->screen->fresh()->template_id, 'layar pertama tidak ikut berubah');
+
+        $names = fn (SignatureScreen $s) => collect($this->getJson("/signature/{$s->fresh()->token}/payload")->json('playlists'))->flatten(1)->pluck('name')->all();
+        $this->assertSame(['Promo Lobby'], $names($this->screen));
+        $this->assertSame(['Promo Lapangan'], $names($second));
+
+        // Pindah layar memuat pengaturannya sendiri; screenId tidak bisa diubah langsung dari browser.
+        $page->call('selectScreen', $this->screen->id)->assertSet('screenTemplateId', $lobbyTemplate->id)->assertSee('TV Lapangan');
+        $this->expectExceptionMessageMatches('/locked/i');
+        $page->set('screenId', $second->id);
+    }
+
+    public function test_a_screen_can_be_deleted_but_never_the_last_one(): void
+    {
+        $page = Livewire::test(Signature::class)->call('deleteScreen')->assertNotified('Layar tidak bisa dihapus');
+        $this->assertSame(1, SignatureScreen::count());
+
+        $page->call('addScreen')->call('publish');
+        $second = SignatureScreen::where('name', 'Layar 2')->sole();
+        $token = $second->token;
+        $page->call('deleteScreen')->assertNotified('Layar 2 dihapus')->assertSet('screenId', $this->screen->id);
+
+        $this->assertNull($second->fresh());
+        $this->assertSame(0, \App\Models\Signature\SignatureVersion::where('screen_id', $second->id)->count());
+        $this->get("/signature/{$token}")->assertNotFound();
+        $this->assertTrue(\App\Models\Audit\ActivityLog::where('event', 'signature.screen_deleted')->exists());
+    }
+
+    // ================================================================== COURTSEE
+
+    public function test_admin_adds_a_courtsee_live_and_the_tv_gets_only_its_id(): void
+    {
+        $uuid = '01a19b61-4982-7399-854c-bd9105b04760';
+        $this->assertSame($uuid, SignatureContent::courtseeId("https://courtsee.com/watch/{$uuid}"));
+        $this->assertSame($uuid, SignatureContent::courtseeId('www.courtsee.com/watch/'.strtoupper($uuid).'/'));
+        foreach ([
+            "https://courtsee.com.evil.example/watch/{$uuid}",
+            "https://evil.example/watch/{$uuid}",
+            "https://courtsee.com/watch/{$uuid}/../../login",
+            'https://courtsee.com/watch/bukan-uuid',
+            "javascript:alert(1)//courtsee.com/watch/{$uuid}",
+            '',
+        ] as $link) {
+            $this->assertNull(SignatureContent::courtseeId($link), $link);
+        }
+
+        $page = Livewire::test(Signature::class)
+            ->call('openCreateContent')
+            ->set('contentName', 'Live Lapangan 2')
+            ->set('contentType', 'COURTSEE')
+            ->set('contentCourtsee', 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            ->call('saveContent')
+            ->assertHasErrors('contentCourtsee');
+
+        $page->set('contentCourtsee', "https://courtsee.com/watch/{$uuid}")
+            ->set('contentDuration', 3600)
+            ->call('saveContent')
+            ->assertHasNoErrors();
+
+        $live = SignatureContent::where('name', 'Live Lapangan 2')->sole();
+        $this->assertSame('COURTSEE', $live->type);
+        $this->assertSame($uuid, $live->url);
+        $this->assertNull($live->file_path);
+        $this->assertFalse($live->sound, 'suara diatur pemutar Courtsee');
+
+        $template = SignatureTemplate::find($this->screen->template_id);
+        $template->playlistItems()->delete();
+        $template->playlistItems()->create(['zone_key' => 'main', 'content_id' => $live->id, 'sort_order' => 1]);
+        $page->call('publish');
+
+        $item = $this->getJson("/signature/{$this->screen->token}/payload")->json('playlists.main.0');
+        $this->assertSame('COURTSEE', $item['type']);
+        $this->assertSame($uuid, $item['courtsee_id']);
+        $this->assertNull($item['youtube_id']);
+        $this->assertNull($item['url']);
+        $this->assertSame(3600, $item['duration']);
+
+        // Edit memuat link utuh; isi kolom yang dirusak langsung di database tidak pernah sampai ke TV.
+        Livewire::test(Signature::class)->call('openEditContent', $live->id)->assertSet('contentCourtsee', "https://courtsee.com/watch/{$uuid}");
+        $live->forceFill(['url' => 'https://evil.example/x'])->save();
+        $page->call('publish');
+        $this->assertSame([], $this->getJson("/signature/{$this->screen->token}/payload")->json('playlists.main'));
+    }
+
     // ================================================================== TRANSISI
 
     public function test_template_transition_is_saved_validated_and_sent_to_the_tv(): void

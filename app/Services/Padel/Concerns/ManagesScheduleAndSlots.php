@@ -28,8 +28,9 @@ trait ManagesScheduleAndSlots
         $parsedDate = Carbon::parse($date, $timezone);
         $dateStr = $parsedDate->format('Y-m-d');
         $peakHours = app(\App\Services\Padel\PeakHourService::class);
-        // Tanggal tutup / belum dibuka: slot kosong tampil Tutup + pesannya (booking yang sudah ada tetap tampil).
+        // Tanggal tutup / belum dibuka / jam tutup: slot kosong tampil Tutup + pesannya (booking yang sudah ada tetap tampil).
         $windowNotice = \App\Support\BookingWindow::blockedReason($dateStr);
+        $dayNotice = \App\Support\BookingWindow::dayNotice($dateStr);
 
         // Aturan "jam lewat" SAMA dengan POS Walk-In (BookOfflineCourt): jam sebelum jam berjalan
         // hari ini = PAST, jam yang sedang berjalan masih boleh dipesan. Tanggal lampau = semua PAST.
@@ -120,7 +121,7 @@ trait ManagesScheduleAndSlots
                     $status = ! $isRescheduleBalance && in_array($collidingBooking->status, ['LOCKED', 'PENDING_PAYMENT', 'PENDING']) ? 'LOCKED' : 'BOOKED';
                 } elseif ($isCacheLocked) {
                     $status = 'LOCKED';
-                } elseif ($windowNotice !== null) {
+                } elseif ($windowNotice !== null || \App\Support\BookingWindow::closedHoursReason($dateStr, $startHourStr, $endHourStr) !== null) {
                     $status = 'CLOSED';
                 } else {
                     $status = 'AVAILABLE';
@@ -159,7 +160,7 @@ trait ManagesScheduleAndSlots
             'timezone' => $timezone,
             'open_hour' => sprintf('%02d:00', $minOpenHour),
             'close_hour' => sprintf('%02d:00', $maxCloseHour),
-            'notice' => $windowNotice,
+            'notice' => $dayNotice,
             'courts' => $resultCourts,
         ];
     }
@@ -238,6 +239,12 @@ trait ManagesScheduleAndSlots
         $bookingDateParsed = Carbon::parse($bookingDate)->startOfDay();
         if ($bookingDateParsed->isPast() && ! $bookingDateParsed->isToday()) {
             throw new HttpException(422, \App\Support\SiteLocale::text('booking.date_in_past'));
+        }
+
+        // Jam tutup (BOOKING_CLOSED_DATES "Y-m-d HH:MM-HH:MM"). Semua booking baru lewat sini: customer online, POS
+        // Walk-In termasuk coaching, dan Jadwal Tetap. Tanggal tutup sehari penuh dicek di masing-masing jalur.
+        foreach ($slots as $slot) {
+            \App\Support\BookingWindow::assertHoursOpen($bookingDate, $slot['start_time'], $slot['end_time']);
         }
 
         // 1. SORTING ARRAY SECARA KRONOLOGIS (Anti-Deadlock pada Concurrent Transactions)

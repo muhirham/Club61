@@ -51,7 +51,8 @@ class Signature extends Page
     /** URL halaman Preview yang sedang dibuka (modal). */
     public ?string $previewUrl = null;
 
-    // --- Layar ---
+    // --- Layar --- (pindah layar hanya lewat selectScreen)
+    #[\Livewire\Attributes\Locked]
     public ?string $screenId = null;
 
     public string $screenName = '';
@@ -116,6 +117,9 @@ class Signature extends Page
     /** Link YouTube yang diketik admin (yang disimpan hanya ID videonya). */
     public string $contentYoutube = '';
 
+    /** Link halaman watch Courtsee yang diketik admin (yang disimpan hanya ID tayangannya). */
+    public string $contentCourtsee = '';
+
     // --- Running text ---
     public bool $showTextModal = false;
 
@@ -175,6 +179,46 @@ class Signature extends Page
         $this->screenNameDisplay = $screen->name_display;
         $this->screenSound = $screen->sound_enabled;
         $this->screenHoursOnly = $screen->operating_hours_only;
+    }
+
+    /** Semua layar TV — tiap layar punya link, template, dan riwayat tayangannya sendiri. */
+    public function getScreensProperty()
+    {
+        return SignatureScreen::orderBy('created_at')->get(['id', 'name']);
+    }
+
+    public function selectScreen(string $screenId): void
+    {
+        $this->authorizeView();
+        $this->resetValidation();
+        $this->loadScreen(SignatureScreen::findOrFail($screenId));
+    }
+
+    public function addScreen(): void
+    {
+        $this->authorizeManage();
+        $screen = app(SignatureService::class)->createScreen(auth()->user());
+        $this->resetValidation();
+        $this->loadScreen($screen);
+
+        Notification::make()->title("{$screen->name} ditambahkan")->body('Pilih template, tekan Tayangkan, lalu buka link layarnya di TV kedua.')->success()->send();
+    }
+
+    public function deleteScreen(): void
+    {
+        $this->authorizeManage();
+        $name = $this->screen->name;
+        try {
+            app(SignatureService::class)->deleteScreen($this->screen, auth()->user());
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            Notification::make()->title('Layar tidak bisa dihapus')->body($e->getMessage())->warning()->send();
+
+            return;
+        }
+        $this->resetValidation();
+        $this->loadScreen(SignatureScreen::orderBy('created_at')->firstOrFail());
+
+        Notification::make()->title("{$name} dihapus")->body('Link TV layar itu tidak berlaku lagi.')->success()->send();
     }
 
     public function getScreenProperty(): SignatureScreen
@@ -705,7 +749,7 @@ class Signature extends Page
 
     public function getContentsProperty()
     {
-        return SignatureContent::withCount('playlistItems')->orderByRaw("CASE WHEN type IN ('IMAGE','VIDEO','YOUTUBE') THEN 1 ELSE 0 END")->orderBy('name')->get();
+        return SignatureContent::withCount('playlistItems')->orderByRaw("CASE WHEN type IN ('IMAGE','VIDEO','YOUTUBE','COURTSEE') THEN 1 ELSE 0 END")->orderBy('name')->get();
     }
 
     public function openCreateContent(): void
@@ -725,6 +769,7 @@ class Signature extends Page
         $this->contentType = $content->type;
         $this->contentFilePath = $content->file_path;
         $this->contentYoutube = $content->type === 'YOUTUBE' && $content->url ? 'https://youtu.be/'.$content->url : '';
+        $this->contentCourtsee = $content->type === 'COURTSEE' && $content->url ? 'https://courtsee.com/watch/'.$content->url : '';
         $this->contentDuration = $content->duration_seconds;
         $this->contentSound = $content->sound;
         $this->contentVolume = $content->volume;
@@ -776,12 +821,19 @@ class Signature extends Page
                     }
                 }],
                 'IMAGE' => [$needsFile ? 'required' : 'nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
-                default => ['nullable'], // YouTube: file yang sempat dipilih sebelum ganti jenis diabaikan
+                default => ['nullable'], // YouTube / Courtsee: file yang sempat dipilih sebelum ganti jenis diabaikan
             },
             'contentYoutube' => $type === 'YOUTUBE'
                 ? ['required', 'string', 'max:500', function ($attribute, $value, $fail) {
                     if (! SignatureContent::youtubeId($value)) {
                         $fail('Link YouTube tidak valid. Contoh: https://youtu.be/xxxxxxxxxxx atau https://www.youtube.com/watch?v=xxxxxxxxxxx');
+                    }
+                }]
+                : ['nullable'],
+            'contentCourtsee' => $type === 'COURTSEE'
+                ? ['required', 'string', 'max:500', function ($attribute, $value, $fail) {
+                    if (! SignatureContent::courtseeId($value)) {
+                        $fail('Link Courtsee tidak valid. Contoh: https://courtsee.com/watch/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx');
                     }
                 }]
                 : ['nullable'],
@@ -792,6 +844,7 @@ class Signature extends Page
             'contentUpload.required' => $type === 'VIDEO' ? 'Pilih file video MP4.' : 'Pilih file gambar.',
             'contentUpload.max' => $type === 'VIDEO' ? "Ukuran video maksimal {$this->videoMaxMb} MB." : 'Ukuran gambar maksimal 10 MB.',
             'contentYoutube.required' => 'Tempel link video YouTube.',
+            'contentCourtsee.required' => 'Tempel link halaman watch Courtsee.',
             'contentDuration.min' => 'Durasi minimal 3 detik.',
         ]);
 
@@ -808,8 +861,12 @@ class Signature extends Page
             'sound' => in_array($type, SignatureContent::PLAYABLE_TYPES, true) && $this->contentSound,
             'volume' => (int) $this->contentVolume,
             'is_active' => $this->contentActive,
-            'file_path' => $type === 'YOUTUBE' ? null : $path,
-            'url' => $type === 'YOUTUBE' ? SignatureContent::youtubeId($this->contentYoutube) : null,
+            'file_path' => in_array($type, SignatureContent::FILE_TYPES, true) ? $path : null,
+            'url' => match ($type) {
+                'YOUTUBE' => SignatureContent::youtubeId($this->contentYoutube),
+                'COURTSEE' => SignatureContent::courtseeId($this->contentCourtsee),
+                default => null,
+            },
         ];
         $editing ? $editing->update($data) : SignatureContent::create($data + ['type' => $type]);
 
@@ -862,6 +919,7 @@ class Signature extends Page
         $this->contentVolume = 80;
         $this->contentActive = true;
         $this->contentYoutube = '';
+        $this->contentCourtsee = '';
     }
 
     // ================================================================== RUNNING TEXT

@@ -162,8 +162,9 @@ trait ManagesRecurringBookings
                 throw new HttpException(422, 'Jam main tujuan sudah lewat.');
             }
             \App\Support\BookingWindow::assertBookable($date, closedOnly: true);
+            \App\Support\BookingWindow::assertHoursOpen($date, $start, $end);
 
-            $balance = \App\Models\Membership\UserMembershipBalance::whereKey($b->membership_balance_id)->lockForUpdate()->first();
+            $balance =\App\Models\Membership\UserMembershipBalance::whereKey($b->membership_balance_id)->lockForUpdate()->first();
             $membership = $balance?->membership;
             if (! $balance || ! $membership || ! $membership->isActive()) {
                 throw new HttpException(422, 'Membership pemilik kuota sudah tidak aktif.');

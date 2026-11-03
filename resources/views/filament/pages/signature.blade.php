@@ -79,7 +79,7 @@
             <button type="button" wire:click="previewScreen" class="c61-btn c61-btn-outline-cream c61-btn-lg">Preview</button>
             @if($this->canPublish)
                 <button type="button" class="c61-btn c61-btn-cream c61-btn-lg"
-                    x-on:click="$dispatch('club61-confirm', { title: 'Tayangkan ke TV?', message: 'Template, konten, running text, sponsor, dan pengaturan layar saat ini dikirim ke TV (±15 detik).', confirmLabel: 'Ya, Tayangkan', onConfirm: () => $wire.publish() })">Tayangkan</button>
+                    x-on:click="$dispatch('club61-confirm', { title: @js('Tayangkan ke '.$screen->name.'?'), message: 'Template, konten, running text, sponsor, dan pengaturan layar ini dikirim ke TV-nya (±15 detik). Layar lain tidak berubah.', confirmLabel: 'Ya, Tayangkan', onConfirm: () => $wire.publish() })">Tayangkan</button>
             @endif
         </div>
     </div>
@@ -94,6 +94,19 @@
 
     {{-- ===================== LAYAR & TAYANGAN ===================== --}}
     @if($activeTab === 'screen')
+        {{-- Tiap layar = satu TV: link, template, dan riwayat tayangannya sendiri. --}}
+        <div style="display:flex; flex-wrap:wrap; align-items:center; gap:0.5rem;">
+            <span class="c61-label" style="margin:0;">Layar:</span>
+            <div class="c61-seg">
+                @foreach($this->screens as $item)
+                    <button type="button" wire:key="sg-screen-tab-{{ $item->id }}" wire:click="selectScreen(@js($item->id))" class="c61-seg-btn {{ $item->id === $screen->id ? 'is-active' : '' }}">{{ $item->name }}</button>
+                @endforeach
+            </div>
+            @if($this->canManage)
+                <button type="button" wire:click="addScreen" class="c61-btn c61-btn-ghost c61-btn-sm">+ Tambah Layar</button>
+            @endif
+        </div>
+
         <div class="sg-cols">
             <div class="c61-card">
                 <div class="c61-card-head">
@@ -151,6 +164,10 @@
                     </div>
                 </div>
                 <div class="c61-card-foot sg-actions">
+                    @if($this->canManage && $this->screens->count() > 1)
+                        <button type="button" class="c61-btn c61-btn-ghost c61-btn-sm" style="color:#B91C1C;"
+                            x-on:click="$dispatch('club61-confirm', { title: @js('Hapus '.$screen->name.'?'), message: 'Link TV layar ini langsung tidak berlaku dan riwayat tayangannya ikut terhapus. Template & konten tidak ikut terhapus.', confirmLabel: 'Ya, Hapus', tone: 'danger', onConfirm: () => $wire.deleteScreen() })">Hapus Layar</button>
+                    @endif
                     @if($this->canPublish)
                         <button type="button" class="c61-btn c61-btn-ghost c61-btn-sm"
                             x-on:click="$dispatch('club61-confirm', { title: 'Buat ulang link layar?', message: 'Link lama langsung tidak berlaku. Buka link baru di TV setelah ini.', confirmLabel: 'Ya, Buat Ulang', tone: 'danger', onConfirm: () => $wire.regenerateToken() })">Buat Ulang Link</button>
@@ -322,7 +339,7 @@
                                 </td>
                                 @php $playable = in_array($content->type, \App\Models\Signature\SignatureContent::PLAYABLE_TYPES, true); @endphp
                                 <td><span class="c61-pill {{ in_array($content->type, \App\Models\Signature\SignatureContent::LIBRARY_TYPES, true) ? 'c61-pill-cream' : 'c61-pill-info' }}">{{ \App\Models\Signature\SignatureContent::TYPES[$content->type] ?? $content->type }}</span></td>
-                                <td>{{ match ($content->type) { 'VIDEO' => 'Sampai selesai', 'YOUTUBE' => 'Sampai selesai (maks '.$content->duration_seconds.' dtk)', default => $content->duration_seconds.' detik' } }}</td>
+                                <td>{{ match ($content->type) { 'VIDEO' => 'Sampai selesai', 'YOUTUBE' => 'Sampai selesai (maks '.$content->duration_seconds.' dtk)', 'COURTSEE' => 'Maks '.$content->duration_seconds.' dtk', default => $content->duration_seconds.' detik' } }}</td>
                                 <td>{{ $playable ? ($content->sound ? 'Ya · '.$content->volume.'%' : 'Mute') : '—' }}</td>
                                 <td>{{ $content->playlist_items_count }} template</td>
                                 <td><span class="c61-pill {{ $content->is_active ? 'c61-pill-ok' : 'c61-pill-gray' }}">{{ $content->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
@@ -332,7 +349,7 @@
                                             <button type="button" wire:click="openEditContent('{{ $content->id }}')" class="c61-btn c61-btn-ghost c61-btn-sm">Edit</button>
                                             @if(in_array($content->type, \App\Models\Signature\SignatureContent::LIBRARY_TYPES, true))
                                                 <button type="button" class="c61-btn c61-btn-danger c61-btn-sm"
-                                                    x-on:click="$dispatch('club61-confirm', { title: @js('Hapus '.$content->name.'?'), message: @js($content->type === 'YOUTUBE' ? 'Konten dikeluarkan dari semua playlist template (draft). Kalau masih tayang di TV, tetap tayang sampai Tayangkan berikutnya.' : 'Konten dikeluarkan dari semua playlist template (draft). Kalau masih tayang di TV, tetap tayang sampai Tayangkan berikutnya — filenya dihapus otomatis setelah 7 hari tidak tayang.'), confirmLabel: 'Ya, Hapus', tone: 'danger', onConfirm: () => $wire.deleteContent(@js($content->id)) })">Hapus</button>
+                                                    x-on:click="$dispatch('club61-confirm', { title: @js('Hapus '.$content->name.'?'), message: @js(in_array($content->type, ['YOUTUBE', 'COURTSEE'], true) ? 'Konten dikeluarkan dari semua playlist template (draft). Kalau masih tayang di TV, tetap tayang sampai Tayangkan berikutnya.' : 'Konten dikeluarkan dari semua playlist template (draft). Kalau masih tayang di TV, tetap tayang sampai Tayangkan berikutnya — filenya dihapus otomatis setelah 7 hari tidak tayang.'), confirmLabel: 'Ya, Hapus', tone: 'danger', onConfirm: () => $wire.deleteContent(@js($content->id)) })">Hapus</button>
                                             @endif
                                         </div>
                                     @endif
@@ -681,6 +698,7 @@
                                 <option value="IMAGE">Gambar (JPG / PNG / WEBP, maks 10 MB)</option>
                                 <option value="VIDEO">Video MP4 (maks {{ $this->videoMaxMb }} MB)</option>
                                 <option value="YOUTUBE">Video YouTube (link, tanpa upload)</option>
+                                <option value="COURTSEE">Live Courtsee (link halaman watch)</option>
                             </select>
                         </div>
                     @else
@@ -718,9 +736,18 @@
                         </div>
                     @endif
 
+                    @if($contentType === 'COURTSEE')
+                        <div class="c61-field">
+                            <label class="c61-label" for="sg-content-courtsee">Link Courtsee</label>
+                            <input id="sg-content-courtsee" type="url" wire:model.live.debounce.600ms="contentCourtsee" class="c61-input" maxlength="500" placeholder="https://courtsee.com/watch/…">
+                            @error('contentCourtsee') <span class="sg-error">{{ $message }}</span> @enderror
+                            <span class="c61-hint">Uji coba: TV menampilkan pemutar Courtsee. Pemutar ini tidak berjalan otomatis — tekan Play dengan pointer remote / mouse. Suara diatur dari pemutar Courtsee. Paling cocok sebagai satu-satunya konten di zona.</span>
+                        </div>
+                    @endif
+
                     <div class="sg-grid-2">
                         <div class="c61-field">
-                            <label class="c61-label" for="sg-content-duration">{{ match ($contentType) { 'VIDEO' => 'Durasi (cadangan, detik)', 'YOUTUBE' => 'Durasi maksimal (detik)', default => 'Durasi tampil (detik)' } }}</label>
+                            <label class="c61-label" for="sg-content-duration">{{ match ($contentType) { 'VIDEO' => 'Durasi (cadangan, detik)', 'YOUTUBE', 'COURTSEE' => 'Durasi maksimal (detik)', default => 'Durasi tampil (detik)' } }}</label>
                             <input id="sg-content-duration" type="number" min="3" max="3600" wire:model="contentDuration" class="c61-input">
                             @if($contentType === 'VIDEO') <span class="c61-hint">Video diputar sampai selesai.</span> @endif
                             @if($contentType === 'YOUTUBE') <span class="c61-hint">Diputar sampai selesai; dipotong kalau lebih lama dari ini (wajib untuk live streaming).</span> @endif

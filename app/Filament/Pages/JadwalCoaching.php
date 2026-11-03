@@ -12,6 +12,7 @@ use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
+use Filament\Tables\Enums\FiltersLayout;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -104,11 +105,16 @@ class JadwalCoaching extends Page implements HasTable
                     ]))) ?: '-'),
             ])
             ->filters([
+                // Tanggal dikosongkan (× pada label filter) → semua sesi tampil; dulu kosong selalu kembali ke hari ini.
                 Filter::make('tanggal')
-                    ->schema([DatePicker::make('date')->label('Tanggal')->default(now(LedgerReport::TIMEZONE)->toDateString())->native(false)])
-                    ->query(fn (Builder $query, array $data) => $query->whereDate('booking_date', self::filterDate($data['date'] ?? null)))
-                    ->indicateUsing(fn (array $data) => 'Tanggal: '.Carbon::parse(self::filterDate($data['date'] ?? null))->translatedFormat('d M Y')),
+                    ->schema([DatePicker::make('date')->label('Tanggal')->default(now(LedgerReport::TIMEZONE)->toDateString())->native(false)->displayFormat('d M Y')])
+                    ->query(fn (Builder $query, array $data) => blank($data['date'] ?? null)
+                        ? $query : $query->whereDate('booking_date', self::filterDate($data['date'])))
+                    ->indicateUsing(fn (array $data) => blank($data['date'] ?? null)
+                        ? null : 'Tanggal: '.Carbon::parse(self::filterDate($data['date']))->translatedFormat('d M Y')),
             ])
+            // Di atas tabel, bukan dropdown: kalender di dalam dropdown terpotong di layar tablet.
+            ->filtersLayout(FiltersLayout::AboveContent)
             ->recordActions([
                 Action::make('remind')
                     ->label('Ingatkan Coach')
