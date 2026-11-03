@@ -160,6 +160,100 @@ class BookingWindowTest extends TestCase
         $this->assertEquals(97, (float) $balance->fresh()->remaining_quota, 'hanya 3 jam (3 Des) yang dipotong');
     }
 
+    public function test_closing_some_hours_blocks_only_those_hours_on_every_path(): void
+    {
+        config(['booking_window.closed_dates' => '2026-11-04 06:00-13:00, 2026-11-26', 'booking_window.closed_reason' => 'Acara Khusus']);
+        $this->assertSame(['2026-11-26'], \App\Support\BookingWindow::closedDates(), '26 Nov tetap tutup sehari penuh');
+        $this->assertSame([['start' => '06:00', 'end' => '13:00']], \App\Support\BookingWindow::closedHours('2026-11-04'));
+        $this->assertNull(\App\Support\BookingWindow::blockedReason('2026-11-04'), 'tanggalnya sendiri tidak tutup');
+        $closed = 'Club 61 tutup pada Rabu, 4 November 2026 pukul 06:00–13:00 (Acara Khusus).';
+
+        // Jadwal customer: 06:00–12:00 Tutup, 13:00 ke atas tetap bisa; banner menyebut jamnya.
+        $day = $this->getJson('/api/v1/padel/schedule?date=2026-11-04')->assertOk();
+        $this->assertStringContainsString('Jam lain tetap bisa dibooking', $day->json('data.notice'));
+        $status = collect($day->json('data.courts.0.slots'))->pluck('status', 'local_start');
+        $this->assertSame('CLOSED', $status['06:00']);
+        $this->assertSame('CLOSED', $status['12:00']);
+        $this->assertSame('AVAILABLE', $status['13:00']);
+        $this->assertSame('AVAILABLE', $this->getJson('/api/v1/padel/schedule?date=2026-11-05')->json('data.courts.0.slots.0.status'));
+
+        // Tahan slot online: jam yang menyentuh jam tutup ditolak, 13:00 boleh.
+        $customer = User::factory()->customer()->create();
+        $hold = fn (int $from, int $to) => $this->actingAs($customer, 'sanctum')->postJson('/api/v1/padel/hold-slot', ['booking_date' => '2026-11-04', 'slots' => [$this->slot($from, $to)]]);
+        $this->assertStringStartsWith($closed, $hold(12, 13)->assertStatus(422)->json('message'));
+        $hold(12, 14)->assertStatus(422);
+        $this->assertSame(0, PadelBooking::count());
+        $hold(13, 14)->assertStatus(201);
+
+        // POS Walk-In: layar & server.
+        $admin = User::factory()->superAdmin()->create(['is_active' => true]);
+        $this->actingAs($admin);
+        Livewire::test(BookOfflineCourt::class)
+            ->set('bookingDate', '2026-11-04')
+            ->assertSee('pukul 06:00–13:00')
+            ->call('toggleSlot', $this->court->id, 'Court A', '12:00', '13:00', 100000)
+            ->assertNotified('Jam Tidak Bisa Dibooking')
+            ->assertSet('selectedSlots', []);
+        try {
+            app(PadelBookingService::class)->processWalkInCheckout(customer: $customer, slots: [$this->slot(10, 11)], bookingDate: '2026-11-04',
+                equipments: [], paymentMethod: 'QRIS', cashier: $admin);
+            $this->fail('Jam tutup seharusnya ditolak.');
+        } catch (HttpException $e) {
+            $this->assertStringStartsWith($closed, $e->getMessage());
+        }
+
+        // Reschedule: jam tutup tidak ditawarkan & ditolak bila dipaksa.
+        $booking = PadelBooking::create([
+            'booking_code' => 'BK-RSC01', 'user_id' => $customer->id, 'court_id' => $this->court->id, 'booking_date' => '2026-11-05',
+            'start_time' => '2026-11-05 10:00:00', 'end_time' => '2026-11-05 11:00:00', 'court_fee' => 100000, 'total_amount' => 100000, 'status' => 'PAID',
+        ]);
+        $service = app(PadelBookingService::class);
+        $starts = collect($service->getAvailableRescheduleSlots($booking->id, $this->court->id, '2026-11-04')['slots'])->pluck('start_time');
+        $this->assertSame('14:00', $starts->first(), 'jam tutup tidak ditawarkan; 13:00 sudah ditahan customer di atas');
+        try {
+            $service->adminRescheduleBooking($booking->id, $this->court->id, '2026-11-04', '12:00', 'Pindah', $admin);
+            $this->fail('Reschedule ke jam tutup seharusnya ditolak.');
+        } catch (HttpException $e) {
+            $this->assertStringStartsWith($closed, $e->getMessage());
+        }
+        $this->assertSame('2026-11-05', $booking->fresh()->booking_date->toDateString());
+
+        // Perintah cek menampilkan jam tutup.
+        $this->artisan('booking:window')->expectsOutputToContain('Rabu, 4 November 2026 06:00–13:00')->assertSuccessful();
+    }
+
+    public function test_recurring_schedule_skips_the_week_only_when_its_hours_hit_the_closed_hours(): void
+    {
+        Club61PermissionMatrix::syncAllPermissions('web');
+        ClubFinanceSetting::getSettings()->update(['is_admin_fee_enabled' => false, 'is_tax_enabled' => false]);
+        Cache::forget(ClubFinanceSetting::CACHE_KEY);
+        config(['booking_window.closed_dates' => '2026-11-04 06:00-13:00']);
+
+        $admin = User::factory()->admin()->create();
+        $pic = User::factory()->customer()->create();
+        $plan = MembershipPlan::create(['code' => 'CORP-X', 'name' => 'Corporate 100 Jam', 'ownership_type' => 'ORGANIZATIONAL', 'duration_days' => 365, 'price' => 0, 'is_active' => true]);
+        $membership = UserMembership::create([
+            'membership_code' => 'MBR-X', 'owner_type' => 'ORGANIZATIONAL', 'user_id' => $pic->id, 'plan_id' => $plan->id,
+            'status' => 'ACTIVE', 'start_date' => '2026-11-01', 'end_date' => '2027-10-31', 'qr_pass_hash' => 'QR-X',
+        ]);
+        $balance = UserMembershipBalance::create(['user_membership_id' => $membership->id, 'facility' => 'PADEL', 'quota_type' => 'HOURS', 'initial_quota' => 100, 'remaining_quota' => 100]);
+        $make = fn (string $from, string $to) => PadelRecurringSchedule::create([
+            'name' => "Rabu {$from}", 'user_membership_id' => $membership->id, 'day_of_week' => 3, 'start_time' => $from, 'end_time' => $to,
+            'court_ids' => [$this->court->id], 'starts_on' => '2026-11-04', 'ends_on' => '2026-11-04', 'weeks_ahead' => 1,
+            'status' => PadelRecurringSchedule::STATUS_ACTIVE, 'created_by_id' => $admin->id,
+        ]);
+        $morning = $make('10:00', '12:00');
+        $evening = $make('18:00', '20:00');
+
+        $service = app(RecurringScheduleService::class);
+        $this->assertSame(0, $service->generate($morning, $admin)['booked']);
+        $this->assertSame(1, $service->generate($evening, $admin)['booked']);
+
+        $this->assertSame(PadelRecurringOccurrence::STATUS_SKIPPED, $morning->occurrences()->sole()->status);
+        $this->assertSame(['18:00'], PadelBooking::get()->map(fn ($b) => $b->start_time->format('H:i'))->all());
+        $this->assertEquals(98, (float) $balance->fresh()->remaining_quota, 'hanya 2 jam malam yang dipotong');
+    }
+
     public function test_without_settings_nothing_is_blocked_and_the_check_command_reports_invalid_values(): void
     {
         config(['booking_window.open_until' => null, 'booking_window.closed_dates' => null, 'booking_window.closed_reason' => null]);

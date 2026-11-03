@@ -79,6 +79,11 @@ trait ManagesRescheduleAndCashier
             $slotStart = Carbon::parse("{$dateStr} " . sprintf('%02d:00', $startHour), $timezone);
             $slotEnd = $slotStart->copy()->addHours($durationHours);
 
+            // Jam tutup (BOOKING_CLOSED_DATES dengan jam) tidak ditawarkan.
+            if (\App\Support\BookingWindow::closedHoursReason($dateStr, $slotStart, $slotEnd) !== null) {
+                continue;
+            }
+
             // Contiguous check: pastikan seluruh jam berturut-turut kosong
             $isAvailable = true;
             $currCheck = $slotStart->copy();
@@ -441,6 +446,8 @@ trait ManagesRescheduleAndCashier
             if ($newStartDt->copy()->startOfHour()->lt(Carbon::now($timezone)->startOfHour())) {
                 throw new HttpException(422, "Jam {$newStartDt->format('H:i')} sudah lewat. Pilih jam lain.");
             }
+            // Jam tutup (BOOKING_CLOSED_DATES dengan jam).
+            \App\Support\BookingWindow::assertHoursOpen($dateStr, $newStartDt, $newEndDt);
 
             $courtOpen = (int) substr($newCourt->open_time ?: '06:00', 0, 2);
             $courtCloseVal = $newCourt->close_time ?: '23:00';

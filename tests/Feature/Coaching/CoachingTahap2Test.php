@@ -127,6 +127,20 @@ class CoachingTahap2Test extends TestCase
         $this->assertSame($this->date, JadwalCoaching::filterDate('2026-02-31'));
     }
 
+    public function test_clearing_the_schedule_date_shows_all_sessions(): void
+    {
+        $result = $this->coachingCheckout('15', ['head_coach_id' => $this->maimun->id]);
+        $booking = PadelBooking::where('order_id', $result['order']->id)->sole();
+        $this->travelTo(Carbon::parse($this->date, 'Asia/Jakarta')->addDays(3)->setTime(9, 0));
+
+        // Hari lain: sesi tidak tampil; tanggal dikosongkan (× pada label filter) → label hilang & semua sesi tampil.
+        Livewire::test(JadwalCoaching::class)
+            ->assertCanNotSeeTableRecords([$booking])
+            ->filterTable('tanggal', ['date' => null])
+            ->assertCanSeeTableRecords([$booking])
+            ->assertDontSee('Tanggal: ');
+    }
+
     // ── Profil coach (web & API)───────────────────────────────────────────────────────────────────────────────
 
     public function test_customer_sees_only_published_coaches_without_private_contact(): void

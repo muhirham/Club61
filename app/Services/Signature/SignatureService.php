@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
  * Modul 26 — Signature (layar TV venue).
@@ -149,6 +150,34 @@ class SignatureService
                 'sound_enabled' => true,
                 'operating_hours_only' => true,
             ]);
+        });
+    }
+
+    /** Layar TV baru (link sendiri, template pertama). Belum menayangkan apa pun sampai Tayangkan ditekan. */
+    public function createScreen(User $user): SignatureScreen
+    {
+        $screen = SignatureScreen::create([
+            'name' => 'Layar '.(SignatureScreen::count() + 1),
+            'token' => $this->newToken(),
+            'template_id' => SignatureTemplate::orderBy('created_at')->value('id'),
+            'name_display' => 'FULL',
+            'sound_enabled' => true,
+            'operating_hours_only' => true,
+        ]);
+        ActivityLogger::record(module: 'SIGNATURE', event: 'signature.screen_created', description: "Layar {$screen->name} ditambahkan", subject: $screen, causer: $user);
+
+        return $screen;
+    }
+
+    /** Hapus layar beserta riwayat tayangannya; link TV-nya langsung tidak berlaku. Minimal satu layar tersisa. */
+    public function deleteScreen(SignatureScreen $screen, User $user): void
+    {
+        DB::transaction(function () use ($screen, $user) {
+            if (SignatureScreen::lockForUpdate()->count() <= 1) {
+                throw new HttpException(422, 'Minimal harus ada satu layar.');
+            }
+            ActivityLogger::record(module: 'SIGNATURE', event: 'signature.screen_deleted', description: "Layar {$screen->name} dihapus (link TV-nya tidak berlaku lagi)", subject: $screen, severity: ActivityLogger::WARNING, causer: $user);
+            $screen->delete();
         });
     }
 
@@ -335,9 +364,11 @@ class SignatureService
             if ($zone['kind'] !== 'playlist') {
                 continue;
             }
-            // Konten nonaktif & YouTube tanpa ID yang sah dilewati (bukan dikirim kosong ke TV).
+            // Konten nonaktif & YouTube / Courtsee tanpa ID yang sah dilewati (bukan dikirim kosong ke TV).
             $playlists[$zone['key']] = $items
-                ->filter(fn ($item) => $item[2] === $zone['key'] && $item[0]->is_active && ($item[0]->type !== 'YOUTUBE' || SignatureContent::youtubeId('https://youtu.be/'.$item[0]->url)))
+                ->filter(fn ($item) => $item[2] === $zone['key'] && $item[0]->is_active
+                    && ($item[0]->type !== 'YOUTUBE' || SignatureContent::youtubeId('https://youtu.be/'.$item[0]->url))
+                    && ($item[0]->type !== 'COURTSEE' || SignatureContent::courtseeId('https://courtsee.com/watch/'.$item[0]->url)))
                 ->map(fn ($item) => $this->contentPayload($item[0], $item[1] === null || $item[1] === '' ? null : (int) $item[1]))
                 ->values()->all();
         }
@@ -382,6 +413,7 @@ class SignatureService
             'url' => $content->file_path ? self::publicFileUrl($content->file_path) : null,
             // Hanya ID 11 karakter (divalidasi ulang) — TV menyusun sendiri alamat pemutarnya.
             'youtube_id' => $content->type === 'YOUTUBE' ? SignatureContent::youtubeId('https://youtu.be/'.$content->url) : null,
+            'courtsee_id' => $content->type === 'COURTSEE' ? SignatureContent::courtseeId('https://courtsee.com/watch/'.$content->url) : null,
             'duration' => max(3, (int) ($duration ?: $content->duration_seconds)),
             'sound' => in_array($content->type, SignatureContent::PLAYABLE_TYPES, true) && $content->sound,
             'volume' => max(0, min(100, (int) $content->volume)),

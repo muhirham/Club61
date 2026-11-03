@@ -483,6 +483,11 @@ class BookOfflineCourt extends Page
 
                 return;
             }
+            if ($reason = \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTime, $endTime)) {
+                Notification::make()->title('Jam Tidak Bisa Dibooking')->body($reason)->warning()->send();
+
+                return;
+            }
 
             $court = PadelCourt::find($courtId);
             if ($court) {
@@ -2512,8 +2517,9 @@ class BookOfflineCourt extends Page
         $courts = PadelCourt::where('is_active', true)->ordered()->get();
         $peakHours = app(\App\Services\Padel\PeakHourService::class); // jam peak diatur di Master Data
         $isToday = $this->bookingDate === now()->format('Y-m-d');
-        // Tanggal tutup / belum dibuka (App\Support\BookingWindow): slot kosong tampil Tutup + banner pesannya.
-        $bookingWindowNotice = \App\Support\BookingWindow::blockedReason($this->bookingDate);
+        // Tanggal tutup / belum dibuka / jam tutup (App\Support\BookingWindow): slot kosong tampil Tutup + banner pesannya.
+        $bookingWindowNotice = \App\Support\BookingWindow::dayNotice($this->bookingDate);
+        $bookingDateBlocked = \App\Support\BookingWindow::blockedReason($this->bookingDate) !== null;
 
         // Tarik seluruh booking pada tanggal aktif untuk evaluasi cepat
         $existingBookings = PadelBooking::with(['court', 'user', 'coachingBooking:id,billing'])
@@ -2655,7 +2661,7 @@ class BookOfflineCourt extends Page
                 if (in_array($status, ['AVAILABLE', 'LOCKED'], true) && $this->isPastSlot($startTimeStr)) {
                     $status = 'PAST';
                     $bookingDetail = null;
-                } elseif ($status === 'AVAILABLE' && $bookingWindowNotice !== null) {
+                } elseif ($status === 'AVAILABLE' && ($bookingDateBlocked || \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTimeStr, $endTimeStr) !== null)) {
                     $status = 'CLOSED';
                 }
 

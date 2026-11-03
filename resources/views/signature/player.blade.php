@@ -34,6 +34,11 @@
         /* YouTube: pemutar memenuhi slide; tidak bisa diklik (TV tanpa mouse, kontrol disembunyikan). */
         .yt { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #000; pointer-events: none; }
         .yt iframe { width: 100%; height: 100%; border: 0; display: block; }
+        /* Courtsee: halaman watch dibuka 1920×1080 lalu dipotong ke kotak pemutarnya. Bisa diklik — pemutarnya tidak
+           berjalan otomatis, Play ditekan dengan pointer remote / mouse. */
+        .cs { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: #000; }
+        .cs-clip { position: absolute; overflow: hidden; background: #000; }
+        .cs-clip iframe { position: absolute; top: 0; left: 0; border: 0; -webkit-transform-origin: 0 0; transform-origin: 0 0; }
         .muted { opacity: .7; }
 
         /* Monitoring lapangan */
@@ -352,6 +357,9 @@
                 // pengaman: tidak mulai main dalam 15 detik (internet putus / video dihapus) → dilewati.
                 later(done, Math.max(3, item.duration || 300) * 1000);
                 later(function () { if (!slide._media || !slide._media.started) { done(); } }, 15000);
+            } else if (item.type === 'COURTSEE' && item.courtsee_id) {
+                playCourtsee(box, slide, item);
+                advanceAfter = Math.max(3, item.duration || 300) * 1000; // live tidak pernah selesai → durasi maksimal
             } else {
                 renderWidgetInto(slide, item.type);
             }
@@ -376,6 +384,39 @@
         if (m && state.soundMedia === m) { state.soundMedia = null; }
         state.widgets = state.widgets.filter(function (w) { return w.node !== slide; });
         if (slide.parentNode) { slide.parentNode.removeChild(slide); }
+    }
+
+    // ------------------------------------------------------------------ Courtsee
+    // Server hanya mengirim ID tayangan (UUID, sudah divalidasi); alamat halaman disusun di sini. Posisi pemutar di
+    // halaman watch Courtsee selebar 1920 px (diukur 2 Nov 2026): kiri 329, atas 118, 1248×702. Kalau Courtsee mengubah
+    // tampilannya, cukup sesuaikan angka ini.
+    var COURTSEE = { pageW: 1920, pageH: 1080, left: 329, top: 118, w: 1248, h: 702 };
+    function playCourtsee(box, slide, item) {
+        var holder = el('div', 'cs');
+        var clip = el('div', 'cs-clip');
+        var frame = document.createElement('iframe');
+        var zoneW = box.clientWidth || 1920;
+        var zoneH = box.clientHeight || 1080;
+        var scale = Math.min(zoneW / COURTSEE.w, zoneH / COURTSEE.h);
+        clip.style.width = Math.round(COURTSEE.w * scale) + 'px';
+        clip.style.height = Math.round(COURTSEE.h * scale) + 'px';
+        clip.style.left = Math.round((zoneW - COURTSEE.w * scale) / 2) + 'px';
+        clip.style.top = Math.round((zoneH - COURTSEE.h * scale) / 2) + 'px';
+        frame.width = COURTSEE.pageW;
+        frame.height = COURTSEE.pageH;
+        frame.style.left = Math.round(-COURTSEE.left * scale) + 'px';
+        frame.style.top = Math.round(-COURTSEE.top * scale) + 'px';
+        frame.style.webkitTransform = 'scale(' + scale + ')';
+        frame.style.transform = 'scale(' + scale + ')';
+        frame.setAttribute('scrolling', 'no');
+        frame.setAttribute('allow', 'autoplay; fullscreen');
+        frame.setAttribute('referrerpolicy', 'no-referrer');
+        // Halaman Courtsee tidak boleh membelokkan TV ke alamat lain (tanpa allow-top-navigation).
+        frame.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+        frame.src = 'https://courtsee.com/watch/' + encodeURIComponent(item.courtsee_id);
+        clip.appendChild(frame);
+        holder.appendChild(clip);
+        slide.appendChild(holder);
     }
 
     // ------------------------------------------------------------------ YouTube

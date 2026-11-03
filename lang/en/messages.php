@@ -35,6 +35,8 @@ return [
         // App\Support\BookingWindow (BOOKING_CLOSED_DATES / BOOKING_OPEN_UNTIL).
         'date_closed' => 'Club 61 is closed on :date:reason. Please choose another date.',
         'date_not_open' => 'Bookings for play dates after :date are not open yet. Please choose a play date up to :date.',
+        'hours_closed' => 'Club 61 is closed on :date from :hours:reason. Please choose another time.',
+        'hours_closed_notice' => 'Club 61 is closed on :date from :hours:reason. Other times can still be booked.',
     ],
 
     'checkout' => [

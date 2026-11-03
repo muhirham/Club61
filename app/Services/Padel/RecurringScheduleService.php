@@ -181,8 +181,9 @@ class RecurringScheduleService
                         continue;
                     }
 
-                    // Tanggal tutup (BOOKING_CLOSED_DATES): minggu ini dilewati, booking tidak dibuat & kuota tidak dipotong.
-                    if (\App\Support\BookingWindow::isClosed($date)) {
+                    // Tanggal tutup / jam tutup yang bentrok (BOOKING_CLOSED_DATES): minggu ini dilewati, booking tidak
+                    // dibuat & kuota tidak dipotong.
+                    if (\App\Support\BookingWindow::isClosed($date) || \App\Support\BookingWindow::closedHoursReason($date, $schedule->start_time, $schedule->end_time) !== null) {
                         $reason = \App\Support\BookingWindow::closedReason();
                         PadelRecurringOccurrence::whereKey($occurrence->id)
                             ->whereIn('status', [PadelRecurringOccurrence::STATUS_PENDING, PadelRecurringOccurrence::STATUS_FAILED])
@@ -671,7 +672,8 @@ class RecurringScheduleService
                 ->mapWithKeys(fn (PadelRecurringOccurrence $o) => [$o->occurrence_date->toDateString().'|'.$o->court_id => $o->status]);
 
             for ($date = $s->firstDateOnOrAfter($today->copy()->max($s->starts_on->copy()->startOfDay())); $date->lte($end); $date = $date->copy()->addWeek()) {
-                if (Carbon::parse($date->toDateString().' '.$s->start_time)->lte(now()) || \App\Support\BookingWindow::isClosed($date)) {
+                if (Carbon::parse($date->toDateString().' '.$s->start_time)->lte(now()) || \App\Support\BookingWindow::isClosed($date)
+                    || \App\Support\BookingWindow::closedHoursReason($date, $s->start_time, $s->end_time) !== null) {
                     continue;
                 }
                 foreach ((array) $s->court_ids as $courtId) {

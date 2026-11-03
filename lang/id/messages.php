@@ -35,6 +35,8 @@ return [
         // App\Support\BookingWindow (BOOKING_CLOSED_DATES / BOOKING_OPEN_UNTIL).
         'date_closed' => 'Club 61 tutup pada :date:reason. Silakan pilih tanggal lain.',
         'date_not_open' => 'Booking untuk tanggal main setelah :date belum dibuka. Silakan pilih tanggal main sampai :date.',
+        'hours_closed' => 'Club 61 tutup pada :date pukul :hours:reason. Silakan pilih jam lain.',
+        'hours_closed_notice' => 'Club 61 tutup pada :date pukul :hours:reason. Jam lain tetap bisa dibooking.',
     ],
 
     'checkout' => [

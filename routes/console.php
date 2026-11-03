@@ -18,6 +18,12 @@ Artisan::command('booking:window', function () {
         $this->error("BOOKING_OPEN_UNTIL \"{$rawUntil}\" tidak valid (format Y-m-d, mis. 2026-11-25) — batas TIDAK aktif.");
     }
     $this->line('Tanggal tutup sehari penuh         : '.($closed ? implode(', ', array_map(fn ($d) => \App\Support\BookingWindow::label($d), $closed)) : '-'));
+    $hours = array_filter(\App\Support\BookingWindow::closures(), fn ($c) => $c['start'] !== null);
+    $this->line('Tutup jam tertentu                 : '.($hours ? implode(', ', array_map(fn ($c) => \App\Support\BookingWindow::label($c['date'])." {$c['start']}–{$c['end']}", $hours)) : '-'));
+    $entries = array_filter(array_map('trim', explode(',', (string) config('booking_window.closed_dates', ''))));
+    if (count($entries) > count(\App\Support\BookingWindow::closures())) {
+        $this->error('Ada isi BOOKING_CLOSED_DATES yang formatnya salah dan DIABAIKAN. Format: 2026-11-26 atau 2026-11-04 06:00-13:00');
+    }
     $this->line('Keterangan tutup                   : '.(\App\Support\BookingWindow::closedReason() ?? '-'));
 })->purpose('Tampilkan batas tanggal booking & tanggal tutup yang sedang berlaku');
 
