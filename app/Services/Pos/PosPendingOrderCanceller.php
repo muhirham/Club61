@@ -53,15 +53,7 @@ class PosPendingOrderCanceller
                     $released[] = $booking;
                 });
 
-            // Bola (habis pakai) dipotong saat checkout → kembalikan stoknya.
-            PadelBookingEquipment::with('equipment')
-                ->where('order_id', $order->id)
-                ->whereNotNull('stock_deducted_at')
-                ->get()
-                ->each(function (PadelBookingEquipment $row) {
-                    $row->equipment?->increment('stock_quantity', (int) $row->quantity);
-                    $row->update(['stock_deducted_at' => null]);
-                });
+            self::restoreStock($order, $payment);
 
             return 'CANCELLED';
         });
@@ -73,5 +65,39 @@ class PosPendingOrderCanceller
         }
 
         return $result;
+    }
+
+    /**
+     * Stok yang dipotong saat QR kasir dibuat (sebelum dibayar) dikembalikan karena tagihannya batal / kedaluwarsa.
+     * Dipakai pembatalan dari layar kasir & jalur DOKU (cancel di atas) dan notifikasi expire Midtrans
+     * (PaymentWebhookController) — gateway mana pun, QR yang tidak dibayar tidak memotong stok. Idempoten: baris alat
+     * booking ditandai stock_deducted_at = null, penjualan Pro Shop ditandai payload_log.stock_restored_at, merchandise
+     * dicek dari Kartu Stok. Wajib dipanggil di dalam transaksi dengan order & tagihan terkunci.
+     */
+    public static function restoreStock(Order $order, Payment $payment): void
+    {
+        // Bola (habis pakai) dipotong saat checkout / tambah alat → kembalikan stoknya.
+        PadelBookingEquipment::with('equipment')
+            ->where('order_id', $order->id)
+            ->whereNotNull('stock_deducted_at')
+            ->get()
+            ->each(function (PadelBookingEquipment $row) {
+                $row->equipment?->increment('stock_quantity', (int) $row->quantity);
+                $row->update(['stock_deducted_at' => null]);
+                // Raket yang sempat tercatat dipinjam (tambah alat ke booking yang sudah check-in) tidak jadi diserahkan.
+                \App\Models\Padel\EquipmentLoan::where('booking_equipment_id', $row->id)->whereNull('returned_at')->delete();
+            });
+
+        // Penjualan Kasir Pro Shop: stok dipotong saat QR dibuat (tanpa baris booking) → kembalikan sekali saja.
+        // Alat dari payload_log, merchandise dari Kartu Stok (MerchStockService juga mencegah dobel).
+        $log = is_array($payment->payload_log) ? $payment->payload_log : [];
+        if (($log['source'] ?? null) === ProShopSaleService::SOURCE && empty($log['stock_restored_at'])) {
+            foreach ((array) ($log['equipment_sale'] ?? []) as $row) {
+                \App\Models\Padel\CourtEquipment::whereKey($row['equipment_id'] ?? null)->increment('stock_quantity', max(0, (int) ($row['quantity'] ?? 0)));
+            }
+            app(\App\Services\Merch\MerchStockService::class)->restoreCancelledSale($order);
+            $log['stock_restored_at'] = now()->toIso8601String();
+            $payment->update(['payload_log' => $log]);
+        }
     }
 }

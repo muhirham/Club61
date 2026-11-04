@@ -97,10 +97,10 @@ trait ManagesCheckoutAndPayments
 
                     $qty = max(1, (int)$item['quantity']);
 
-                    // BALL = consumable (dibeli habis, bukan disewa) -> stok dipotong SEKARANG saat checkout.
-                    // RACKET/TOWEL = disewa (dipinjamkan fisik) -> stok baru dipotong nanti saat check-in
+                    // Alat Jual (habis pakai, mis. bola) -> stok dipotong SEKARANG saat checkout.
+                    // Alat Sewa (mis. raket / handuk) -> stok baru dipotong nanti saat check-in
                     // (lihat ManagesCheckInAndTurnstile::checkIn()), dan bisa di-restock manual lewat retur alat.
-                    $isConsumable = strtoupper($eq->type) === 'BALL';
+                    $isConsumable = $eq->isSale();
                     if ($isConsumable) {
                         if ((int) $eq->stock_quantity < $qty) {
                             throw new HttpException(422, \App\Support\SiteLocale::text('checkout.stock_insufficient', ['item' => $eq->name, 'left' => $eq->stock_quantity, 'qty' => $qty]));
@@ -1170,10 +1170,10 @@ trait ManagesCheckoutAndPayments
 
                         $qty = max(1, (int)$item['quantity']);
 
-                        // BALL = consumable (dibeli habis, bukan disewa) -> stok dipotong SEKARANG saat checkout.
-                        // RACKET/TOWEL = disewa (dipinjamkan fisik) -> stok baru dipotong nanti saat check-in
+                        // Alat Jual (habis pakai, mis. bola) -> stok dipotong SEKARANG saat checkout.
+                        // Alat Sewa (mis. raket / handuk) -> stok baru dipotong nanti saat check-in
                         // (lihat ManagesCheckInAndTurnstile::checkIn()), dan bisa di-restock manual lewat retur alat.
-                        $isConsumable = strtoupper($eq->type) === 'BALL';
+                        $isConsumable = $eq->isSale();
                         if ($isConsumable) {
                             if ((int) $eq->stock_quantity < $qty) {
                                 throw new HttpException(422, "Stok {$eq->name} tidak cukup (sisa {$eq->stock_quantity}, diminta {$qty}).");

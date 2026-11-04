@@ -295,6 +295,13 @@ class PaymentWebhookController extends Controller
 
             $order->update(['payment_status' => 'CANCELLED']);
 
+            // QR kasir (Bayar Otomatis) yang kedaluwarsa: stok bola / merchandise yang dipotong saat QR dibuat dikembalikan,
+            // sama dengan pembatalan dari layar kasir & jalur DOKU. Dulu stoknya tertahan selamanya kalau notifikasi ini
+            // datang lebih dulu (layar kasir tidak memeriksa lagi & pembersih hanya mengambil order yang belum dibatalkan).
+            if (isset($log['pos_qris'])) {
+                \App\Services\Pos\PosPendingOrderCanceller::restoreStock($order, $bill);
+            }
+
             // Kartu membership yang menunggu pembayaran order ini ikut batal (dulu "Menunggu Pembayaran" selamanya).
             \App\Services\Membership\MembershipOnlinePaymentService::cancelForCancelledOrder($order);
 

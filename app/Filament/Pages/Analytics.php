@@ -46,6 +46,7 @@ class Analytics extends Page
         'SEWA_LAPANGAN' => ['label' => 'Sewa Lapangan Padel (Court Rental)', 'sub' => 'Sewa slot jam lapangan padel', 'soon' => false],
         'ADDON_PADEL' => ['label' => 'Sewa Alat & Add-on Bola (Equipment)', 'sub' => 'Sewa raket, bola & perlengkapan padel', 'soon' => false],
         'FNB' => ['label' => 'Food & Beverage (F&B)', 'sub' => 'Penjualan kafe / bar dari POS F&B', 'soon' => false],
+        'MERCH' => ['label' => 'Merchandise', 'sub' => 'Penjualan merchandise di Kasir Pro Shop', 'soon' => false],
         'WELLNESS' => ['label' => 'Wellness', 'sub' => 'Akses wellness di luar paket membership', 'soon' => true],
         'COACHING' => ['label' => 'Pelatih & Coaching Session', 'sub' => 'Sewa lapangan harga khusus untuk sesi coaching academy', 'soon' => false],
     ];

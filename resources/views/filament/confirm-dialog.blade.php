@@ -13,7 +13,13 @@
         onConfirm: () => $wire.deleteItem('id'),
     })">Hapus</button>
 --}}
-<div x-data="{
+<style>
+    /* Konfirmasi selalu paling depan — juga saat dibuka dari modal custom .c61-modal-backdrop (z-index 9999),
+       mis. "Terima Semua" di detail Peminjaman Alat. Bawaan Filament hanya 40/50 → tertutup modalnya. */
+    .club61-confirm-host .fi-modal > .fi-modal-close-overlay,
+    .club61-confirm-host .fi-modal > .fi-modal-window-ctn { z-index: 10000; }
+</style>
+<div class="club61-confirm-host" x-data="{
         busy: false,
         title: '',
         message: '',

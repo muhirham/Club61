@@ -743,7 +743,7 @@ class KelolaPemesanan extends Page
         // REAKTIF FAIL-SAFE: Otomatis sinkronkan tiket kedaluwarsa & selesai setiap halaman dibuka
         app(PadelBookingService::class)->syncExpiredAndCompletedBookings();
 
-        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'equipments.order:id,payment_status', 'recurringSchedule', 'coachingBooking.academy'])
+        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'equipments.order:id,payment_status', 'equipments.loan:id,booking_equipment_id,returned_at', 'recurringSchedule', 'coachingBooking.academy'])
             ->latest('start_time');
 
         // Pencarian (kode tiket / nama / HP …) mencakup semua periode — customer bisa datang membawa tiket lama.

@@ -29,6 +29,7 @@ class LedgerWriter
     public const ITEM_CATEGORIES = [
         'PADEL' => 'SEWA_LAPANGAN',
         'EQUIPMENT' => 'ADDON_PADEL',
+        'EQUIPMENT_FINE' => 'DENDA_ALAT',
         'MEMBERSHIP' => 'MEMBERSHIP',
         'FNB' => 'FNB',
         'WELLNESS' => 'WELLNESS',

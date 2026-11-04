@@ -20,10 +20,10 @@ use UnitEnum;
 
 class BookOfflineCourt extends Page
 {
-    use \App\Livewire\Concerns\AddsBookingEquipment;
     use \App\Livewire\Concerns\AutoPrintsReceipts;
     use \App\Livewire\Concerns\ClosesPosShift;
     use \App\Livewire\Concerns\PrintsDailySalesRecap;
+    use \App\Livewire\Concerns\ResolvesPosCustomer;
     use \App\Livewire\Concerns\SettlesCoachingBills;
     use HasPageShield;
 
@@ -185,8 +185,8 @@ class BookOfflineCourt extends Page
         $this->initializeEquipmentQuantities();
         $this->checkPendingDraft();
         // Bayar Otomatis yang masih menunggu (halaman sempat di-refresh / tertutup) → popup dilanjutkan.
-        $this->pendingQris = app(\App\Services\Pos\PosAutoPayment::class)->resumeFor('PADEL_FRONTDESK', 'WALK_IN_OFFLINE', auth()->id())
-            ?? app(\App\Services\Pos\PosAutoPayment::class)->resumeFor('PADEL_FRONTDESK', 'BOOKING_ADDON', auth()->id());
+        // Alat (tambah ke booking / jual / denda) dibayar di Kasir Pro Shop — Bayar Otomatisnya dilanjutkan di sana.
+        $this->pendingQris = app(\App\Services\Pos\PosAutoPayment::class)->resumeFor('PADEL_FRONTDESK', 'WALK_IN_OFFLINE', auth()->id());
 
         if ($this->settleRequest) {
             $this->startSettlement($this->settleRequest);
@@ -210,7 +210,6 @@ class BookOfflineCourt extends Page
             return;
         }
 
-        $this->exitBookingAddon();
         $booking = PadelBooking::with(['user', 'court', 'order.payments'])->find($bookingId);
         // Sesi tagihan berkala academy (Modul 31) dilunasi sekaligus per academy, bukan per slot.
         if ($booking && $booking->status === 'PENDING_PAYMENT' && \App\Services\Coaching\CoachingBillingService::isTabBooking($booking)) {
@@ -458,8 +457,6 @@ class BookOfflineCourt extends Page
         if ($this->settleBill) {
             $this->cancelSettlement();
         }
-        // Kasir memilih jam kosong → kembali ke walk-in biasa.
-        $this->exitBookingAddon();
         // Pilihan jam berubah → slot yang tadi ditahan dilepas (ditahan lagi saat "Lanjut ke Pembayaran").
         $this->releaseHeldSlots();
 
@@ -1156,9 +1153,6 @@ class BookOfflineCourt extends Page
         if ($this->settleBill) {
             return (float) $this->settleBill['amount'];
         }
-        if ($this->bookingAddon) {
-            return (float) ($this->bookingAddonQuote['grand_total'] ?? 0);
-        }
 
         return (float) $this->financeCalculation['grand_total'];
     }
@@ -1447,12 +1441,6 @@ class BookOfflineCourt extends Page
 
     public function proceedToPayment(): void
     {
-        if ($this->bookingAddon) {
-            $this->proceedBookingAddonToPayment();
-
-            return;
-        }
-
         // 0. Guard Shift Kasir Aktif PADEL_FRONTDESK
         $activeShift = $this->activeShift;
 
@@ -1678,7 +1666,6 @@ class BookOfflineCourt extends Page
 
     public function startNewTransaction(): void
     {
-        $this->exitBookingAddon();
         $this->releaseHeldSlots();
         Cache::forget($this->getDraftCacheKey());
         $this->hasPendingDraft = false;
@@ -1739,12 +1726,6 @@ class BookOfflineCourt extends Page
             return;
         }
 
-        if ($this->bookingAddon) {
-            $this->submitBookingAddon();
-
-            return;
-        }
-
         // 0. Guard Permission
         abort_unless(auth()->user() && auth()->user()->can('process_walkin_booking'), 403, 'Akses ditolak: Anda tidak memiliki izin untuk memproses transaksi walk-in.');
 
@@ -1771,61 +1752,9 @@ class BookOfflineCourt extends Page
         }
 
         // 2. Identifikasi Customer
-        $customer = null;
-        if ($this->customerMode === 'search') {
-            if (empty($this->selectedCustomerId)) {
-                Notification::make()
-                    ->title('Customer Belum Dipilih')
-                    ->body('Silakan cari dan pilih pelanggan terdaftar, atau beralih ke form Walk-In Cepat.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-            $customer = User::find($this->selectedCustomerId);
-            if (! $customer) {
-                Notification::make()
-                    ->title('Customer Tidak Ditemukan')
-                    ->body('Data pelanggan terdaftar tidak valid atau telah dihapus.')
-                    ->danger()
-                    ->send();
-                return;
-            }
-        } else {
-            $name = trim($this->walkInName);
-            $phone = trim($this->walkInPhone);
-
-            if (empty($name)) {
-                Notification::make()
-                    ->title('Nama Wajib Diisi')
-                    ->body('Silakan masukkan nama pelanggan walk-in.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-
-            if (! PersonName::isValid($name)) {
-                Notification::make()
-                    ->title('Nama Tidak Valid')
-                    ->body(PersonName::MESSAGE)
-                    ->warning()
-                    ->send();
-                return;
-            }
-
-            if (empty($phone) || strlen(preg_replace('/[^0-9]/', '', $phone)) < 8) {
-                Notification::make()
-                    ->title('Nomor Telepon Tidak Valid')
-                    ->body('Silakan masukkan nomor WhatsApp / telepon aktif minimal 8 digit.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-
-            $customer = $service->findOrCreateWalkInCustomer(
-                name: $name,
-                phone: $phone,
-                email: ! empty($this->walkInEmail) ? trim($this->walkInEmail) : null
-            );
+        $customer = $this->resolvePosCustomer($service);
+        if (! $customer) {
+            return;
         }
 
         // 2.0 Coaching: isian & tarif dicek lagi (bisa berubah sejak "Lanjut ke Pembayaran").
@@ -2297,8 +2226,20 @@ class BookOfflineCourt extends Page
             return collect();
         }
 
-        $date = $this->resolvedHistoryDate();
-        $search = trim($this->historySearch);
+        return self::frontdeskHistoryRows($this->resolvedHistoryDate(), trim($this->historySearch), proShop: false);
+    }
+
+    /**
+     * Baris Riwayat Transaksi loket frontdesk padel pada tanggal itu. Transaksi Kasir Pro Shop (jual, tambah alat ke
+     * booking, denda alat — payload_log.source) tampil di Riwayat Pro Shop ($proShop = true), sisanya di POS Walk-In;
+     * penjualan membership punya riwayat sendiri (order_type MEMBERSHIP). Pemanggil wajib sudah mengecek izin.
+     * SENGAJA static: method publik non-static komponen Livewire bisa dipanggil langsung dari browser (hasilnya ikut
+     * terkirim) — riwayat tanpa cek izin tidak boleh bisa diambil begitu saja.
+     */
+    public static function frontdeskHistoryRows(string $date, string $search, bool $proShop): \Illuminate\Support\Collection
+    {
+        $page = new self;
+        $proShopSources = \App\Filament\Pages\KasirProShop::HISTORY_SOURCES;
 
         // paid_at = saat pembayaran jadi SUCCESS (Modul 17; dulu didekati dengan updated_at, yang ikut berubah setiap kali
         // baris pembayaran disentuh). created_at tagihan selisih = saat reschedule (bisa berhari-hari sebelumnya).
@@ -2307,31 +2248,40 @@ class BookOfflineCourt extends Page
             ->where('status', 'SUCCESS')
             ->where(fn ($q) => $q->where('payment_gateway', 'CASHIER_POS')->orWhereNotNull('pos_shift_id')) // + QR Midtrans dari layar kasir
             ->whereHas('order', fn ($q) => $q->whereIn('order_type', ['WALK_IN', 'ONLINE_BOOKING']))
+            ->when(
+                $proShop,
+                fn ($q) => $q->whereIn('payload_log->source', $proShopSources),
+                // Pembayaran tanpa source (walk-in lama, pelunasan) tetap tampil di POS Walk-In.
+                fn ($q) => $q->where(fn ($w) => $w->whereNull('payload_log->source')->orWhereNotIn('payload_log->source', $proShopSources)),
+            )
             ->whereBetween('paid_at', [
                 Carbon::parse($date, 'Asia/Jakarta')->startOfDay()->setTimezone(config('app.timezone')),
                 Carbon::parse($date, 'Asia/Jakarta')->endOfDay()->setTimezone(config('app.timezone')),
             ])
             ->when($search !== '', fn ($q) => $q->where(fn ($w) => $w
                 ->whereHas('order', fn ($o) => $o->where('order_number', 'like', "%{$search}%")
+                    // Pembeli Kasir Pro Shop tidak punya akun — nama & HP-nya tersimpan di order.
+                    ->orWhere('customer_name', 'like', "%{$search}%")
+                    ->orWhere('customer_phone', 'like', "%{$search}%")
                     ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$search}%")->orWhere('phone', 'like', "%{$search}%"))
                     ->orWhereHas('padelBookings', fn ($b) => $b->where('booking_code', 'like', "%{$search}%")))))
             ->latest('paid_at')
             ->limit(100)
             ->get()
-            ->map(function (\App\Models\Pos\Payment $payment) {
+            ->map(function (\App\Models\Pos\Payment $payment) use ($page) {
                 $order = $payment->order;
                 $log = is_array($payment->payload_log) ? $payment->payload_log : [];
 
                 return [
                     'payment_id' => $payment->id,
                     'time' => ($payment->paid_at ?? $payment->updated_at)->setTimezone('Asia/Jakarta')->format('H:i'),
-                    'status' => $this->historyStatusLabel($order),
+                    'status' => $page->historyStatusLabel($order),
                     'order_number' => $order->order_number,
-                    'type' => $this->transactionTypeLabel($payment, $log),
-                    'customer' => $order->user?->name ?? 'Walk-In',
+                    'type' => $page->transactionTypeLabel($payment, $log),
+                    'customer' => $order->user?->name ?? $order->customer_name ?? 'Walk-In',
                     'detail' => $order->padelBookings->isEmpty() && ! empty($log['booking_addon'])
                         ? 'Alat untuk #'.$log['booking_addon']['booking_code']
-                        : $order->padelBookings->map(fn ($b) => ($b->court?->name ?? 'Lapangan').' '.$b->start_time->format('H:i').'-'.$b->end_time->format('H:i'))->implode(', '),
+                        : (in_array($log['source'] ?? null, [\App\Services\Pos\ProShopSaleService::SOURCE,\App\Services\Padel\EquipmentLoanService::SOURCE_FINE], true) ? 'Tanpa booking' : $order->padelBookings->map(fn ($b) => ($b->court?->name ?? 'Lapangan').' '.$b->start_time->format('H:i').'-'.$b->end_time->format('H:i'))->implode(', ')),
                     'cashier' => $log['settled_by_name'] ?? $log['cashier_name'] ?? $order->cashier?->name ?? '-',
                     'method' => app(PadelBookingService::class)->formatPaymentMethodLabel($payment->payment_method, $log),
                     'amount' => (float) $payment->amount,
@@ -2384,6 +2334,8 @@ class BookOfflineCourt extends Page
         return match (true) {
             ($log['type'] ?? null) === 'RESCHEDULE_PRICE_DELTA' => 'Pelunasan Selisih Reschedule',
             ! empty($log['booking_addon']) => 'Tambahan Alat',
+            ($log['source'] ?? null) === \App\Services\Pos\ProShopSaleService::SOURCE => 'Penjualan Pro Shop',
+            ($log['source'] ?? null) === \App\Services\Padel\EquipmentLoanService::SOURCE_FINE => 'Denda Alat',
             $payment->order->order_type === 'WALK_IN' => 'Booking Walk-In',
             default => 'Pelunasan Booking',
         };
@@ -2446,11 +2398,14 @@ class BookOfflineCourt extends Page
         $wasRescheduled = $bookings->contains(fn ($b) => (int) $b->reschedule_count > 0);
         // Tambah Alat ke Booking: transaksi alat saja, untuk booking yang sudah ada.
         $addonBooking = ! empty($log['booking_addon']['booking_id']) ? PadelBooking::with('court')->find($log['booking_addon']['booking_id']) : null;
+        // Penjualan Kasir Pro Shop / denda Peminjaman Alat: transaksi tanpa booking, rinciannya dari item order.
+        $isEquipmentSale = ($log['source'] ?? null) === \App\Services\Pos\ProShopSaleService::SOURCE;
+        $isEquipmentFine = ($log['source'] ?? null) === \App\Services\Padel\EquipmentLoanService::SOURCE_FINE;
 
         return [
             'order_number' => $order->order_number,
-            'customer_name' => $order->user?->name ?? 'Walk-In',
-            'customer_phone' => $order->user?->phone ?? '-',
+            'customer_name' => $order->user?->name ?? $order->customer_name ?? 'Walk-In',
+            'customer_phone' => $order->user?->phone ?? $order->customer_phone ?? '-',
             'cashier_name' => $log['settled_by_name'] ?? $log['cashier_name'] ?? $order->cashier?->name ?? (auth()->user()?->name ?? '-'),
             'booking_date' => ($bookings->first() ?? $addonBooking)?->booking_date?->translatedFormat('d F Y') ?? '-',
             'addon_for' => $addonBooking ? [
@@ -2475,11 +2430,19 @@ class BookOfflineCourt extends Page
             'discount_amount' => (float) $order->discount_amount,
             'voucher_code' => $order->voucher_code,
             'voucher_note' => app(\App\Services\Finance\PromoVoucherService::class)->receiptNote($order->voucher_code),
-            'equipments' => \App\Models\Padel\PadelBookingEquipment::with('equipment')
-                ->where('order_id', $order->id)
-                ->get()
-                ->map(fn ($e) => ['name' => $e->equipment?->name ?? 'Alat Sewa', 'quantity' => $e->quantity, 'price' => (float) $e->subtotal])
-                ->all(),
+            'equipment_sale' => $isEquipmentSale,
+            'equipment_fine' => $isEquipmentFine,
+            // Transaksi Kasir Pro Shop (jual / tambah alat ke booking / denda): kepala & penutup struk "Pro Shop".
+            'pro_shop' => $isEquipmentSale || $isEquipmentFine || $addonBooking !== null,
+            // Penjualan Pro Shop / denda tidak punya baris alat booking — rinciannya dari item order.
+            'equipments' => $isEquipmentSale || $isEquipmentFine
+                ? $order->items()->whereIn('item_type', ['EQUIPMENT', 'EQUIPMENT_FINE', 'MERCH'])->get()
+                    ->map(fn ($i) => ['name' => $i->item_name, 'quantity' => $i->quantity, 'unit_price' => (float) $i->unit_price, 'price' => (float) $i->subtotal])->all()
+                : \App\Models\Padel\PadelBookingEquipment::with('equipment')
+                    ->where('order_id', $order->id)
+                    ->get()
+                    ->map(fn ($e) => ['name' => $e->equipment?->name ?? 'Alat Sewa', 'quantity' => $e->quantity, 'unit_price' => (float) $e->unit_price, 'price' => (float) $e->subtotal])
+                    ->all(),
             'receipt_type' => $isSettlement ? 'SETTLEMENT' : 'SALE',
             'paid_before' => $paidBefore,
             'paid_now' => (float) $payment->amount,
@@ -2504,7 +2467,6 @@ class BookOfflineCourt extends Page
         $this->subtotalCache = null;
         $this->financeCalculationCache = null;
         $this->voucherResultCache = null;
-        $this->bookingAddonQuoteCache = null;
 
         // Fail-safe sinkronisasi kedaluwarsa — di-throttle max 1x per 15 detik (bukan tiap render/klik).
         // Cache::add() atomic: cuma proses PERTAMA dalam window 15 detik yang benar-benar menjalankan sync,
@@ -2626,8 +2588,6 @@ class BookOfflineCourt extends Page
                             $status = 'BOOKED';
                             $bookingDetail = [
                                 'id' => $matchedBooking->id,
-                                // Bisa dipilih di mode Tambah Alat (lunas / check-in / sesi tagihan coaching).
-                                'addon_ok' => in_array($matchedBooking->status, ['PAID', 'CHECKED_IN', 'PENDING_PAYMENT'], true),
                                 'code' => $matchedBooking->booking_code,
                                 'player' => $matchedBooking->user?->name ?? 'Pemain',
                                 'status' => $matchedBooking->status,

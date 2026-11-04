@@ -271,6 +271,79 @@ class MasterDataPricingAndAddonsTest extends TestCase
         ]);
     }
 
+    /** Alat yang hanya pernah dijual langsung di Kasir Pro Shop (tanpa booking) tetap dilindungi dari hapus permanen. */
+    public function test_equipment_sold_only_at_pro_shop_is_protected_and_only_deactivated(): void
+    {
+        $this->actingAs($this->adminUser);
+        $ball = CourtEquipment::create(['name' => 'Bola Head Pro', 'type' => 'BALL', 'rental_price' => 35000, 'stock_quantity' => 10, 'is_active' => true]);
+        $this->equipmentOrder($ball, 2, 'PAID');
+
+        Livewire::test(MasterData::class)
+            ->call('setActiveTab', 'equipments')
+            ->assertSee('Terjual 2 unit')
+            ->call('deleteEquipment', $ball->id);
+
+        $this->assertDatabaseHas('court_equipments', ['id' => $ball->id, 'is_active' => false]);
+    }
+
+    public function test_transaction_history_counts_paid_units_and_follows_usage(): void
+    {
+        $this->actingAs($this->adminUser);
+        $ball = CourtEquipment::create(['name' => 'Bola Head Pro', 'type' => 'BALL', 'rental_price' => 35000, 'stock_quantity' => 10, 'is_active' => true]);
+        $towel = CourtEquipment::create(['name' => 'Handuk Club 61', 'type' => 'TOWEL', 'rental_price' => 15000, 'stock_quantity' => 10, 'is_active' => true]);
+        $fresh = CourtEquipment::create(['name' => 'Overgrip Baru', 'type' => 'OTHER', 'usage' => CourtEquipment::USAGE_SALE, 'rental_price' => 25000, 'stock_quantity' => 10, 'is_active' => true]);
+
+        // Bola: 3 + 2 unit lunas, 10 unit belum lunas tidak dihitung.
+        $this->equipmentOrder($ball, 3, 'PAID');
+        $this->equipmentOrder($ball, 2, 'PAID');
+        $this->equipmentOrder($ball, 10, 'UNPAID');
+        // Raket: 2 unit lunas lewat tambah alat ke booking (baris booking + item order yang sama — tidak dihitung dobel).
+        $booking = PadelBooking::create([
+            'booking_code' => 'BK-HIST-002', 'user_id' => $this->adminUser->id, 'court_id' => $this->court->id,
+            'booking_date' => now()->toDateString(), 'start_time' => now()->startOfHour(), 'end_time' => now()->startOfHour()->addHour(),
+            'court_fee' => 250000, 'equipment_fee' => 100000, 'total_amount' => 350000, 'status' => 'COMPLETED',
+        ]);
+        $order = $this->equipmentOrder($this->activeEquipment, 2, 'PAID');
+        PadelBookingEquipment::create(['order_id' => $order->id, 'booking_id' => $booking->id, 'equipment_id' => $this->activeEquipment->id, 'quantity' => 2, 'unit_price' => 50000, 'subtotal' => 100000]);
+        // Handuk: hanya transaksi yang belum lunas.
+        $this->equipmentOrder($towel, 1, 'UNPAID');
+
+        Livewire::test(MasterData::class)
+            ->call('setActiveTab', 'equipments')
+            ->assertSee('Perlengkapan Padel')
+            ->assertSee('Riwayat Transaksi')
+            ->assertSee('Terjual 5 unit')
+            ->assertSee('Disewa 2 kali')
+            ->assertSee('Ada riwayat transaksi')
+            ->assertSee('Belum ada transaksi')
+            ->assertSee('per unit')
+            ->assertDontSee('Riwayat Rental')
+            ->assertDontSee('Terkunci Historis');
+
+        // Yang belum pernah dipakai transaksi apa pun tetap bisa dihapus permanen.
+        Livewire::test(MasterData::class)->call('deleteEquipment', $fresh->id);
+        $this->assertDatabaseMissing('court_equipments', ['id' => $fresh->id]);
+    }
+
+    private function equipmentOrder(CourtEquipment $equipment, int $quantity, string $paymentStatus): \App\Models\Pos\Order
+    {
+        $subtotal = (float) $equipment->rental_price * $quantity;
+        $order = \App\Models\Pos\Order::create([
+            'order_number' => 'ORD-PAD-'.strtoupper(\Illuminate\Support\Str::random(10)),
+            'user_id' => $this->adminUser->id,
+            'order_type' => 'WALK_IN',
+            'subtotal' => $subtotal,
+            'grand_total' => $subtotal,
+            'payment_status' => $paymentStatus,
+        ]);
+        $order->items()->create([
+            'item_type' => 'EQUIPMENT', 'reference_id' => $equipment->id, 'item_name' => $equipment->name,
+            'quantity' => $quantity, 'unit_price' => $equipment->rental_price, 'subtotal' => $subtotal,
+        ]);
+
+        return $order;
+    }
+
     public function test_inactive_equipment_is_rejected_in_checkout_server_side(): void
     {
         $inactiveEquipment = CourtEquipment::create([

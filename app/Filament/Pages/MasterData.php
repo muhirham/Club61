@@ -7,6 +7,7 @@ use App\Models\Padel\PadelBookingEquipment;
 use App\Models\Padel\PadelCourt;
 use App\Models\Padel\PadelHoliday;
 use App\Models\Padel\PadelPeakHourRule;
+use App\Models\Pos\OrderItem;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Padel\PeakHourService;
 use BackedEnum;
@@ -60,8 +61,14 @@ class MasterData extends Page
     public ?string $editingEquipmentId = null;
     public string $equipmentName = '';
     public string $equipmentType = 'RACKET';
+    // Sifat alat: SALE (Jual) / RENTAL (Sewa) / '' (tanpa stok, mis. jasa). Lihat CourtEquipment::usageOf().
+    public string $equipmentUsage = CourtEquipment::USAGE_RENTAL;
     public int|float|string|null $equipmentRentalPrice = 50000;
     public int|float|string|null $equipmentStock = 20;
+    // Denda alat Sewa (Peminjaman Alat): lecet karena disengaja / patah / hilang. Kosong = tanpa denda.
+    public int|float|string|null $equipmentFineMinor = null;
+    public int|float|string|null $equipmentFineMajor = null;
+    public int|float|string|null $equipmentFineLost = null;
     public bool $equipmentIsActive = true;
 
     // Filter status tampilan Add-ons ('ALL', 'ACTIVE', 'INACTIVE')
@@ -291,7 +298,7 @@ class MasterData extends Page
     }
 
     // ==========================================
-    // LOGIKA TAB 2: ADD-ONS & PERALATAN
+    // LOGIKA TAB 2: PERLENGKAPAN PADEL
     // ==========================================
 
     public function openCreateEquipmentModal(): void
@@ -301,8 +308,12 @@ class MasterData extends Page
         $this->editingEquipmentId = null;
         $this->equipmentName = '';
         $this->equipmentType = 'RACKET';
+        $this->equipmentUsage = CourtEquipment::USAGE_RENTAL;
         $this->equipmentRentalPrice = 50000;
         $this->equipmentStock = 20;
+        $this->equipmentFineMinor = null;
+        $this->equipmentFineMajor = null;
+        $this->equipmentFineLost = null;
         $this->equipmentIsActive = true;
         $this->showEquipmentModal = true;
     }
@@ -313,15 +324,19 @@ class MasterData extends Page
 
         $equipment = CourtEquipment::find($equipmentId);
         if (! $equipment) {
-            Notification::make()->title('Add-on tidak ditemukan')->danger()->send();
+            Notification::make()->title('Perlengkapan tidak ditemukan')->danger()->send();
             return;
         }
 
         $this->editingEquipmentId = $equipment->id;
         $this->equipmentName = (string) $equipment->name;
         $this->equipmentType = (string) ($equipment->type ?: 'RACKET');
+        $this->equipmentUsage = (string) $equipment->resolvedUsage();
         $this->equipmentRentalPrice = (float) $equipment->rental_price;
         $this->equipmentStock = (int) $equipment->stock_quantity;
+        $this->equipmentFineMinor = $equipment->fine_minor !== null ? (float) $equipment->fine_minor : null;
+        $this->equipmentFineMajor = $equipment->fine_major !== null ? (float) $equipment->fine_major : null;
+        $this->equipmentFineLost = $equipment->fine_lost !== null ? (float) $equipment->fine_lost : null;
         $this->equipmentIsActive = (bool) $equipment->is_active;
         $this->showEquipmentModal = true;
     }
@@ -339,8 +354,12 @@ class MasterData extends Page
         $this->validate([
             'equipmentName' => ['required', 'string', 'max:100'],
             'equipmentType' => ['required', 'in:RACKET,BALL,TOWEL,COACH,OTHER'],
+            'equipmentUsage' => ['nullable', 'in:'.CourtEquipment::USAGE_SALE.','.CourtEquipment::USAGE_RENTAL],
             'equipmentRentalPrice' => ['required', 'numeric', 'min:0'],
             'equipmentStock' => ['required', 'integer', 'min:0'],
+            'equipmentFineMinor' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'equipmentFineMajor' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
+            'equipmentFineLost' => ['nullable', 'numeric', 'min:0', 'max:100000000'],
         ], [
             'equipmentName.required' => 'Nama add-on wajib diisi.',
             'equipmentRentalPrice.required' => 'Tarif sewa wajib diisi.',
@@ -349,39 +368,58 @@ class MasterData extends Page
 
         $price = max(0, (float) ($this->equipmentRentalPrice ?: 0));
         $stock = max(0, (int) ($this->equipmentStock ?: 0));
+        $usage = $this->equipmentUsage !== '' ? $this->equipmentUsage : null;
+        $fine = fn ($value) => $value === null || $value === '' ? null : max(0, (float) $value);
+        $fines = [
+            'fine_minor' => $fine($this->equipmentFineMinor),
+            'fine_major' => $fine($this->equipmentFineMajor),
+            'fine_lost' => $fine($this->equipmentFineLost),
+        ];
 
         if ($this->editingEquipmentId) {
             $equipment = CourtEquipment::find($this->editingEquipmentId);
             if (! $equipment) {
-                Notification::make()->title('Add-on tidak ditemukan')->danger()->send();
+                Notification::make()->title('Perlengkapan tidak ditemukan')->danger()->send();
+                return;
+            }
+
+            // Sifat (atau jenis yang menentukannya) berubah selagi alat dipakai booking aktif → stok booking itu salah
+            // hitung (mis. bola yang sudah dipotong saat bayar ikut "dikembalikan" sebagai alat sewa). Dikunci.
+            $usageChanges = CourtEquipment::usageOf($usage, $this->equipmentType) !== $equipment->resolvedUsage();
+            if ($usageChanges && $this->equipmentInUseByActiveBookings($equipment)) {
+                Notification::make()->title('Sifat Alat Belum Bisa Diubah')
+                    ->body("{$equipment->name} masih dipakai booking yang belum selesai (atau sewanya belum dikembalikan). Ubah sifat Jual / Sewa setelah booking tersebut selesai.")
+                    ->warning()->persistent()->send();
                 return;
             }
 
             $equipment->update([
                 'name' => trim($this->equipmentName),
                 'type' => $this->equipmentType,
+                'usage' => $usage,
                 'rental_price' => $price,
                 'stock_quantity' => $stock,
                 'is_active' => $this->equipmentIsActive,
-            ]);
+            ] + $fines);
 
             Notification::make()
-                ->title('Add-on Berhasil Diperbarui')
-                ->body("Data {$equipment->name} telah diperbarui di katalog sewa.")
+                ->title('Perlengkapan Berhasil Diperbarui')
+                ->body("Data {$equipment->name} telah diperbarui di katalog perlengkapan.")
                 ->success()
                 ->send();
         } else {
             $equipment = CourtEquipment::create([
                 'name' => trim($this->equipmentName),
                 'type' => $this->equipmentType,
+                'usage' => $usage,
                 'rental_price' => $price,
                 'stock_quantity' => $stock,
                 'is_active' => $this->equipmentIsActive,
-            ]);
+            ] + $fines);
 
             Notification::make()
-                ->title('Add-on Baru Berhasil Ditambahkan')
-                ->body("Item {$equipment->name} telah siap disewakan.")
+                ->title('Perlengkapan Baru Berhasil Ditambahkan')
+                ->body("Item {$equipment->name} telah masuk katalog perlengkapan.")
                 ->success()
                 ->send();
         }
@@ -395,7 +433,7 @@ class MasterData extends Page
 
         $equipment = CourtEquipment::find($equipmentId);
         if (! $equipment) {
-            Notification::make()->title('Add-on tidak ditemukan')->danger()->send();
+            Notification::make()->title('Perlengkapan tidak ditemukan')->danger()->send();
             return;
         }
 
@@ -404,7 +442,7 @@ class MasterData extends Page
 
         $statusText = $equipment->is_active ? 'diaktifkan' : 'dinonaktifkan';
         Notification::make()
-            ->title("Status Add-on Diperbarui")
+            ->title("Status Perlengkapan Diperbarui")
             ->body("Item {$equipment->name} kini telah {$statusText}.")
             ->success()
             ->send();
@@ -425,7 +463,7 @@ class MasterData extends Page
                 return 'NOT_FOUND';
             }
 
-            $hasHistory = PadelBookingEquipment::where('equipment_id', $equipmentId)->exists();
+            $hasHistory = $this->equipmentIdsWithHistory(collect([$equipmentId]))->isNotEmpty();
             if ($hasHistory) {
                 $equipment->update(['is_active' => false]);
                 return 'DEACTIVATED';
@@ -436,17 +474,17 @@ class MasterData extends Page
         });
 
         if ($actionTaken === 'NOT_FOUND') {
-            Notification::make()->title('Add-on tidak ditemukan')->danger()->send();
+            Notification::make()->title('Perlengkapan tidak ditemukan')->danger()->send();
         } elseif ($actionTaken === 'DEACTIVATED') {
             Notification::make()
-                ->title('Add-on Dinonaktifkan (Proteksi Integritas Data)')
-                ->body('Item ini memiliki riwayat penyewaan masa lalu, sehingga otomatis dialihkan ke status NONAKTIF agar seluruh struk dan invoice historis tetap utuh 100%.')
+                ->title('Perlengkapan Dinonaktifkan (Proteksi Integritas Data)')
+                ->body('Item ini memiliki riwayat transaksi, sehingga otomatis dialihkan ke status NONAKTIF agar seluruh struk dan invoice historis tetap utuh.')
                 ->warning()
                 ->send();
         } else {
             Notification::make()
-                ->title('Add-on Berhasil Dihapus Permanen')
-                ->body('Item belum pernah disewa sama sekali sehingga telah dihapus bersih dari sistem.')
+                ->title('Perlengkapan Berhasil Dihapus Permanen')
+                ->body('Item belum pernah dipakai transaksi apa pun sehingga telah dihapus dari sistem.')
                 ->success()
                 ->send();
         }
@@ -670,17 +708,35 @@ class MasterData extends Page
         }
 
         $equipments = $query->orderBy('type')->orderBy('name')->get();
+        $ids = $equipments->pluck('id');
 
-        // Prefetch count riwayat rental untuk setiap equipment secara efisien
-        $counts = PadelBookingEquipment::select('equipment_id', DB::raw('count(*) as total_rentals'))
-            ->whereIn('equipment_id', $equipments->pluck('id'))
-            ->groupBy('equipment_id')
-            ->pluck('total_rentals', 'equipment_id');
+        // Unit yang sudah lunas: setiap transaksi alat (checkout booking, walk-in, tambah alat, jual langsung di
+        // Kasir Pro Shop, tagihan coaching) tercatat sebagai item EQUIPMENT di order.
+        $paidUnits = OrderItem::where('item_type', 'EQUIPMENT')
+            ->whereIn('reference_id', $ids)
+            ->whereHas('order', fn ($q) => $q->where('payment_status', 'PAID'))
+            ->selectRaw('reference_id, SUM(quantity) as units')
+            ->groupBy('reference_id')
+            ->pluck('units', 'reference_id');
+        $withHistory = $this->equipmentIdsWithHistory($ids)->flip();
 
-        return $equipments->map(function ($eq) use ($counts) {
-            $eq->setAttribute('historical_rentals_count', $counts[$eq->id] ?? 0);
+        return $equipments->map(function ($eq) use ($paidUnits, $withHistory) {
+            $eq->setAttribute('paid_units', (int) ($paidUnits[$eq->id] ?? 0));
+            $eq->setAttribute('has_transaction_history', $withHistory->has($eq->id));
             return $eq;
         });
+    }
+
+    /**
+     * Alat yang pernah dipakai transaksi — lewat booking maupun order (termasuk jual langsung di Kasir Pro Shop,
+     * lunas atau belum). Alat ini tidak boleh dihapus permanen, hanya dinonaktifkan.
+     */
+    protected function equipmentIdsWithHistory(Collection $ids): Collection
+    {
+        return PadelBookingEquipment::whereIn('equipment_id', $ids)->distinct()->pluck('equipment_id')
+            ->merge(OrderItem::where('item_type', 'EQUIPMENT')->whereIn('reference_id', $ids)->distinct()->pluck('reference_id'))
+            ->unique()
+            ->values();
     }
 
     public function getCanManageCourtsProperty(): bool
@@ -700,6 +756,23 @@ class MasterData extends Page
             403,
             'Akses ditolak: Anda tidak memiliki izin [manage_court_pricing] untuk mengelola lapangan, jam operasional & tarif.'
         );
+    }
+
+    /** Booking yang belum selesai, atau alat sewa yang sudah diserahkan tapi belum dikembalikan. */
+    protected function equipmentInUseByActiveBookings(CourtEquipment $equipment): bool
+    {
+        return PadelBookingEquipment::where('equipment_id', $equipment->id)
+            ->where(fn ($q) => $q->whereHas('booking', fn ($b) => $b->whereIn('status', ['LOCKED', 'PENDING_PAYMENT', 'PENDING', 'PAID', 'CHECKED_IN']))
+                ->orWhere(fn ($open) => $open->whereNotNull('stock_deducted_at')->whereNull('returned_at')))
+            ->exists();
+    }
+
+    /** Alat baru: sifat mengikuti jenisnya (bola = Jual, raket / handuk = Sewa) sampai admin memilih sendiri. */
+    public function updatedEquipmentType(): void
+    {
+        if (! $this->editingEquipmentId) {
+            $this->equipmentUsage = (string) CourtEquipment::usageOf(null, $this->equipmentType);
+        }
     }
 
     protected function authorizeEquipmentManagement(): void

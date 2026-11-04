@@ -166,6 +166,8 @@ class EquipmentStockTest extends TestCase
         $this->assertEquals(3, $this->racket->fresh()->stock_quantity);
         $this->assertEquals(4, $this->ball->fresh()->stock_quantity);
 
+        // Retur cepat ini untuk alat sewa dari sebelum Peminjaman Alat ada (tanpa catatan peminjaman).
+        \App\Models\Padel\EquipmentLoan::query()->delete();
         $returnResult = $this->service->returnEquipment($booking->id, $this->cashier);
 
         // Racket balik ke stok, ball TIDAK ikut diretur (consumable).
@@ -183,6 +185,7 @@ class EquipmentStockTest extends TestCase
         ]);
         $booking = $result['bookings']->first();
         $this->service->checkIn($booking->qr_code_hash, $this->cashier);
+        \App\Models\Padel\EquipmentLoan::query()->delete(); // alat sewa dari sebelum Peminjaman Alat ada
 
         $this->service->returnEquipment($booking->id, $this->cashier);
         $this->assertEquals(5, $this->racket->fresh()->stock_quantity);

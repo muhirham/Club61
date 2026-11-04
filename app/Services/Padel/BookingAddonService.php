@@ -18,7 +18,7 @@ use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 /**
- * Tambah Alat ke Booking (POS Walk-In, izin add_booking_equipment): bola / raket / handuk untuk booking HARI INI / KE DEPAN yang
+ * Tambah Alat ke Booking (Kasir Pro Shop tab Sewa, izin add_booking_equipment): bola / raket / handuk untuk booking HARI INI / KE DEPAN yang
  * sudah ada, tanpa memilih lapangan.
  *  - Booking lunas / sudah check-in → transaksi baru (order WALK_IN berisi alat saja) dibayar di kasir saat itu (QRIS /
  *    EDC, shift loket yang buka). Alatnya ditautkan ke booking lewat padel_booking_equipments.booking_id; order &
@@ -73,12 +73,31 @@ class BookingAddonService
             return collect();
         }
 
+        // Perbandingan langsung (bukan whereDate / DATE()) supaya index booking_date + status terpakai — booking lama
+        // tidak pernah dihapus, jadi pencarian hanya menyisir booking hari ini & ke depan.
         return PadelBooking::with(['user:id,name,phone', 'court:id,name'])
-            ->whereDate('booking_date', '>=', now('Asia/Jakarta')->toDateString())
+            ->where('booking_date', '>=', now('Asia/Jakarta')->toDateString())
             ->whereIn('status', ['PAID', 'CHECKED_IN', 'PENDING_PAYMENT'])
             ->where(fn ($q) => $q->where('booking_code', 'like', "%{$term}%")
                 ->orWhereHas('user', fn ($u) => $u->where('name', 'like', "%{$term}%")->orWhere('phone', 'like', "%{$term}%")))
             ->orderBy('booking_date')->orderBy('start_time')
+            ->limit($limit * 2)
+            ->get()
+            ->filter(fn (PadelBooking $b) => $this->mode($b) !== null)
+            ->take($limit)
+            ->values();
+    }
+
+    /** Booking HARI INI yang bisa ditambah alat (daftar awal tab Sewa di Kasir Pro Shop), urut jam main. */
+    public function todayEligible(int $limit = 60): Collection
+    {
+        $today = now('Asia/Jakarta')->toDateString();
+
+        // Rentang (bukan whereDate) supaya index booking_date + status terpakai — pola sama dengan Kelola Pemesanan.
+        return PadelBooking::with(['user:id,name,phone', 'court:id,name'])
+            ->whereBetween('booking_date', [$today, $today.' 23:59:59'])
+            ->whereIn('status', ['PAID', 'CHECKED_IN', 'PENDING_PAYMENT'])
+            ->orderBy('start_time')
             ->limit($limit * 2)
             ->get()
             ->filter(fn (PadelBooking $b) => $this->mode($b) !== null)
@@ -212,10 +231,11 @@ class BookingAddonService
                     .number_format($quote['grand_total'], 0, ',', '.').'. Periksa lagi rincian di layar sebelum menagih customer.');
             }
 
-            // Stok: bola selalu sekarang; raket / handuk sekarang hanya bila sudah diserahkan (booking sudah check-in).
+            // Stok: alat Jual selalu sekarang; alat Sewa sekarang hanya bila sudah diserahkan (booking sudah check-in).
             $deductNow = [];
             foreach ($quote['items'] as $item) {
-                $now = $item['type'] === 'BALL' || ($booking->status === 'CHECKED_IN' && in_array($item['type'], ['RACKET', 'TOWEL'], true));
+                $eq = $equipments->get($item['equipment_id']);
+                $now = $eq->isSale() || ($booking->status === 'CHECKED_IN' && $eq->isRental());
                 if ($now) {
                     $eq = $equipments->get($item['equipment_id']);
                     if ((int) $eq->stock_quantity < $item['quantity']) {
@@ -268,7 +288,7 @@ class BookingAddonService
                 if (isset($deductNow[$item['equipment_id']])) {
                     $equipments->get($item['equipment_id'])->decrement('stock_quantity', $item['quantity']);
                 }
-                PadelBookingEquipment::create([
+                $row = PadelBookingEquipment::create([
                     'order_id' => $order->id,
                     'booking_id' => $booking->id,
                     'equipment_id' => $item['equipment_id'],
@@ -277,6 +297,8 @@ class BookingAddonService
                     'subtotal' => $item['subtotal'],
                     'stock_deducted_at' => isset($deductNow[$item['equipment_id']]) ? now() : null,
                 ]);
+                // Alat sewa untuk booking yang sudah check-in langsung diserahkan → tercatat di Peminjaman Alat.
+                app(EquipmentLoanService::class)->openForBookingRow($row, $cashier);
             }
 
             $pending = null;

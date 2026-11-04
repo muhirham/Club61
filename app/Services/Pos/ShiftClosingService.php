@@ -395,6 +395,7 @@ class ShiftClosingService
             'reviewed_at' => $shift->reviewed_at ? $format($shift->reviewed_at) : null,
             'review_notes' => $shift->review_notes,
             'sales_recap_views' => DailySalesRecapService::viewsDuringShift($shift),
+            'transaction_types' => DailySalesRecapService::shiftTransactionTypes($shift),
         ];
     }
 

@@ -98,6 +98,7 @@ class DailySalesRecapService
         $until = $until->gt($dayEnd) ? $dayEnd->copy() : $until;
 
         $payments = Payment::query()
+            ->with('order:id,order_type')
             ->whereIn('pos_shift_id', $shifts->pluck('id'))
             ->where('status', 'SUCCESS')
             ->whereBetween('paid_at', [$start, $end])
@@ -147,6 +148,8 @@ class DailySalesRecapService
             'transactions' => $payments->count(),
             'total' => (float) $payments->sum('amount'),
             'methods' => $this->cashierMethods($payments),
+            // Loket frontdesk dipakai POS Walk-In, Jual Membership & Kasir Pro Shop (satu shift) — dipecah per jenis.
+            'types' => $counter === 'PADEL_FRONTDESK' ? self::byTransactionType($payments) : [],
             'running_shifts' => $runningShifts,
             // Bayar online customer hanya untuk booking & membership — loket padel saja.
             'online' => $counter === 'PADEL_FRONTDESK' ? $this->online($from, $until) : null,
@@ -177,6 +180,62 @@ class DailySalesRecapService
     }
 
     /** Berapa kali rekap harian dibuka selama shift ini berjalan (baris info di Z-Report). */
+    /** Urutan & label (≤ 28 karakter kertas struk) jenis transaksi loket frontdesk. */
+    public const TRANSACTION_TYPES = [
+        'BOOKING' => 'Booking Padel',
+        'RESCHEDULE' => 'Selisih Reschedule',
+        'COACHING' => 'Tagihan Coaching',
+        'MEMBERSHIP' => 'Membership',
+        'PRO_SHOP_SALE' => 'Penjualan Pro Shop',
+        'ADDON' => 'Tambahan Alat',
+        'FINE' => 'Denda Alat',
+    ];
+
+    /** Jenis transaksi satu pembayaran loket frontdesk (POS Walk-In / Jual Membership / Kasir Pro Shop). Order harus dimuat. */
+    public static function transactionType(Payment $payment): string
+    {
+        $log = is_array($payment->payload_log) ? $payment->payload_log : [];
+        $source = $log['source'] ?? null;
+
+        return match (true) {
+            ! empty($log['coaching_settlement_id']) => 'COACHING',
+            ($log['type'] ?? null) === 'RESCHEDULE_PRICE_DELTA' => 'RESCHEDULE',
+            $source === ProShopSaleService::SOURCE => 'PRO_SHOP_SALE',
+            $source === 'BOOKING_ADDON' || ! empty($log['booking_addon']) => 'ADDON',
+            $source === \App\Services\Padel\EquipmentLoanService::SOURCE_FINE => 'FINE',
+            $source === 'MEMBERSHIP_POS' || $payment->order?->order_type === 'MEMBERSHIP' => 'MEMBERSHIP',
+            default => 'BOOKING',
+        };
+    }
+
+    /**
+     * Rekap per jenis transaksi (urut TRANSACTION_TYPES, yang kosong tidak ditampilkan).
+     *
+     * @return list<array{label: string, count: int, amount: float}>
+     */
+    public static function byTransactionType(\Illuminate\Support\Collection $payments): array
+    {
+        $rows = [];
+        foreach ($payments as $payment) {
+            $key = self::transactionType($payment);
+            $rows[$key] ??= ['label' => self::TRANSACTION_TYPES[$key], 'count' => 0, 'amount' => 0.0];
+            $rows[$key]['count']++;
+            $rows[$key]['amount'] += (float) $payment->amount;
+        }
+
+        return array_values(array_filter(array_map(fn (string $key) => $rows[$key] ?? null, array_keys(self::TRANSACTION_TYPES))));
+    }
+
+    /** Rekap per jenis untuk Z-Report satu shift (loket frontdesk saja; loket lain = kosong). */
+    public static function shiftTransactionTypes(PosCashierShift $shift): array
+    {
+        if ($shift->counter !== 'PADEL_FRONTDESK') {
+            return [];
+        }
+
+        return self::byTransactionType(Payment::with('order:id,order_type')->where('pos_shift_id', $shift->getKey())->where('status', 'SUCCESS')->get());
+    }
+
     public static function viewsDuringShift(PosCashierShift $shift): int
     {
         return ActivityLog::query()

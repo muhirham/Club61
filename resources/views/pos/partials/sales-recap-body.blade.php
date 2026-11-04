@@ -50,6 +50,19 @@
         @endforelse
     </div>
 
+    {{-- Loket frontdesk (Walk-In, Membership, Pro Shop dalam satu shift): rincian per jenis transaksi. --}}
+    @if (! empty($recap['types']))
+        <div style="{{ $section }}">
+            <div style="font-weight:900;">PER JENIS TRANSAKSI</div>
+            @foreach ($recap['types'] as $type)
+                <div style="margin-top:0.2rem;">
+                    <div style="font-weight:700;">{{ $type['label'] }}</div>
+                    <div style="{{ $line }}"><span>{{ $type['count'] }} transaksi</span><span>{{ $rupiah($type['amount']) }}</span></div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     {{-- Shift lupa ditutup dari hari sebelumnya: total seluruh shift untuk dicocokkan saat Tutup Shift. --}}
     @foreach ($recap['running_shifts'] ?? [] as $running)
         <div style="{{ $section }}">

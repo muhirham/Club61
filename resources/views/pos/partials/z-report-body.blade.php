@@ -64,6 +64,19 @@
         </div>
     @endif
 
+    {{-- Loket frontdesk (Walk-In, Membership, Pro Shop dalam satu shift): rincian per jenis transaksi. --}}
+    @if (! empty($report['transaction_types']))
+        <div style="border-top:1px dashed #9CA3AF; padding-top:0.4rem; display:flex; flex-direction:column; gap:0.15rem;">
+            <div style="font-weight:900;">PER JENIS TRANSAKSI:</div>
+            @foreach ($report['transaction_types'] as $type)
+                <div>
+                    <div style="font-weight:700;">{{ $type['label'] }}</div>
+                    <div style="{{ $line }}"><span>{{ $type['count'] }} transaksi</span><span>{{ $rupiah($type['amount']) }}</span></div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
     <div style="border-top:1px dashed #9CA3AF; padding-top:0.4rem;">
         <div style="{{ $line }} font-weight:900;"><span>TOTAL OMSET POS</span><span>{{ $rupiah($report['total_sales']) }}</span></div>
         <div style="{{ $line }} font-weight:900; color:{{ abs($diff) < 0.005 ? '#15803D' : '#BE123C' }};">

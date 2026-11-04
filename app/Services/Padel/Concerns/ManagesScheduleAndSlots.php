@@ -589,7 +589,7 @@ trait ManagesScheduleAndSlots
             ->whereNotNull('stock_deducted_at')
             ->lockForUpdate()
             ->get()
-            ->filter(fn ($row) => strtoupper((string) $row->equipment?->type) === 'BALL')
+            ->filter(fn ($row) => (bool) $row->equipment?->isSale())
             ->each(function ($row) {
                 $row->equipment->increment('stock_quantity', (int) $row->quantity);
                 $row->update(['stock_deducted_at' => null]);

@@ -187,8 +187,10 @@ class AnalyticsLedgerTest extends TestCase
                     // Coaching (Modul 24 Opsi B) sudah punya kategori buku sendiri → tidak "Menyusul" & bisa difilter.
                     && $lines['WELLNESS']['soon'] && ! $lines['COACHING']['soon'] && ! $lines['FNB']['soon']
                     && $lines['COACHING']['filter'] === ['COACHING'] && $lines['COACHING']['money_net'] === 0.0
-                    && $lines['LAINNYA']['money_net'] === 75000.0
-                    && $lines['LAINNYA']['filter'] === ['MERCH']
+                    // Merchandise (Kasir Pro Shop) punya lini sendiri — tidak lagi masuk "Lainnya".
+                    && $lines['MERCH']['money_net'] === 75000.0
+                    && $lines['MERCH']['filter'] === ['MERCH']
+                    && ! $lines->has('LAINNYA')
                     && ! $lines->has('MEMBERSHIP');
             })
             // Lini layanan + membership = Pendapatan Bersih.
@@ -198,7 +200,8 @@ class AnalyticsLedgerTest extends TestCase
             ->assertSee('Akses wellness di luar paket membership')
             ->assertSee('Pelatih &amp; Coaching Session', false)
             ->assertSee('Menyusul')
-            ->assertSee('Lainnya (Merchandise)')
+            ->assertSee('Penjualan merchandise di Kasir Pro Shop')
+            ->assertDontSee('Lainnya (Merchandise)')
             ->assertSee('Omzet Penjualan Membership')
             ->assertSee('Rp 1.905.000')
             ->assertDontSee('Tren Uang Masuk');

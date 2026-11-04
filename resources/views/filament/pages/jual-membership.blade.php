@@ -14,9 +14,10 @@
         <div class="pos-headbar-right">
             {{-- Penjualan membership masuk shift meja frontdesk yang sama dengan POS Walk-In Padel --}}
             @if ($this->activeShift)
-                <span class="pos-shift-chip is-open">
+                <span class="pos-shift-chip is-open" title="Shift aktif {{ $this->activeShift->shift_number }}">
                     <span class="dot"></span>
-                    Shift {{ $this->activeShift->shift_number }} aktif
+                    <span class="pos-only-wide">SHIFT AKTIF: {{ $this->activeShift->shift_number }}</span>
+                    <span class="pos-only-narrow">SHIFT {{ \Illuminate\Support\Str::afterLast($this->activeShift->shift_number, '-') }} AKTIF</span>
                 </span>
             @else
                 <a href="{{ route('filament.admin.pages.book-offline-court') }}" class="pos-shift-chip is-closed" style="text-decoration:none;">
