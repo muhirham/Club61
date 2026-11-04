@@ -321,13 +321,24 @@
                                     @endif
 
                                     @php
+                                        // Alat dengan catatan Peminjaman Alat diterima di halaman itu (kondisi & denda); tombol retur cepat
+                                        // di sini hanya untuk alat sewa dari sebelum fitur itu ada.
                                         $hasPendingEquipmentReturn = $b->equipments->contains(function ($e) {
                                             return $e->equipment
-                                                && in_array(strtoupper($e->equipment->type), ['RACKET', 'TOWEL'])
+                                                && $e->equipment->isRental()
                                                 && $e->stock_deducted_at
-                                                && ! $e->returned_at;
+                                                && ! $e->returned_at
+                                                && ! $e->loan;
                                         });
+                                        $hasOpenLoan = $b->equipments->contains(fn ($e) => $e->loan && ! $e->loan->returned_at);
                                     @endphp
+                                    @if ($hasOpenLoan && \App\Filament\Pages\PeminjamanAlat::canAccess())
+                                        <a href="{{ \App\Filament\Pages\PeminjamanAlat::getUrl(['booking' => $b->booking_code]) }}" title="Terima Alat di Peminjaman Alat" class="c61-icon-btn is-info">
+                                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-1" />
+                                            </svg>
+                                        </a>
+                                    @endif
                                     @if ($this->canCheckIn && in_array($b->status, ['CHECKED_IN', 'COMPLETED']) && $hasPendingEquipmentReturn)
                                         <button type="button" x-on:click="$dispatch('club61-confirm', { title: 'Alat Sewa Sudah Kembali?', message: @js('Raket/handuk tiket '.$b->booking_code.' akan ditandai sudah dikembalikan ke frontdesk dan stoknya bertambah lagi.'), confirmLabel: 'Ya, Sudah Kembali', onConfirm: () => $wire.executeReturnEquipment(@js($b->id)) })"
                                             wire:loading.attr="disabled" title="Retur Alat Sewa (Restock)"

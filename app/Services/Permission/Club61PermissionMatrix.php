@@ -137,7 +137,8 @@ class Club61PermissionMatrix
                             'View:BookOfflineCourt' => 'Akses Halaman Walk-In Booking',
                             'manage_court_slots' => 'Kelola Jadwal & Ketersediaan Slot',
                             'process_walkin_booking' => 'Proses Pemesanan & Pembayaran Walk-In',
-                            'add_booking_equipment' => 'Tambah Alat (Bola / Raket / Handuk) ke Booking Hari Ini di POS Walk-In',
+                            'View:KasirProShop' => 'Akses Halaman Kasir Pro Shop',
+                            'add_booking_equipment' => 'Jual Alat & Tambah Alat (Bola / Raket / Handuk) ke Booking di Kasir Pro Shop',
                         ],
                     ],
                     'padel_bookings' => [
@@ -151,6 +152,14 @@ class Club61PermissionMatrix
                             'cancel_refund_padel' => 'Batalkan & Refund Pemesanan (Admin / Staf)',
                             'cancel_padel_booking' => 'Batalkan Pesanan Lapangan (Tombol Batal)',
                             'print_padel_invoice' => 'Cetak Invoice & Bukti Pembayaran',
+                        ],
+                    ],
+                    'equipment_loans' => [
+                        'label' => 'Peminjaman Alat (Raket / Handuk)',
+                        'actions' => [
+                            'View:PeminjamanAlat' => 'Akses Halaman Peminjaman Alat',
+                            'return_equipment_loan' => 'Terima Pengembalian Alat Sewa (catat kondisi)',
+                            'decide_equipment_fine' => 'Putuskan Denda Kerusakan / Kehilangan Alat (setujui, ubah nominal, hapus)',
                         ],
                     ],
                     'recurring_bookings' => [
@@ -323,9 +332,12 @@ class Club61PermissionMatrix
                     'merch_catalog' => [
                         'label' => 'Produk & Stok Apparel',
                         'actions' => [
+                            'View:KatalogMerchandise' => 'Akses Halaman Katalog Merchandise & Kartu Stok',
                             'view_merch_products' => 'Lihat Katalog Produk Merchandise',
                             'manage_merch_products' => 'Kelola Produk, Varian & Harga Retail',
                             'manage_merch_stock' => 'Kelola Mutasi Stok Masuk / Keluar',
+                            'sell_merchandise' => 'Jual Merchandise di Kasir Pro Shop',
+                            'View:LaporanMerchandise' => 'Akses Halaman Laporan Merchandise (Penjualan, HPP, Laba Kotor)',
                         ],
                     ],
                 ],

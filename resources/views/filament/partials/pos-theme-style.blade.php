@@ -18,7 +18,11 @@
     /* ===== BARIS ATAS: tab POS + Kasir/Riwayat + status shift ===== */
     .pos-headbar { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; flex-wrap: wrap; flex-shrink: 0; }
     .pos-headbar-left { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-width: 0; }
-    .pos-headbar-right { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    /* margin-left auto: kalau baris atas turun 2 baris (tablet), status shift tetap rata kanan. */
+    .pos-headbar-right { display: flex; align-items: center; justify-content: flex-end; gap: 0.5rem; flex-wrap: wrap; margin-left: auto; }
+    /* Peringatan POS (shift lupa ditutup, alat sewa telat kembali) berdampingan; di layar sempit ditumpuk. */
+    .pos-alerts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 0.5rem; flex-shrink: 0; }
+    .pos-alerts > .pos-shift-warning { margin-bottom: 0 !important; display: flex; align-items: center; }
     .pos-shift-chip { display: inline-flex; align-items: center; gap: 0.45rem; height: 38px; padding: 0 0.8rem; border-radius: 999px; font-size: 0.75rem; font-weight: 800; white-space: nowrap; }
     .pos-shift-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
     .pos-shift-chip.is-open { background: #ECFDF5; border: 1px solid #A7F3D0; color: #065F46; }
@@ -322,17 +326,76 @@
     .pos-qty-ctrl { display: flex; align-items: center; gap: 0.3rem; }
     .pos-qty-val { min-width: 20px; text-align: center; font-weight: 900; font-size: 0.8125rem; color: var(--pos-brown); }
 
-    /* ===== Tambah Alat ke Booking (tanpa memilih lapangan) ===== */
-    .pos-toolbar-mid { display: flex; align-items: center; flex: 1; justify-content: center; min-width: 0; }
-    .pos-addon-chip { display: inline-flex; align-items: center; gap: 0.6rem; height: 38px; padding: 0 0.4rem 0 0.9rem; border-radius: 999px; background: #EFF6FF; border: 1px solid #BFDBFE; color: #1E3A8A; font-size: 0.8125rem; font-weight: 800; white-space: nowrap; }
-    .pos-addon-chip-close { height: 30px; padding: 0 0.75rem; border-radius: 999px; border: 1px solid #FECACA; background: #FFFFFF; color: #DC2626; font-size: 0.75rem; font-weight: 800; cursor: pointer; }
-    .pos-addon-pick { display: flex; align-items: center; gap: 0.5rem 0.9rem; flex-wrap: wrap; padding: 0.6rem 0.9rem; background: #EFF6FF; border-bottom: 1px solid #BFDBFE; }
-    .pos-addon-pick-text { font-size: 0.8125rem; font-weight: 700; color: #1E3A8A; display: flex; align-items: center; gap: 0.5rem; }
+    /* ===== Kasir Pro Shop tab Jual: etalase gaya kasir F&B (kategori + cari, kartu ringkas, popup varian) ===== */
+    .pos-shop-toolbar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.85rem; }
+    .pos-shop-cats { display: flex; gap: 0.4rem; overflow-x: auto; flex: 1 1 320px; min-width: 0; padding-bottom: 2px; scrollbar-width: thin; }
+    .pos-shop-cat { flex-shrink: 0; height: 36px; padding: 0 0.9rem; border-radius: 999px; border: 1px solid var(--pos-line); background: #FFFFFF; color: var(--pos-brown); font-size: 0.8125rem; font-weight: 800; white-space: nowrap; cursor: pointer; }
+    .pos-shop-cat:hover { border-color: var(--pos-terra); }
+    .pos-shop-cat.active { background: var(--pos-terra); border-color: var(--pos-terra); color: var(--pos-cream); }
+    .pos-shop-search { flex: 0 1 260px; min-width: 200px; }
+    .pos-shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; }
+    .pos-shop-card { position: relative; display: flex; flex-direction: column; gap: 0.2rem; text-align: left; background: #FFFFFF; border: 1.5px solid var(--pos-line); border-radius: 14px; padding: 0.55rem 0.55rem 0.65rem; cursor: pointer; font: inherit; color: inherit; transition: border-color 0.15s, box-shadow 0.15s, transform 0.08s; }
+    .pos-shop-card:hover { border-color: var(--pos-terra); }
+    .pos-shop-card:active { transform: scale(0.98); }
+    .pos-shop-card.is-selected { border: 2px solid var(--pos-terra); background: var(--pos-paper); box-shadow: 0 6px 18px rgba(102,39,33,0.14); padding: calc(0.55rem - 0.5px) calc(0.55rem - 0.5px) calc(0.65rem - 0.5px); }
+    .pos-shop-card.is-out { opacity: 0.5; cursor: not-allowed; }
+    .pos-shop-card.is-out:hover { border-color: var(--pos-line); }
+    .pos-shop-photo { position: relative; display: flex; align-items: center; justify-content: center; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--pos-paper); border: 1px solid var(--pos-line); overflow: hidden; margin-bottom: 0.25rem; }
+    .pos-shop-photo img { width: 100%; height: 100%; object-fit: cover; }
+    .pos-shop-initial { font-size: 1.75rem; font-weight: 900; color: var(--pos-terra); opacity: 0.55; }
+    .pos-shop-badge { position: absolute; top: 6px; right: 6px; min-width: 26px; height: 26px; padding: 0 0.4rem; border-radius: 999px; background: var(--pos-terra); color: var(--pos-cream); font-size: 0.8125rem; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(102,39,33,0.3); }
+    .pos-shop-cat-label { font-size: 0.625rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--pos-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pos-shop-name { font-size: 0.875rem; font-weight: 900; color: var(--pos-brown); line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.5em; }
+    .pos-shop-foot { display: flex; justify-content: space-between; align-items: baseline; gap: 0.35rem; margin-top: auto; padding-top: 0.2rem; }
+    .pos-shop-price { font-size: 0.875rem; font-weight: 900; color: var(--pos-terra); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .pos-shop-price small { font-size: 0.625rem; font-weight: 700; color: var(--pos-muted); }
+    .pos-shop-stock { font-size: 0.6875rem; font-weight: 800; color: var(--pos-muted); white-space: nowrap; }
+    .pos-shop-stock.is-out { color: #DC2626; }
+
+    /* Keranjang tab Jual: −/+ & hapus per baris */
+    .pos-cart-line { display: flex; flex-direction: column; gap: 0.3rem; padding: 0.45rem 0; border-bottom: 1px dashed var(--pos-line); }
+    .pos-cart-line:first-child { padding-top: 0; }
+    .pos-cart-line-top { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.8125rem; }
+    .pos-cart-line-name { font-weight: 800; color: var(--pos-brown); min-width: 0; }
+    .pos-cart-line-total { font-weight: 900; color: var(--pos-brown); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .pos-cart-line-bottom { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+    .pos-cart-line-unit { font-size: 0.6875rem; color: var(--pos-muted); white-space: nowrap; }
+    .pos-cart-remove { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #FECACA; background: #FEF2F2; color: #DC2626; font-weight: 900; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+    /* Popup varian: dialog di tengah (tablet / laptop), lembar dari bawah di layar HP */
+    .pos-merch-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; border: 1px solid var(--pos-line); background: var(--pos-paper); }
+    .pos-picker-backdrop { position: fixed; inset: 0; z-index: 9999; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 1rem; }
+    .pos-picker { width: 100%; max-width: 560px; max-height: calc(100vh - 2rem); display: flex; flex-direction: column; background: #FFFFFF; border: 1.5px solid var(--pos-line); border-radius: 18px; box-shadow: 0 25px 50px -12px rgba(102,39,33,0.4); overflow: hidden; }
+    .pos-picker-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem; padding: 0.9rem 1rem; background: var(--pos-paper); border-bottom: 1px solid var(--pos-line); }
+    .pos-picker-title { display: flex; gap: 0.65rem; align-items: center; min-width: 0; }
+    .pos-picker-name { font-size: 1.0625rem; font-weight: 900; color: var(--pos-brown); line-height: 1.25; }
+    .pos-picker-close { flex-shrink: 0; width: 36px; height: 36px; border-radius: 9px; border: 1px solid var(--pos-line); background: #FFFFFF; color: var(--pos-brown); font-size: 1.25rem; font-weight: 900; cursor: pointer; }
+    .pos-picker-body { padding: 1rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.9rem; }
+    .pos-picker-variants { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 0.5rem; }
+    .pos-picker-variant { display: flex; flex-direction: column; align-items: flex-start; gap: 0.1rem; min-height: 56px; padding: 0.5rem 0.7rem; border-radius: 12px; border: 1.5px solid var(--pos-line); background: #FFFFFF; text-align: left; cursor: pointer; font: inherit; color: inherit; }
+    .pos-picker-variant:hover:not([disabled]) { border-color: var(--pos-terra); }
+    .pos-picker-variant.active { border: 2px solid var(--pos-terra); background: var(--pos-paper); padding: calc(0.5rem - 0.5px) calc(0.7rem - 0.5px); }
+    .pos-picker-variant[disabled] { opacity: 0.45; cursor: not-allowed; }
+    .pos-picker-variant-name { font-size: 0.875rem; font-weight: 900; color: var(--pos-brown); }
+    .pos-picker-variant-meta { font-size: 0.6875rem; color: var(--pos-muted); font-variant-numeric: tabular-nums; }
+    .pos-picker-qty { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; padding-top: 0.75rem; border-top: 1px dashed var(--pos-line); }
+    .pos-picker-foot { display: flex; gap: 0.5rem; padding: 0.85rem 1rem; border-top: 1px solid var(--pos-line); background: var(--pos-paper); }
+    .pos-picker-foot .pos-btn { height: 46px; }
+    .pos-picker-foot .pos-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+    @media (max-width: 768px) {
+        .pos-shop-search { flex: 1 1 100%; min-width: 0; }
+        .pos-shop-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.6rem; }
+    }
+    @media (max-width: 640px) {
+        .pos-picker-backdrop { align-items: flex-end; padding: 0; }
+        .pos-picker { max-width: none; max-height: 88vh; border-radius: 18px 18px 0 0; }
+        .pos-picker-variants { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    /* ===== Tab Sewa loket alat: cari booking & kartu booking yang ditambah alat ===== */
     .pos-addon-pick-search { position: relative; flex: 1; min-width: 220px; max-width: 420px; }
     .pos-addon-pick-empty { font-size: 0.75rem; color: var(--pos-muted); margin-top: 0.25rem; }
-    button.slot-btn.slot-booked.is-pickable { cursor: pointer; border: 1.5px dashed #2563EB; background: #EFF6FF; color: #1E3A8A; }
-    button.slot-btn.slot-booked.is-pickable:hover { background: #DBEAFE; }
-    .slot-booked.is-addon-target { border: 2px solid #2563EB; }
     .pos-addon-card { background: #EFF6FF; border: 1.5px solid #BFDBFE; border-radius: 12px; padding: 0.85rem; }
     .pos-addon-card-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.6875rem; font-weight: 900; color: #1E3A8A; text-transform: uppercase; letter-spacing: 0.05em; }
     .pos-addon-card-name { font-size: 0.9375rem; font-weight: 900; color: var(--pos-brown); margin-top: 0.3rem; }
@@ -341,7 +404,7 @@
 
     /* ===== Layar sentuh (tablet kasir): target sentuh ≥44px, teks jadwal lebih besar. Laptop / PC tidak berubah. ===== */
     @media (pointer: coarse) {
-        .pos-btn, .pos-today-btn, .pos-date-input, .pos-shift-chip, .pos-kpi, .pos-addon-chip { height: 44px; }
+        .pos-btn, .pos-today-btn, .pos-date-input, .pos-shift-chip, .pos-kpi { height: 44px; }
         .pos-icon-btn { width: 44px; height: 44px; }
         .pos-headbar-left a, .pos-headbar-left button { height: 44px !important; }
         .pos-stepper-item { height: 44px; }
@@ -349,7 +412,7 @@
         .pos-tab, .pos-main.is-selection .pos-col-cust .pos-tab { height: 44px; }
         .pos-input { height: 44px; }
         .pos-main.is-selection .tl-cell { height: 60px; }
-        .pos-mini-btn, .pos-addon-chip-close { height: 44px; padding: 0 0.9rem; }
+        .pos-mini-btn { height: 44px; padding: 0 0.9rem; }
         .pos-touch { min-height: 44px; min-width: 44px; }
         .pos-link-danger { min-height: 44px; padding: 0 0.5rem; display: inline-flex; align-items: center; }
         .pos-slot-remove { width: 44px; height: 44px; font-size: 1rem; }
@@ -357,6 +420,11 @@
         .pos-qty-ctrl { gap: 0.75rem; }
         .pos-qty-val { min-width: 28px; font-size: 1rem; }
         .pos-search-item { min-height: 48px; }
+        .pos-shop-cat { height: 44px; padding: 0 1.1rem; }
+        .pos-cart-remove { width: 48px; height: 48px; }
+        .pos-picker-close { width: 44px; height: 44px; }
+        .pos-picker-variant { min-height: 64px; }
+        .pos-picker-foot .pos-btn { height: 52px; }
         .pos-draft-resume-btn, .pos-draft-discard-btn, .quick-cash-btn { height: 44px; }
         .pos-timeline .tl-th { font-size: 0.75rem; }
         .pos-timeline .slot-btn .lbl { font-size: 0.8125rem; }

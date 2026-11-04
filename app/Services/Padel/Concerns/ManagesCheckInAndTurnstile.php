@@ -116,7 +116,7 @@ trait ManagesCheckInAndTurnstile
             $booking->forceFill(['status' => 'CHECKED_IN', 'checked_in_at' => $now])->syncOriginal();
             app(RealtimeSignal::class)->bookingDates($booking->booking_date);
 
-            $this->deductRentalEquipmentStock($booking);
+            $this->deductRentalEquipmentStock($booking, $staffUser);
 
             \App\Services\Audit\ActivityLogger::record(
                 module: 'PADEL',
@@ -150,17 +150,18 @@ trait ManagesCheckInAndTurnstile
     }
 
     /**
-     * Potong stock_quantity untuk alat SEWA (RACKET/TOWEL) milik booking ini saat serah-terima di check-in.
-     * BALL tidak disentuh di sini karena sudah dipotong lebih awal saat checkout (consumable, "dibeli habis").
+     * Potong stock_quantity untuk alat SEWA (CourtEquipment::isRental, mis. raket / handuk) milik booking ini saat serah-terima di check-in.
+     * Alat Jual tidak disentuh di sini karena sudah dipotong lebih awal saat checkout (consumable, "dibeli habis").
      * Idempotent: hanya memproses baris PadelBookingEquipment yang stock_deducted_at-nya masih NULL, jadi
      * aman dipanggil berkali-kali (mis. double-scan check-in) tanpa memotong stock dua kali.
      */
-    protected function deductRentalEquipmentStock(PadelBooking $booking): void
+    protected function deductRentalEquipmentStock(PadelBooking $booking, ?User $staffUser = null): void
     {
+        $loans = app(\App\Services\Padel\EquipmentLoanService::class);
         $pendingItems = \App\Services\Padel\BookingAddonService::equipmentRowsOf($booking)->with('equipment')->whereNull('stock_deducted_at')->get();
 
         foreach ($pendingItems as $item) {
-            if (! $item->equipment || ! in_array(strtoupper($item->equipment->type), ['RACKET', 'TOWEL'])) {
+            if (! $item->equipment || ! $item->equipment->isRental()) {
                 continue;
             }
 
@@ -180,13 +181,15 @@ trait ManagesCheckInAndTurnstile
             }
 
             $item->update(['stock_deducted_at' => now()]);
+            // Diserahkan ke peminjam → tercatat di Peminjaman Alat (diterima kembali beserta kondisinya di sana).
+            $loans->openForBookingRow($item, $staffUser);
         }
     }
 
     /**
-     * Tandai alat SEWA (RACKET/TOWEL) milik booking ini sudah dikembalikan fisik ke frontdesk, dan
-     * kembalikan (+qty) ke stock_quantity. BALL tidak pernah bisa diretur (consumable, sudah dibeli habis
-     * sejak checkout) sehingga baris BALL otomatis dilewati di sini.
+     * Tandai alat SEWA (CourtEquipment::isRental) milik booking ini sudah dikembalikan fisik ke frontdesk, dan
+     * kembalikan (+qty) ke stock_quantity. Alat Jual tidak pernah bisa diretur (consumable, sudah dibeli habis
+     * sejak checkout) sehingga barisnya otomatis dilewati di sini.
      * Idempotent: baris yang returned_at-nya sudah terisi dilewati, aman dipanggil berkali-kali.
      *
      * @return array{restored_count: int, items: array, booking_code: string}
@@ -196,14 +199,17 @@ trait ManagesCheckInAndTurnstile
         $booking = PadelBooking::findOrFail($bookingId);
 
         return DB::transaction(function () use ($booking, $staffUser) {
+            // Alat yang punya catatan Peminjaman Alat diterima di halaman itu (kondisi & denda wajib dicatat);
+            // di sini hanya alat sewa dari sebelum fitur itu ada.
             $pendingReturns = \App\Services\Padel\BookingAddonService::equipmentRowsOf($booking)->with('equipment')
                 ->whereNotNull('stock_deducted_at')
                 ->whereNull('returned_at')
+                ->whereDoesntHave('loan')
                 ->get();
 
             $restoredItems = [];
             foreach ($pendingReturns as $item) {
-                if (! $item->equipment || ! in_array(strtoupper($item->equipment->type), ['RACKET', 'TOWEL'])) {
+                if (! $item->equipment || ! $item->equipment->isRental()) {
                     continue;
                 }
 

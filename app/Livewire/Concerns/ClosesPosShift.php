@@ -156,6 +156,7 @@ trait ClosesPosShift
             'review_status' => $result['review_status'],
             'closing_notes' => $closed->closing_notes,
             'sales_recap_views' => \App\Services\Pos\DailySalesRecapService::viewsDuringShift($closed),
+            'transaction_types' => \App\Services\Pos\DailySalesRecapService::shiftTransactionTypes($closed),
         ];
 
         $this->closingRows = [];

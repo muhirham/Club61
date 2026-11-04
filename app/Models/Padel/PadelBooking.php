@@ -95,6 +95,12 @@ class PadelBooking extends Model
         return $this->hasMany(PadelBookingEquipment::class, 'booking_id');
     }
 
+    /** Raket / handuk yang diserahkan untuk booking ini (Peminjaman Alat). */
+    public function equipmentLoans()
+    {
+        return $this->hasMany(EquipmentLoan::class, 'booking_id');
+    }
+
     public function order()
     {
         return $this->belongsTo(\App\Models\Pos\Order::class, 'order_id');

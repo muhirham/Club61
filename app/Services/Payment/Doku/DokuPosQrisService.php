@@ -4,6 +4,7 @@ namespace App\Services\Payment\Doku;
 
 use App\Filament\Pages\BookOfflineCourt;
 use App\Filament\Pages\JualMembership;
+use App\Filament\Pages\KasirProShop;
 use App\Models\Pos\Order;
 use App\Models\Pos\Payment;
 use App\Models\Pos\PosCashierShift;
@@ -321,6 +322,7 @@ class DokuPosQrisService
             return match ($source) {
                 'WALK_IN_OFFLINE' => BookOfflineCourt::getUrl(),
                 'MEMBERSHIP_POS' => JualMembership::getUrl(),
+                'BOOKING_ADDON', \App\Services\Pos\ProShopSaleService::SOURCE => KasirProShop::getUrl(),
                 default => route('pos.index'),
             };
         } catch (\Throwable $e) {

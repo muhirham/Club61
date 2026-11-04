@@ -19,6 +19,7 @@ class Order extends Model
         'order_type',
         'table_number',
         'customer_name',
+        'customer_phone',
         'queue_number',
         'delivery_address',
         'delivery_fee',

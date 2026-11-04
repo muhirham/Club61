@@ -47,4 +47,10 @@ class PadelBookingEquipment extends Model
     {
         return $this->belongsTo(\App\Models\Pos\Order::class, 'order_id');
     }
+
+    /** Catatan peminjaman alat sewa ini (dibuat saat stoknya dipotong; alat dari sebelum fitur ini ada tidak punya). */
+    public function loan()
+    {
+        return $this->hasOne(EquipmentLoan::class, 'booking_equipment_id');
+    }
 }

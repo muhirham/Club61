@@ -9,7 +9,7 @@
                                 <div style="font-weight:900; font-size:1rem; letter-spacing:0.05em;">CLUB 61 PADEL
                                     ARENA</div>
                                 <div style="font-size:0.65rem; color:#4B5563;">{{ \App\Models\Setting\CompanyProfileSetting::receiptAddress() }}</div>
-                                <div style="font-size:0.65rem; color:#4B5563;">Frontdesk &amp; Reservation Counter
+                                <div style="font-size:0.65rem; color:#4B5563;">{{ ! empty($receipt['pro_shop']) ? 'Pro Shop' : 'Frontdesk & Reservation Counter' }}
                                 </div>
                             </div>
 
@@ -56,6 +56,8 @@
                                         <div style="font-size:0.625rem; color:#4B5563;">{{ $receipt['booking_date'] }} &bull; {{ $receipt['addon_for']['schedule'] }} WIB</div>
                                         <div style="font-size:0.625rem; font-weight:800; color:#1F170D;">Kode: {{ $receipt['addon_for']['code'] }}</div>
                                     </div>
+                                @elseif (! empty($receipt['equipment_sale']) || ! empty($receipt['equipment_fine']))
+                                    {{-- Penjualan Kasir Pro Shop / denda alat: tanpa lapangan. --}}
                                 @else
                                     <div style="font-weight:800; margin-bottom:0.25rem;">ITEM LAPANGAN:</div>
                                 @endif
@@ -91,7 +93,7 @@
                                 @endforeach
 
                                 @if (!empty($receipt['equipments']))
-                                    <div style="font-weight:800; margin-top:0.4rem; margin-bottom:0.2rem;">SEWA ALAT:
+                                    <div style="font-weight:800; margin-top:0.4rem; margin-bottom:0.2rem;">{{ ! empty($receipt['equipment_fine']) ? 'DENDA ALAT:' : (! empty($receipt['equipment_sale']) ? 'PENJUALAN PRO SHOP:' : 'SEWA ALAT:') }}
                                     </div>
                                     @foreach ($receipt['equipments'] as $eqIdx => $eq)
                                         <div wire:key="receipt-equipment-{{ $eqIdx }}"
@@ -99,6 +101,10 @@
                                             <span>{{ $eq['quantity'] }}x {{ $eq['name'] }}</span>
                                             <span>Rp {{ number_format($eq['price'], 0, ',', '.') }}</span>
                                         </div>
+                                        {{-- Pro Shop: harga satuan bila lebih dari 1 (mis. 2 x Rp150.000). --}}
+                                        @if (! empty($receipt['pro_shop']) && $eq['quantity'] > 1 && isset($eq['unit_price']))
+                                            <div style="font-size:0.625rem; color:#4B5563;">&nbsp;&nbsp;{{ $eq['quantity'] }} x Rp {{ number_format($eq['unit_price'], 0, ',', '.') }}</div>
+                                        @endif
                                     @endforeach
                                 @endif
 
@@ -176,7 +182,14 @@
                             </div>
 
                             <div style="text-align:center; font-size:0.625rem; color:#4B5563; line-height:1.3;">
-                                <div>Terima kasih telah bermain di Club 61!</div>
-                                <div>Tunjukkan struk ini kepada petugas lapangan.</div>
+                                @if (! empty($receipt['addon_for']))
+                                    <div>Terima kasih telah berbelanja di Club 61!</div>
+                                    <div>Tunjukkan struk ini saat mengambil alat.</div>
+                                @elseif (! empty($receipt['pro_shop']))
+                                    <div>Terima kasih telah berbelanja di Club 61!</div>
+                                @else
+                                    <div>Terima kasih telah bermain di Club 61!</div>
+                                    <div>Tunjukkan struk ini kepada petugas lapangan.</div>
+                                @endif
                             </div>
                         </div>

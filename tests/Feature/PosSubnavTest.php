@@ -38,6 +38,25 @@ class PosSubnavTest extends TestCase
             ->assertSee(route('filament.admin.pages.jual-membership'), false);
     }
 
+    public function test_kasir_pro_shop_tab_only_shows_for_staff_with_access(): void
+    {
+        $staff = User::factory()->create(['is_active' => true]);
+        $staff->givePermissionTo(['View:BookOfflineCourt', 'process_walkin_booking']);
+        $this->actingAs($staff);
+        Livewire::test(BookOfflineCourt::class)->assertDontSee(route('filament.admin.pages.kasir-pro-shop'), false);
+        $this->assertFalse(\App\Filament\Pages\KasirProShop::canAccess());
+        Livewire::test(\App\Filament\Pages\KasirProShop::class)->assertForbidden();
+
+        $staff->givePermissionTo('View:KasirProShop');
+        Livewire::test(BookOfflineCourt::class)
+            ->assertSee('Kasir Pro Shop')
+            ->assertSee(route('filament.admin.pages.kasir-pro-shop'), false);
+        Livewire::test(\App\Filament\Pages\KasirProShop::class)
+            ->assertStatus(200)
+            ->assertSee('POS Walk-In Booking')
+            ->assertSee('belum memiliki izin menjual barang Pro Shop');
+    }
+
     public function test_jual_membership_page_renders_subnav_with_membership_tab_active(): void
     {
         Livewire::test(JualMembership::class)

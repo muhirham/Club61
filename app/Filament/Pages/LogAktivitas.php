@@ -50,6 +50,7 @@ class LogAktivitas extends Page implements HasTable
         'PADEL' => 'Padel & Booking',
         'POS' => 'Shift Kasir',
         'FNB' => 'F&B',
+        'MERCH' => 'Merchandise',
         'MEMBERSHIP' => 'Membership',
         'SPONSOR' => 'Sponsor',
         'COACHING' => 'Coaching',

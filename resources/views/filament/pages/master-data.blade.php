@@ -118,7 +118,7 @@
                 Master Data, Tarif Lapangan &amp; Add-ons
             </div>
             <div class="c61-hero-sub">
-                Kelola tarif sewa per jam untuk seluruh lapangan padel (Jam Reguler vs Jam Ramai/Prime Time) serta manajemen persediaan dan tarif rental Add-ons (raket, bola, handuk, pelatih).
+                Kelola tarif sewa per jam untuk seluruh lapangan padel (Jam Reguler vs Jam Ramai/Prime Time) serta stok dan harga perlengkapan padel (bola, raket, handuk).
             </div>
         </div>
 
@@ -134,7 +134,7 @@
                 @endif
             @elseif($activeTab === 'equipments' && $this->canManageEquipment)
                 <button type="button" wire:click="openCreateEquipmentModal" class="c61-btn c61-btn-cream">
-                    <span>+ Tambah Add-on Baru</span>
+                    <span>+ Tambah Perlengkapan</span>
                 </button>
             @endif
         </div>
@@ -150,7 +150,7 @@
                 <span>Jam Peak &amp; Tanggal Merah</span>
             </button>
             <button type="button" wire:click="setActiveTab('equipments')" class="c61-seg-btn {{ $activeTab === 'equipments' ? 'is-active' : '' }}">
-                <span>Add-ons &amp; Peralatan Sewa</span>
+                <span>Perlengkapan Padel</span>
             </button>
         </div>
     </div>
@@ -448,16 +448,16 @@
         </div>
     @endif
 
-    {{-- ================= TAB 2: ADD-ONS & PERALATAN ================= --}}
+    {{-- ================= TAB 2: PERLENGKAPAN PADEL ================= --}}
     @if($activeTab === 'equipments')
         <div class="c61-card">
             <div class="c61-card-head">
                 <div class="md-card-head-text">
                     <div class="c61-card-title">
-                        Katalog Add-ons &amp; Peralatan Sewa Padel
+                        Katalog Perlengkapan Padel
                     </div>
                     <div class="c61-card-sub">
-                        Peralatan yang dapat disewa pelanggan saat checkout online maupun walk-in di kasir POS.
+                        Bola, raket, handuk, dan perlengkapan padel lain yang dijual atau disewakan saat checkout online dan di Kasir Pro Shop. Merchandise (baju, topi, botol, dll.) tidak dicatat di katalog ini.
                     </div>
                 </div>
 
@@ -485,11 +485,11 @@
                 <table class="c61-table md-table" style="min-width:960px;">
                     <thead>
                         <tr>
-                            <th>Nama Add-on / Alat</th>
+                            <th>Nama Perlengkapan</th>
                             <th>Kategori</th>
-                            <th>Tarif Sewa per Sesi</th>
+                            <th>Harga</th>
                             <th>Stok Unit</th>
-                            <th>Riwayat Rental</th>
+                            <th>Riwayat Transaksi</th>
                             <th class="md-center">Status Katalog</th>
                             <th class="md-right">Aksi</th>
                         </tr>
@@ -516,14 +516,15 @@
                                             <span class="c61-pill c61-pill-orange">Pelatih</span>
                                             @break
                                         @default
-                                            <span class="c61-pill c61-pill-gray">{{ $eq->type }}</span>
+                                            <span class="c61-pill c61-pill-gray">Perlengkapan Lainnya</span>
                                     @endswitch
+                                    <div class="md-id" style="margin-top:0.25rem;">{{ \App\Models\Padel\CourtEquipment::USAGES[$eq->resolvedUsage()] ?? 'Tanpa stok' }}</div>
                                 </td>
                                 <td>
                                     <div class="md-price">
                                         Rp {{ number_format($eq->rental_price, 0, ',', '.') }}
                                     </div>
-                                    <div class="md-price-sub">per sesi booking</div>
+                                    <div class="md-price-sub">{{ $eq->isSale() ? 'per unit' : 'per sesi booking' }}</div>
                                 </td>
                                 <td>
                                     <div class="md-stock {{ $eq->stock_quantity > 0 ? '' : 'is-empty' }}">
@@ -531,12 +532,20 @@
                                     </div>
                                 </td>
                                 <td>
-                                    @if($eq->historical_rentals_count > 0)
-                                        <span class="c61-pill c61-pill-cream" title="Item ini pernah disewa dan tercatat di invoice pelanggan.">
-                                            {{ $eq->historical_rentals_count }}x Disewa (Terkunci Historis)
+                                    @if($eq->has_transaction_history)
+                                        <span class="c61-pill c61-pill-cream" title="Sudah ada transaksi — tidak bisa dihapus, hanya dinonaktifkan.">
+                                            @if($eq->paid_units === 0)
+                                                Ada riwayat transaksi
+                                            @elseif($eq->isSale())
+                                                Terjual {{ number_format($eq->paid_units, 0, ',', '.') }} unit
+                                            @elseif($eq->isRental())
+                                                Disewa {{ number_format($eq->paid_units, 0, ',', '.') }} kali
+                                            @else
+                                                Dipakai {{ number_format($eq->paid_units, 0, ',', '.') }} kali
+                                            @endif
                                         </span>
                                     @else
-                                        <span class="md-muted">Belum ada sewa</span>
+                                        <span class="md-muted">Belum ada transaksi</span>
                                     @endif
                                 </td>
                                 <td class="md-center">
@@ -557,11 +566,11 @@
                                             <span>Edit</span>
                                         </button>
 
-                                        @if($eq->historical_rentals_count > 0)
+                                        @if($eq->has_transaction_history)
                                             <button type="button"
                                                 x-on:click="$dispatch('club61-confirm', {
                                                     title: @js('Nonaktifkan '.$eq->name.'?'),
-                                                    message: 'Item ini sudah pernah disewa, jadi tidak dihapus — hanya dinonaktifkan supaya tidak bisa disewa lagi. Struk & invoice lama tetap utuh.',
+                                                    message: 'Item ini sudah memiliki riwayat transaksi, jadi tidak dihapus — hanya dinonaktifkan supaya tidak muncul lagi di checkout dan kasir. Struk & invoice lama tetap utuh.',
                                                     confirmLabel: 'Ya, Nonaktifkan',
                                                     onConfirm: () => $wire.deleteEquipment(@js($eq->id)),
                                                 })"
@@ -573,7 +582,7 @@
                                             <button type="button"
                                                 x-on:click="$dispatch('club61-confirm', {
                                                     title: @js('Hapus '.$eq->name.'?'),
-                                                    message: 'Item ini belum pernah disewa, jadi akan dihapus permanen dari sistem. Tindakan ini tidak bisa dibatalkan.',
+                                                    message: 'Item ini belum pernah dipakai transaksi apa pun, jadi akan dihapus permanen dari sistem. Tindakan ini tidak bisa dibatalkan.',
                                                     confirmLabel: 'Ya, Hapus Permanen',
                                                     tone: 'danger',
                                                     onConfirm: () => $wire.deleteEquipment(@js($eq->id)),
@@ -590,7 +599,7 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="c61-empty">
-                                    Belum ada data Add-on.{{ $this->canManageEquipment ? ' Silakan klik tombol "+ Tambah Add-on Baru".' : '' }}
+                                    Belum ada data perlengkapan.{{ $this->canManageEquipment ? ' Silakan klik tombol "+ Tambah Perlengkapan".' : '' }}
                                 </td>
                             </tr>
                         @endforelse
@@ -705,13 +714,13 @@
         </div>
     @endif
 
-    {{-- ================= MODAL EDIT/TAMBAH ADD-ON ================= --}}
+    {{-- ================= MODAL EDIT/TAMBAH PERLENGKAPAN ================= --}}
     @if($showEquipmentModal)
         <div class="c61-modal-backdrop">
             <div class="c61-modal" style="max-width:580px;">
                 <div class="c61-modal-head">
                     <div class="c61-modal-title" style="margin-top:0;">
-                        {{ $editingEquipmentId ? 'Edit Add-on / Peralatan' : 'Tambah Add-on Peralatan Baru' }}
+                        {{ $editingEquipmentId ? 'Edit Perlengkapan Padel' : 'Tambah Perlengkapan Padel' }}
                     </div>
                     <button type="button" wire:click="closeEquipmentModal" class="c61-modal-close">
                         &times;
@@ -720,26 +729,39 @@
 
                 <div class="c61-modal-body">
                     <div class="md-field">
-                        <label class="c61-label">Nama Add-on / Alat Sewa</label>
+                        <label class="c61-label">Nama Perlengkapan</label>
                         <input type="text" wire:model="equipmentName" class="c61-input" placeholder="Contoh: Raket Babolat Counter Viper">
                         @error('equipmentName') <span class="md-err">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="md-field">
                         <label class="c61-label">Kategori Tipe</label>
-                        <select wire:model="equipmentType" class="c61-select">
+                        <select wire:model.live="equipmentType" class="c61-select">
                             <option value="RACKET">RACKET (Raket Padel)</option>
                             <option value="BALL">BALL (Bola Padel / Can)</option>
                             <option value="TOWEL">TOWEL (Handuk Olahraga)</option>
                             <option value="COACH">COACH (Pelatih / Private Trainer)</option>
-                            <option value="OTHER">OTHER (Perlengkapan Lainnya)</option>
+                            <option value="OTHER">OTHER (Perlengkapan Padel Lainnya, mis. overgrip)</option>
                         </select>
+                        <div class="md-id" style="margin-top:0.25rem;">Baju, topi, botol, dan merchandise lain tidak dimasukkan di sini.</div>
                         @error('equipmentType') <span class="md-err">{{ $message }}</span> @enderror
+                    </div>
+
+                    <div class="md-field">
+                        <label class="c61-label">Sifat Alat</label>
+                        <select wire:model="equipmentUsage" class="c61-select">
+                            <option value="{{ \App\Models\Padel\CourtEquipment::USAGE_SALE }}">Jual (habis pakai) &mdash; stok dipotong saat bayar, bisa dijual tanpa booking</option>
+                            <option value="{{ \App\Models\Padel\CourtEquipment::USAGE_RENTAL }}">Sewa (harus kembali) &mdash; stok dipotong saat check-in, wajib lewat booking</option>
+                            <option value="">Tanpa stok (mis. jasa)</option>
+                        </select>
+                        @error('equipmentUsage') <span class="md-err">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="md-grid-2">
                         <div class="md-field">
-                            <label class="c61-label">Tarif Sewa per Sesi (Rp)</label>
+                            {{-- Label ikut Sifat Alat (dropdown wire:model, dibaca langsung di browser tanpa request). --}}
+                            <label class="c61-label" x-data
+                                x-text="$wire.equipmentUsage === @js(\App\Models\Padel\CourtEquipment::USAGE_SALE) ? 'Harga Jual per Unit (Rp)' : 'Tarif per Sesi Booking (Rp)'">{{ $equipmentUsage === \App\Models\Padel\CourtEquipment::USAGE_SALE ? 'Harga Jual per Unit (Rp)' : 'Tarif per Sesi Booking (Rp)' }}</label>
                             <input type="number" step="5000" wire:model="equipmentRentalPrice" class="c61-input" placeholder="50000">
                             @error('equipmentRentalPrice') <span class="md-err">{{ $message }}</span> @enderror
                         </div>
@@ -751,8 +773,30 @@
                         </div>
                     </div>
 
+                    {{-- Denda Peminjaman Alat (hanya alat Sewa). Lecet karena pemakaian wajar tidak didenda. Kosong = tanpa denda. --}}
+                    <div class="md-field" x-data x-show="$wire.equipmentUsage === @js(\App\Models\Padel\CourtEquipment::USAGE_RENTAL)">
+                        <label class="c61-label">Denda Kerusakan / Kehilangan (Rp)</label>
+                        <div class="md-grid-2" style="grid-template-columns:repeat(3, minmax(0, 1fr));">
+                            <div>
+                                <input type="number" step="1000" min="0" wire:model="equipmentFineMinor" class="c61-input" placeholder="100000" aria-label="Denda lecet karena disengaja">
+                                <div class="md-id">Lecet / rusak ringan disengaja</div>
+                                @error('equipmentFineMinor') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <input type="number" step="1000" min="0" wire:model="equipmentFineMajor" class="c61-input" placeholder="1000000" aria-label="Denda patah karena disengaja">
+                                <div class="md-id">Patah / tidak bisa dipakai</div>
+                                @error('equipmentFineMajor') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <input type="number" step="1000" min="0" wire:model="equipmentFineLost" class="c61-input" placeholder="1000000" aria-label="Denda hilang">
+                                <div class="md-id">Hilang</div>
+                                @error('equipmentFineLost') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="md-field">
-                        <label class="c61-label">Status di Katalog Sewa</label>
+                        <label class="c61-label">Status di Katalog</label>
                         <div class="md-radio-row">
                             <label class="md-radio">
                                 <input type="radio" wire:model="equipmentIsActive" value="1">
@@ -771,7 +815,7 @@
                         Batal
                     </button>
                     <button type="button" wire:click="saveEquipment" class="c61-btn c61-btn-primary">
-                        Simpan Add-on
+                        Simpan Perlengkapan
                     </button>
                 </div>
             </div>

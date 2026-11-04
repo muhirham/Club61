@@ -35,6 +35,7 @@ class LedgerEntry extends Model
         'SEWA_LAPANGAN' => 'Sewa Lapangan Padel',
         'COACHING' => 'Sewa Lapangan Coaching',
         'ADDON_PADEL' => 'Add-on Padel',
+        'DENDA_ALAT' => 'Denda Alat',
         'MEMBERSHIP' => 'Membership',
         'FNB' => 'F&B',
         'WELLNESS' => 'Wellness',
