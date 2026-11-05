@@ -839,6 +839,7 @@
                             <div class="c61-mono" style="font-size: 0.75rem; color: var(--c-muted); margin-top: 0.2rem;">
                                 Tiket: <strong>{{ $checkInResult['booking_code'] }}</strong>
                             </div>
+                            @include('filament.partials.checkin-sponsor-badge', ['sponsor' => $checkInResult['sponsor'] ?? null])
 
                             <div style="margin-top: 1rem; border-top: 1px dashed {{ $checkInResult['already_checked_in'] ? '#FCD34D' : '#86EFAC' }}; padding-top: 0.75rem;">
                                 <div style="font-size: 0.6875rem; font-weight: 800; color: var(--c-brown); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.45rem;">

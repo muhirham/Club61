@@ -150,6 +150,7 @@ class SponsorOrganizationService
         if ($hours <= 0) {
             throw new DomainException(SiteLocale::text('corporate.hours_must_be_positive'));
         }
+        self::assertWholeHours($hours);
 
         return DB::transaction(function () use ($member, $hours, $source, $issuedBy, $period) {
             $voucher = SponsorMemberVoucher::create([
@@ -253,6 +254,7 @@ class SponsorOrganizationService
         if ($newHoursGranted <= 0) {
             throw new DomainException(SiteLocale::text('corporate.hours_must_be_positive'));
         }
+        self::assertWholeHours($newHoursGranted);
 
         if ($newHoursGranted < (float) $voucher->hours_used) {
             throw new DomainException(SiteLocale::text('corporate.below_used_hours', ['hours' => $voucher->hours_used]));
@@ -360,7 +362,7 @@ class SponsorOrganizationService
      *
      * @return array{imported: int, reactivated: int, skipped_duplicate: int, vouchers_issued: int, vouchers_updated: int, failed_rows: array<int, array{row: int, reason: string}>}
      */
-    public function importMembersFromCsv(SponsorOrganization $organization, string $filePath, ?User $issuedBy = null): array
+    public function importMembersFromCsv(SponsorOrganization $organization, string $filePath, ?User $issuedBy = null, bool $allowHours = true): array
     {
         $handle = fopen($filePath, 'r');
 
@@ -423,6 +425,16 @@ class SponsorOrganizationService
                 if ($hoursRaw !== '') {
                     if (! is_numeric($hoursRaw) || (float) $hoursRaw <= 0) {
                         $result['failed_rows'][] = ['row' => $rowNumber, 'reason' => "Jam \"{$hoursRaw}\" tidak valid."];
+                        continue;
+                    }
+                    if (fmod((float) $hoursRaw, 1.0) != 0.0) {
+                        $result['failed_rows'][] = ['row' => $rowNumber, 'reason' => "Jam \"{$hoursRaw}\" tidak valid. ".SiteLocale::text('corporate.hours_must_be_whole')];
+                        continue;
+                    }
+                    // Hak Akses PIC: tanpa izin memberikan jam, baris berisi jam ditolak utuh (karyawan tidak ditambahkan
+                    // setengah jalan) supaya PIC sadar kolom jamnya tidak diproses.
+                    if (! $allowHours) {
+                        $result['failed_rows'][] = ['row' => $rowNumber, 'reason' => SiteLocale::text('corporate.csv_hours_not_allowed')];
                         continue;
                     }
                     $hours = (float) $hoursRaw;
@@ -497,6 +509,14 @@ class SponsorOrganizationService
         }
 
         return ['name' => $nameIndex, 'phone' => $phoneIndex, 'hours' => $hoursIndex];
+    }
+
+    /** Lapangan dibooking per jam, jadi jam voucher selalu bilangan bulat (tidak ada voucher 1,5 jam). */
+    private static function assertWholeHours(float $hours): void
+    {
+        if (fmod($hours, 1.0) != 0.0) {
+            throw new DomainException(SiteLocale::text('corporate.hours_must_be_whole'));
+        }
     }
 
     private function findOrCreateUserByPhone(string $name, string $phone): User

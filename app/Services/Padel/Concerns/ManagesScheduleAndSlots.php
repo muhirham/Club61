@@ -127,9 +127,10 @@ trait ManagesScheduleAndSlots
                     $status = 'AVAILABLE';
                 }
 
-                $isPrime = $peakHours->isPeak($slotStart); // jam peak diatur di Master Data
-                $price = $isPrime ? (float)$court->hourly_rate_prime : (float)$court->hourly_rate_regular;
-                $originalPrice = $isPrime ? (float)$court->hourly_rate_prime * 1.25 : (float)$court->hourly_rate_regular * 1.5;
+                $slotRate = $peakHours->rateFor($court, $slotStart); // Harga Khusus / Harga Dasar & jam peak Master Data
+                $isPrime = $slotRate['prime'];
+                $price = $slotRate['price'];
+                $originalPrice = $isPrime ? $price * 1.25 : $price * 1.5;
 
                 $slots[] = [
                     'time' => "{$startHourStr} - {$endHourStr}",

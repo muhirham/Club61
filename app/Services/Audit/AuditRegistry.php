@@ -160,7 +160,7 @@ class AuditRegistry
                 'title' => fn (MembershipPlanBenefit $b) => trim(($b->plan?->name ?? 'Paket').' - '.$b->facility),
                 'severity' => ['updated' => ActivityLogger::WARNING],
             ],
-            SponsorOrganization::class => ['module' => 'SPONSOR', 'label' => 'Sponsor Corporate'],
+            SponsorOrganization::class => ['module' => 'SPONSOR', 'label' => 'Sponsor Corporate', 'severity_on_columns' => ['pic_restricted_actions' => ActivityLogger::WARNING]],
             SponsorOrganizationMember::class => [
                 'module' => 'SPONSOR',
                 'label' => 'Anggota Sponsor',

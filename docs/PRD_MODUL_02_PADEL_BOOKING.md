@@ -49,6 +49,7 @@ Padel Court Booking Engine adalah **jantung operasional dan mesin penghasil reve
 - **Aturan Tarif Jam**:
   - Jam Reguler: 06:00 - 17:00 WIB (Tarif normal: Rp 200.000 / jam).
   - Jam Prime Time: 17:00 - 23:00 WIB & Weekend (Tarif prime: Rp 300.000 - Rp 400.000 / jam).
+  - Contoh di atas rancangan awal. Tarif & jam peak diatur di Master Data (Harga Dasar); harga per periode / promo diatur lewat **Harga Khusus per Periode** — lihat [PRD Modul 32](PRD_MODUL_32_HARGA_LAPANGAN_DINAMIS.md).
 - **Definisi Status Slot**:
   - `AVAILABLE`: Lapangan kosong dan siap dipesan.
   - `LOCKED`: Sedang di-hold oleh pemain lain (maksimal 10 menit).

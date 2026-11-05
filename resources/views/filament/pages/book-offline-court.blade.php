@@ -225,7 +225,7 @@
                 // Kolom lapangan selebar nama/keterangan terpanjang (tidak terpotong, tidak turun baris); di HP dibatasi via CSS.
                 $courtColWidth = (int) min(300, max(116, collect($gridData)->map(fn ($cr) => max(
                     mb_strlen($cr['court']->name) * 8.6,
-                    mb_strlen($cr['court']->type . ' • Rp' . number_format($cr['court']->hourly_rate_regular / 1000, 0) . 'k') * 6.6,
+                    mb_strlen($cr['court']->type . ' • Rp' . number_format($cr['from_rate'] / 1000, 0) . 'k') * 6.6,
                 ) + 30)->max() ?? 116));
                 $hoursMinWidth = collect($deadHour)->sum(fn ($dead) => $dead ? 30 : 44);
                 // Booking lunas yang berurutan (kode sama) digabung jadi satu blok, seperti kalender klub padel.
@@ -283,7 +283,7 @@
                             @php $court = $courtRow['court']; @endphp
                             <div class="tl-court" wire:key="court-row-{{ $court->id }}">
                                 <div class="pos-court-name">{{ $court->name }}</div>
-                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k</div>
+                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($courtRow['from_rate'] / 1000, 0) }}k</div>
                                 <div class="pos-court-free">{{ collect($courtRow['slots'])->where('status', 'AVAILABLE')->count() }} jam kosong</div>
                             </div>
                             @foreach ($courtSegments[$ci] as $seg)

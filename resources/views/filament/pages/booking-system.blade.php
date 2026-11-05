@@ -347,7 +347,7 @@
                                         <div class="cmd-court-name">{{ $court->name }}</div>
                                         <div class="cmd-court-meta">
                                             {{ $court->type ?? 'Indoor' }} &bull; Rp
-                                            {{ number_format($court->hourly_rate_regular, 0, ',', '.') }}/jam
+                                            {{ number_format($row['from_rate'] ?? $court->hourly_rate_regular, 0, ',', '.') }}/jam
                                         </div>
                                     </div>
                                     <span class="c61-pill c61-pill-cream cmd-court-type-pill" style="height: 20px; font-size: 0.5625rem; padding: 0 0.45rem;">
@@ -641,6 +641,7 @@
                                     {{ $resB->end_time->format('H:i') }})
                                 </div>
                             @endif
+                            @include('filament.partials.checkin-sponsor-badge', ['sponsor' => $checkInResult['sponsor'] ?? null])
                         </div>
                     @endif
                 </div>

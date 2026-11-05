@@ -313,3 +313,28 @@ maupun member individu yang punya kuota jam PADEL.
 Belum / menunggu klien: kuota 100 jam off-peak untuk customer IM3 Premium; blokir tanggal Grand Opening 26 Nov
 (fitur tutup lapangan per tanggal belum ada); apakah pembatalan oleh staf setelah H-3 juga harus menghanguskan jam
 (sekarang pembatalan mengikuti aturan Modul 21: jam kembali selama jam main belum mulai).
+
+### 8.5 Jam Jadwal Tetap di Dashboard PIC & Hak Akses PIC (dibangun 5 Nov 2026)
+
+**Jam Jadwal Tetap.** Kuota kontrak terpotong oleh dua hal: jam yang dibagikan PIC ke karyawan (voucher) dan booking
+Jadwal Tetap Mingguan (dipotong saat booking mingguannya dibuat, bukan saat main). Booking karyawan memakai voucher
+TIDAK memotong kuota lagi (hanya `hours_used` voucher). Dashboard `/corporate` kini menampilkan kartu "Jam Jadwal Tetap"
+(jumlah `member_hours_consumed` booking ber-`recurring_schedule_id` pada saldo PADEL perusahaan; booking batal yang
+jamnya dikembalikan bernilai 0) dan kalimat ringkasan menyebut ketiganya. Kartu hanya muncul bila nilainya > 0.
+
+**Hak Akses PIC.** Bagian baru di Kelola Sponsor > Edit (tanpa halaman/menu/permission baru; tetap memakai
+`manage_sponsor_organizations`). Kolom aditif `sponsor_organizations.pic_restricted_actions` (json, nullable) menyimpan
+aksi yang DIMATIKAN; NULL = semua boleh (perusahaan lama tidak berubah, aksi baru di masa depan otomatis boleh).
+
+| Aksi (`SponsorOrganization::PIC_*`) | Endpoint yang dijaga |
+|---|---|
+| `MANAGE_MEMBERS` — tambah & aktifkan kembali karyawan | tambah manual, impor CSV, reactivate |
+| `RELEASE_SINGLE` — beri jam satu per satu | release-voucher, jam awal saat tambah karyawan, kolom jam CSV (baris berjam ditolak utuh) |
+| `RELEASE_BULK` — beri jam ke semua karyawan | bulk-release-voucher |
+| `EDIT_VOUCHERS` — ubah & hapus voucher | PATCH / DELETE voucher |
+
+Ditolak di server lewat `SponsorOrganizationPolicy::performPicAction` (403 + pesan) dan tombolnya disembunyikan; PIC
+melihat catatan "Beberapa aksi … tidak diaktifkan". Melihat dashboard, roster, voucher & jadwal selalu boleh.
+Perubahan hak akses tercatat otomatis di Log Aktivitas (WARNING). Aksi voucher PIC kini juga tercatat:
+`sponsor.voucher_released`, `sponsor.voucher_bulk_released`, `sponsor.voucher_updated`, `sponsor.voucher_deleted`
+(WARNING), `sponsor.voucher_csv_imported`. Test: `tests/Feature/Sponsor/PicAccessRightsTest.php`.

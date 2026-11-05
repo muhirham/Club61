@@ -20,12 +20,48 @@ class SponsorOrganization extends Model
     /** Ditangguhkan admin (mis. kontrak belum dibayar): PIC tidak bisa rilis jam & voucher karyawan tidak bisa dipakai. */
     public const STATUS_SUSPENDED = 'SUSPENDED';
 
+    /** Hak Akses PIC: aksi di halaman Tim Corporate yang bisa dimatikan admin per perusahaan (Kelola Sponsor > Edit). */
+    public const PIC_MANAGE_MEMBERS = 'MANAGE_MEMBERS';
+
+    public const PIC_RELEASE_SINGLE = 'RELEASE_SINGLE';
+
+    public const PIC_RELEASE_BULK = 'RELEASE_BULK';
+
+    public const PIC_EDIT_VOUCHERS = 'EDIT_VOUCHERS';
+
+    public const PIC_ACTIONS = [
+        self::PIC_MANAGE_MEMBERS => 'Menambah & mengaktifkan kembali karyawan (manual dan impor CSV)',
+        self::PIC_RELEASE_SINGLE => 'Memberikan jam ke karyawan satu per satu (termasuk jam awal saat menambah karyawan dan kolom jam di CSV)',
+        self::PIC_RELEASE_BULK => 'Memberikan jam ke semua karyawan sekaligus',
+        self::PIC_EDIT_VOUCHERS => 'Mengubah & menghapus voucher jam karyawan',
+    ];
+
     protected $fillable = [
         'name',
         'user_membership_id',
         'sponsor_admin_user_id',
         'status',
+        'pic_restricted_actions',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'pic_restricted_actions' => 'array',
+        ];
+    }
+
+    /** Aksi PIC yang diizinkan. Kosong / NULL di kolom = semua boleh (perusahaan lama & default). */
+    public function picAllows(string $action): bool
+    {
+        return ! in_array($action, (array) ($this->pic_restricted_actions ?? []), true);
+    }
+
+    /** @return array<int, string> */
+    public function picAllowedActions(): array
+    {
+        return array_values(array_filter(array_keys(self::PIC_ACTIONS), fn (string $action) => $this->picAllows($action)));
+    }
 
     public function userMembership(): BelongsTo
     {

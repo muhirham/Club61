@@ -2,6 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Padel\PadelBooking;
+use App\Models\Padel\PadelCourt;
+use App\Models\Padel\PadelRecurringSchedule;
 use App\Models\Sponsor\SponsorOrganization;
 use App\Models\Sponsor\SponsorOrganizationMember;
 use Illuminate\Contracts\View\View;
@@ -84,6 +87,50 @@ class CorporateDashboardController extends Controller
             'totalQuota' => $organization ? $organization->totalQuota() : null,
             'quotaRemaining' => $organization ? $organization->remainingQuota() : null,
             'activeMembersForBulk' => $allActiveMembers,
+            'recurringSchedules' => $organization ? $this->recurringSchedules($organization) : collect(),
+            'recurringHours' => $organization ? $this->recurringHours($organization) : 0.0,
         ]);
+    }
+
+    /**
+     * Jam kuota kontrak yang terpotong booking Jadwal Tetap Mingguan (dipotong saat booking mingguannya dibuat,
+     * sudah dimainkan maupun yang akan datang). Booking yang dibatalkan & jamnya dikembalikan bernilai 0.
+     */
+    private function recurringHours(SponsorOrganization $organization): float
+    {
+        $balance = $organization->padelHourBalance();
+        if (! $balance) {
+            return 0.0;
+        }
+
+        return (float) PadelBooking::where('membership_balance_id', $balance->id)
+            ->whereNotNull('recurring_schedule_id')
+            ->sum('member_hours_consumed');
+    }
+
+    /**
+     * Jadwal Tetap Mingguan (Booking Mingguan di admin) milik membership kontrak organisasi ini yang masih berjalan
+     * — ditampilkan read-only di kartu Jadwal Akses Main Tim bersama Jadwal Akses Sponsor.
+     */
+    private function recurringSchedules(SponsorOrganization $organization): \Illuminate\Support\Collection
+    {
+        if (! $organization->user_membership_id) {
+            return collect();
+        }
+
+        $schedules = PadelRecurringSchedule::where('user_membership_id', $organization->user_membership_id)
+            ->whereIn('status', [PadelRecurringSchedule::STATUS_ACTIVE, PadelRecurringSchedule::STATUS_PAUSED])
+            ->where(fn ($q) => $q->whereNull('ends_on')->orWhere('ends_on', '>=', now()->toDateString()))
+            ->orderBy('day_of_week')->orderBy('start_time')
+            ->get();
+
+        $courtNames = PadelCourt::withTrashed()
+            ->whereIn('id', $schedules->pluck('court_ids')->flatten()->filter()->unique()->values())
+            ->ordered()->pluck('name', 'id');
+
+        return $schedules->each(fn (PadelRecurringSchedule $s) => $s->setAttribute(
+            'court_names',
+            collect((array) $s->court_ids)->map(fn ($id) => $courtNames[$id] ?? null)->filter()->implode(', ')
+        ));
     }
 }

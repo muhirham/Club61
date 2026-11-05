@@ -2546,8 +2546,9 @@ class BookOfflineCourt extends Page
                 $endTimeStr = $oh['end_time'];
                 $slotKey = "{$court->id}_{$startTimeStr}";
 
-                $isPrime = $peakHours->isPeak(Carbon::parse("{$this->bookingDate} {$startTimeStr}"));
-                $rate = $isPrime ? (float) $court->hourly_rate_prime : (float) $court->hourly_rate_regular;
+                $slotRate = $peakHours->rateFor($court, Carbon::parse("{$this->bookingDate} {$startTimeStr}"));
+                $isPrime = $slotRate['prime'];
+                $rate = $slotRate['price'];
 
                 // Tentukan status slot
                 $status = 'AVAILABLE';
@@ -2639,6 +2640,9 @@ class BookOfflineCourt extends Page
                 ];
             }
 
+            // Harga termurah lapangan di tanggal ini (Harga Khusus / Harga Dasar) untuk keterangan di kolom lapangan.
+            $courtRow['from_rate'] = (float) (collect($courtRow['slots'])->filter(fn ($s) => $s['hour'] >= $courtOpen && $s['hour'] < $courtClose)->min('rate')
+                ?? $court->hourly_rate_regular);
             $gridData[] = $courtRow;
         }
 
