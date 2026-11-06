@@ -1000,10 +1000,31 @@ trait ManagesCheckoutAndPayments
     }
 
     /**
+     * Akun lain pemilik email yang diketik kasir di Walk-In Cepat — hanya kalau nomor HP-nya belum dikenal (nomor HP
+     * yang sudah terdaftar selalu menang dan akun itu yang dipakai). Null = aman dibuatkan akun baru.
+     */
+    public function walkInEmailOwner(string $phone, ?string $email): ?User
+    {
+        $email = trim((string) $email);
+        $cleanPhone = $this->normalizePhoneNumber($phone);
+        if ($email === '' || $cleanPhone === '' || User::where('phone', $cleanPhone)->exists()) {
+            return null;
+        }
+
+        return User::where('email', $email)->first();
+    }
+
+    public static function walkInEmailTakenMessage(User $owner): string
+    {
+        return 'Email ini sudah terdaftar atas nama "'.$owner->name.'"'.($owner->phone ? ' (HP '.$owner->phone.')' : ' (belum punya nomor HP)')
+            .'. Pilih akun itu lewat tab Cari Akun'.($owner->phone ? '' : ', lalu isi nomor HP-nya di sana').', atau kosongkan email.';
+    }
+
+    /**
      * Cari pelanggan walk-in berdasarkan nomor telepon atau buat akun baru otomatis (Smart Deduplication).
      * Pencarian = 1 query lewat index users(phone, deleted_at).
      */
-    public function findOrCreateWalkInCustomer(string $name, string $phone, ?string $email = null): User
+    public function findOrCreateWalkInCustomer(string $name, string $phone, ?string $email = null, bool $rejectTakenEmail = false): User
     {
         $cleanPhone = $this->normalizePhoneNumber($phone);
         // Bukan nomor HP tidak pernah dicocokkan (where phone = '' bisa mengenai akun lain).
@@ -1014,6 +1035,12 @@ trait ManagesCheckoutAndPayments
 
         if ($customer) {
             return $customer;
+        }
+
+        // Modul 33 (kasir POS): email yang diketik sudah milik akun lain (mis. akun daftar web tanpa nomor HP) → jangan
+        // diam-diam dibuatkan akun kedua; kasir diarahkan memilih akun itu lewat Cari Akun.
+        if ($rejectTakenEmail && ($owner = $this->walkInEmailOwner($cleanPhone, $email))) {
+            throw new HttpException(422, self::walkInEmailTakenMessage($owner));
         }
 
         $ulid = strtolower((string) Str::ulid());

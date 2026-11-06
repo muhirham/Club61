@@ -100,8 +100,19 @@
         .pk-chip-del:hover { background: #FEF2F2; border-color: #FECACA; }
         .md-chips-empty { width: 100%; text-align: center; color: var(--c-muted); font-size: 0.8125rem; padding: 1.25rem 1rem; border: 1px dashed var(--c-line); border-radius: 12px; background: var(--c-paper); }
 
+        /* Harga khusus */
+        .md-check-row { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .md-check { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.4rem 0.65rem; border: 1px solid var(--c-line); border-radius: 9px; background: var(--c-paper); font-size: 0.78125rem; font-weight: 700; color: var(--c-brown); cursor: pointer; }
+        .md-check input { accent-color: var(--c-terra); }
+        .md-check.is-holiday { color: #B42318; }
+        .md-sim-form { display: grid; grid-template-columns: minmax(160px, 200px) minmax(0, 260px); gap: 0.75rem; margin-bottom: 1rem; }
+        .md-sim-table { min-width: 520px; }
+        .md-source { font-size: 0.75rem; font-weight: 700; color: var(--c-brown); }
+        .md-source.is-base { color: var(--c-muted); font-weight: 600; }
+
         @media (max-width: 640px) {
             .md-grid-2 { grid-template-columns: 1fr; }
+            .md-sim-form { grid-template-columns: 1fr; }
             .md-holiday-form { grid-template-columns: 1fr; }
             .md-label-ghost { display: none; }
         }
@@ -132,6 +143,10 @@
                         <span>+ Tambah Lapangan Baru</span>
                     </button>
                 @endif
+            @elseif($activeTab === 'price_rules' && $this->canManageCourts)
+                <button type="button" wire:click="openCreatePriceRuleModal" class="c61-btn c61-btn-cream">
+                    <span>+ Tambah Harga Khusus</span>
+                </button>
             @elseif($activeTab === 'equipments' && $this->canManageEquipment)
                 <button type="button" wire:click="openCreateEquipmentModal" class="c61-btn c61-btn-cream">
                     <span>+ Tambah Perlengkapan</span>
@@ -148,6 +163,9 @@
             </button>
             <button type="button" wire:click="setActiveTab('peak_hours')" class="c61-seg-btn {{ $activeTab === 'peak_hours' ? 'is-active' : '' }}">
                 <span>Jam Peak &amp; Tanggal Merah</span>
+            </button>
+            <button type="button" wire:click="setActiveTab('price_rules')" class="c61-seg-btn {{ $activeTab === 'price_rules' ? 'is-active' : '' }}">
+                <span>Harga Khusus</span>
             </button>
             <button type="button" wire:click="setActiveTab('equipments')" class="c61-seg-btn {{ $activeTab === 'equipments' ? 'is-active' : '' }}">
                 <span>Perlengkapan Padel</span>
@@ -169,6 +187,7 @@
                             <span class="md-range">{{ $dayLabel }} {{ $ranges }}</span>@if (! $loop->last) &bull; @endif
                         @endforeach
                         &mdash; di luar itu tarif reguler. <a href="#" wire:click.prevent="setActiveTab('peak_hours')" class="c61-link">Ubah jam peak</a>
+                        &bull; Tarif di tabel ini = <b>Harga Dasar</b>; harga untuk periode tertentu diatur di <a href="#" wire:click.prevent="setActiveTab('price_rules')" class="c61-link">Harga Khusus</a>.
                     </div>
                 </div>
                 <div class="c61-row">
@@ -390,7 +409,7 @@
             <div class="c61-card-head">
                 <div class="md-card-head-text">
                     <div class="c61-card-title">Tanggal Merah / Libur Nasional</div>
-                    <div class="c61-card-sub">Di tanggal ini harga lapangan mengikuti jam peak <b>hari Minggu</b> &mdash; walaupun jatuh di hari kerja.</div>
+                    <div class="c61-card-sub">Di tanggal ini harga lapangan mengikuti jam peak <b>hari Minggu</b> &mdash; walaupun jatuh di hari kerja. Harga tanggal merah bisa dibedakan lewat tab Harga Khusus.</div>
                 </div>
             </div>
 
@@ -444,6 +463,149 @@
                         </div>
                     @endforelse
                 </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ================= TAB 4: HARGA KHUSUS PER PERIODE (Modul 32) ================= --}}
+    @if($activeTab === 'price_rules')
+        @php $priceRules = $this->priceRules; @endphp
+        <div class="c61-card">
+            <div class="c61-card-head">
+                <div class="md-card-head-text">
+                    <div class="c61-card-title">Harga Khusus per Periode</div>
+                    <div class="c61-card-sub">
+                        Harga per jam untuk tanggal main, hari, dan jam tertentu (promo, event, perubahan tarif). Jam yang tidak cocok dengan harga khusus mana pun memakai <b>Harga Dasar</b> di tab Tarif Lapangan &amp; jam peak.
+                        Bila dua harga khusus cocok di jam yang sama, <b>prioritas angka kecil</b> yang dipakai. Booking yang sudah ada tidak berubah.
+                    </div>
+                </div>
+                <div class="c61-row">
+                    <span class="c61-pill c61-pill-cream">{{ $priceRules->where('period_status', 'Berjalan')->count() }} Berjalan &bull; {{ $priceRules->where('period_status', 'Akan Datang')->count() }} Akan Datang</span>
+                </div>
+            </div>
+
+            <div class="c61-table-wrap">
+                <table class="c61-table md-table" style="min-width:980px;">
+                    <thead>
+                        <tr>
+                            <th>Nama &amp; Lapangan</th>
+                            <th>Periode Tanggal Main</th>
+                            <th>Hari &amp; Jam</th>
+                            <th>Harga / Jam</th>
+                            <th class="md-center">Prioritas</th>
+                            <th class="md-center">Status</th>
+                            <th class="md-right">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($priceRules as $rule)
+                            <tr wire:key="price-rule-{{ $rule->id }}">
+                                <td>
+                                    <div class="md-name">{{ $rule->name }}</div>
+                                    <div class="md-desc">{{ $rule->summary['Lapangan'] }}</div>
+                                </td>
+                                <td>
+                                    <div class="md-source">{{ $rule->summary['Periode'] }}</div>
+                                    @php $statusPill = ['Berjalan' => 'c61-pill-ok', 'Akan Datang' => 'c61-pill-info'][$rule->period_status] ?? 'c61-pill-gray'; @endphp
+                                    <span class="c61-pill {{ $statusPill }}" style="margin-top:0.35rem;">{{ $rule->period_status }}</span>
+                                </td>
+                                <td>
+                                    <div class="md-source">{{ $rule->summary['Hari'] }}</div>
+                                    <span class="md-hours">{{ $rule->summary['Jam'] }} WIB</span>
+                                </td>
+                                <td>
+                                    <div class="md-price {{ $rule->is_prime ? 'is-prime' : '' }}">Rp {{ number_format((float) $rule->price_per_hour, 0, ',', '.') }}</div>
+                                    <div class="md-price-sub">{{ $rule->is_prime ? 'label Prime' : 'label Reguler' }}</div>
+                                </td>
+                                <td class="md-center"><span class="md-stock">{{ $rule->priority }}</span></td>
+                                <td class="md-center">
+                                    <div class="md-toggle {{ $this->canManageCourts ? 'is-clickable' : '' }}"
+                                        @if($this->canManageCourts) wire:click="togglePriceRule('{{ $rule->id }}')" @endif>
+                                        <div class="md-switch {{ $rule->is_active ? 'on' : '' }}">
+                                            <div class="md-switch-knob"></div>
+                                        </div>
+                                        <span class="md-toggle-text {{ $rule->is_active ? 'is-on' : '' }}">{{ $rule->is_active ? 'AKTIF' : 'OFF' }}</span>
+                                    </div>
+                                </td>
+                                <td class="md-right">
+                                    @if($this->canManageCourts)
+                                        <button type="button" wire:click="openEditPriceRuleModal('{{ $rule->id }}')" class="c61-btn c61-btn-ghost c61-btn-sm"><span>Edit</span></button>
+                                    @endif
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="c61-empty">
+                                    Belum ada harga khusus &mdash; semua jam memakai Harga Dasar.{{ $this->canManageCourts ? ' Klik "+ Tambah Harga Khusus" untuk membuat.' : '' }}
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {{-- Simulasi Harga: rumus yang sama dengan POS & booking online --}}
+        @php $sim = $this->priceSimulation; @endphp
+        <div class="c61-card">
+            <div class="c61-card-head">
+                <div class="md-card-head-text">
+                    <div class="c61-card-title">Simulasi Harga</div>
+                    <div class="c61-card-sub">Pilih tanggal main dan lapangan untuk melihat harga tiap jam yang akan ditagih &mdash; cek di sini sebelum harga baru dibuka ke customer.</div>
+                </div>
+            </div>
+            <div class="c61-card-body">
+                <div class="md-sim-form">
+                    <div class="md-field">
+                        <label class="c61-label">Tanggal main</label>
+                        <input type="date" wire:model.live="simDate" class="c61-input">
+                    </div>
+                    <div class="md-field">
+                        <label class="c61-label">Lapangan</label>
+                        <select wire:model.live="simCourtId" class="c61-select">
+                            @foreach($this->courts as $court)
+                                <option value="{{ $court->id }}" @selected($sim['court']?->id === $court->id)>{{ $court->name }}{{ $court->is_active ? '' : ' (nonaktif)' }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
+                @if($sim['court'])
+                    <div class="md-peak-line" style="margin-bottom:0.75rem;">
+                        {{ \Carbon\Carbon::parse($sim['date'])->translatedFormat('l, d F Y') }} &bull; {{ $sim['court']->name }}
+                        @if($sim['holiday']) &bull; <b style="color:#B42318;">Tanggal merah: {{ $sim['holiday'] }}</b> @endif
+                    </div>
+                    <div class="c61-table-wrap">
+                        <table class="c61-table md-sim-table">
+                            <thead>
+                                <tr>
+                                    <th>Jam</th>
+                                    <th>Harga / Jam</th>
+                                    <th>Jenis</th>
+                                    <th>Sumber Harga</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($sim['rows'] as $row)
+                                    <tr>
+                                        <td><span class="md-source">{{ $row['time'] }}</span></td>
+                                        <td><span class="md-price {{ $row['prime'] ? 'is-prime' : '' }}">Rp {{ number_format($row['price'], 0, ',', '.') }}</span></td>
+                                        <td><span class="c61-pill {{ $row['prime'] ? 'c61-pill-terra' : 'c61-pill-cream' }}">{{ $row['prime'] ? 'Prime' : 'Reguler' }}</span></td>
+                                        <td>
+                                            @if($row['rule'])
+                                                <span class="md-source">Harga Khusus: {{ $row['rule'] }}</span>
+                                            @else
+                                                <span class="md-source is-base">Harga Dasar</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="md-chips-empty">Belum ada data lapangan.</div>
+                @endif
             </div>
         </div>
     @endif
@@ -709,6 +871,131 @@
                     <button type="button" wire:click="saveCourt" class="c61-btn c61-btn-primary">
                         Simpan Lapangan
                     </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- ================= MODAL TAMBAH/EDIT HARGA KHUSUS ================= --}}
+    @if($showPriceRuleModal)
+        <div class="c61-modal-backdrop">
+            <div class="c61-modal" style="max-width:620px;">
+                <div class="c61-modal-head">
+                    <div>
+                        <div class="c61-modal-title" style="margin-top:0;">{{ $editingPriceRuleId ? 'Edit Harga Khusus' : 'Tambah Harga Khusus' }}</div>
+                        <div class="md-modal-sub">Berlaku menurut tanggal &amp; jam MAIN. Booking yang sudah ada tidak berubah.</div>
+                    </div>
+                    <button type="button" wire:click="closePriceRuleModal" class="c61-modal-close">&times;</button>
+                </div>
+
+                <div class="c61-modal-body">
+                    <div class="md-form">
+                        <div class="md-field">
+                            <label class="c61-label">Nama</label>
+                            <input type="text" wire:model="priceRuleName" class="c61-input" maxlength="100" placeholder="Contoh: Promo Pra-Grand Opening">
+                            @error('priceRuleName') <span class="md-err">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="md-field">
+                            <label class="c61-label">Lapangan</label>
+                            <div class="md-radio-row">
+                                <label class="md-radio"><input type="radio" wire:model.live="priceRuleAllCourts" value="1"> <span>Semua lapangan</span></label>
+                                <label class="md-radio"><input type="radio" wire:model.live="priceRuleAllCourts" value="0"> <span>Pilih lapangan</span></label>
+                            </div>
+                            @unless($priceRuleAllCourts)
+                                <div class="md-check-row" style="margin-top:0.5rem;">
+                                    @foreach($this->courts as $court)
+                                        <label class="md-check"><input type="checkbox" wire:model="priceRuleCourtIds" value="{{ $court->id }}"> {{ $court->name }}</label>
+                                    @endforeach
+                                </div>
+                            @endunless
+                            @error('priceRuleCourtIds') <span class="md-err">{{ $message }}</span> @enderror
+                            @error('priceRuleCourtIds.*') <span class="md-err">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="md-grid-2">
+                            <div class="md-field">
+                                <label class="c61-label">Berlaku dari tanggal main</label>
+                                <input type="date" wire:model="priceRuleFrom" class="c61-input">
+                                @error('priceRuleFrom') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="md-field">
+                                <label class="c61-label">Sampai tanggal main</label>
+                                <input type="date" wire:model="priceRuleUntil" class="c61-input">
+                                <span class="c61-hint">Kosongkan = berlaku seterusnya.</span>
+                                @error('priceRuleUntil') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="md-field">
+                            <label class="c61-label">Hari</label>
+                            <div class="md-check-row">
+                                @foreach(\App\Filament\Pages\MasterData::DAY_LABELS as $day => $dayLabel)
+                                    <label class="md-check"><input type="checkbox" wire:model="priceRuleDays" value="{{ $day }}"> {{ $dayLabel }}</label>
+                                @endforeach
+                                <label class="md-check is-holiday"><input type="checkbox" wire:model="priceRuleHolidays"> Tanggal Merah</label>
+                            </div>
+                            <span class="c61-hint">Tanggal merah yang tidak dicentang di harga khusus mana pun memakai harga hari Minggu.</span>
+                            @error('priceRuleDays') <span class="md-err">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="md-grid-2">
+                            <div class="md-field">
+                                <label class="c61-label">Jam mulai</label>
+                                <select wire:model="priceRuleStartHour" class="c61-select">
+                                    @for($h = 0; $h <= 23; $h++)
+                                        <option value="{{ $h }}">{{ sprintf('%02d:00', $h) }} WIB</option>
+                                    @endfor
+                                </select>
+                                @error('priceRuleStartHour') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="md-field">
+                                <label class="c61-label">Jam selesai</label>
+                                <select wire:model="priceRuleEndHour" class="c61-select">
+                                    @for($h = 1; $h <= 24; $h++)
+                                        <option value="{{ $h }}">{{ sprintf('%02d:00', $h) }} WIB</option>
+                                    @endfor
+                                </select>
+                                <span class="c61-hint">Slot ikut harga ini bila jam mulainya di rentang ini.</span>
+                                @error('priceRuleEndHour') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="md-grid-2">
+                            <div class="md-field">
+                                <label class="c61-label">Harga per jam (Rp)</label>
+                                <input type="number" min="1" step="10000" wire:model="priceRulePrice" class="c61-input" placeholder="200000">
+                                @error('priceRulePrice') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                            <div class="md-field">
+                                <label class="c61-label">Prioritas</label>
+                                <input type="number" min="1" max="999" step="1" wire:model="priceRulePriority" class="c61-input">
+                                <span class="c61-hint">Angka kecil menang bila dua harga khusus cocok di jam yang sama.</span>
+                                @error('priceRulePriority') <span class="md-err">{{ $message }}</span> @enderror
+                            </div>
+                        </div>
+
+                        <div class="md-field">
+                            <label class="c61-label">Label jam di jadwal &amp; kasir</label>
+                            <div class="md-radio-row">
+                                <label class="md-radio"><input type="radio" wire:model="priceRuleIsPrime" value="0"> <span>Reguler</span></label>
+                                <label class="md-radio"><input type="radio" wire:model="priceRuleIsPrime" value="1"> <span>Prime Time</span></label>
+                            </div>
+                        </div>
+
+                        <div class="md-field">
+                            <label class="c61-label">Status</label>
+                            <div class="md-radio-row">
+                                <label class="md-radio"><input type="radio" wire:model="priceRuleIsActive" value="1"> <span class="is-on">Aktif</span></label>
+                                <label class="md-radio"><input type="radio" wire:model="priceRuleIsActive" value="0"> <span class="is-off">Nonaktif</span></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="c61-modal-foot">
+                    <button type="button" wire:click="closePriceRuleModal" class="c61-btn c61-btn-ghost">Batal</button>
+                    <button type="button" wire:click="savePriceRule" wire:loading.attr="disabled" class="c61-btn c61-btn-primary">Simpan Harga Khusus</button>
                 </div>
             </div>
         </div>

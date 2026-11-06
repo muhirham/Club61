@@ -35,6 +35,20 @@
                 </header>
             @endisset
 
+            {{-- Modul 33: akun customer tanpa nomor HP (mis. daftar web lama) diminta melengkapi, supaya dikenali di kasir. --}}
+            @php($bannerUser = auth()->user())
+            @if ($bannerUser && blank($bannerUser->phone) && $bannerUser->isCustomer() && ! request()->routeIs('profile.edit'))
+                <div data-phone-banner class="bg-[#FFF7E6] border-b border-[#E6DAC0]">
+                    <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 py-2.5 flex flex-wrap items-center justify-between gap-2">
+                        <p class="text-xs sm:text-sm font-semibold text-[#4F2F2A]">{{ __('account.profile.phone_banner') }}</p>
+                        <a href="{{ route('profile.edit') }}#phone"
+                           class="shrink-0 rounded-lg bg-[#662721] px-3 py-1.5 text-xs font-bold text-[#F7F0DB] hover:bg-[#511D18]">
+                            {{ __('account.profile.phone_banner_action') }}
+                        </a>
+                    </div>
+                </div>
+            @endif
+
             <!-- Page Content -->
             <main class="flex-1 pb-20 md:pb-8">
                 {{ $slot }}

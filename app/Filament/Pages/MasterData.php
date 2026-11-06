@@ -7,6 +7,7 @@ use App\Models\Padel\PadelBookingEquipment;
 use App\Models\Padel\PadelCourt;
 use App\Models\Padel\PadelHoliday;
 use App\Models\Padel\PadelPeakHourRule;
+use App\Models\Padel\PadelPriceRule;
 use App\Models\Pos\OrderItem;
 use App\Services\Audit\ActivityLogger;
 use App\Services\Padel\PeakHourService;
@@ -79,11 +80,61 @@ class MasterData extends Page
 
     public string $holidayName = '';
 
+    // Tab Harga Khusus (Modul 32): harga per periode di atas Harga Dasar (tarif lapangan + jam peak).
+    public bool $showPriceRuleModal = false;
+    public ?string $editingPriceRuleId = null;
+    public string $priceRuleName = '';
+    public bool $priceRuleAllCourts = true;
+    public array $priceRuleCourtIds = [];
+    public string $priceRuleFrom = '';
+    public string $priceRuleUntil = '';
+    public array $priceRuleDays = [];
+    public bool $priceRuleHolidays = true;
+    public int|string $priceRuleStartHour = 6;
+    public int|string $priceRuleEndHour = 24;
+    public int|float|string|null $priceRulePrice = null;
+    public bool $priceRuleIsPrime = false;
+    public int|string $priceRulePriority = 10;
+    public bool $priceRuleIsActive = true;
+
+    // Simulasi Harga: harga tiap jam satu lapangan pada satu tanggal main.
+    public string $simDate = '';
+    public string $simCourtId = '';
+
     public const DAY_LABELS = [1 => 'Senin', 2 => 'Selasa', 3 => 'Rabu', 4 => 'Kamis', 5 => 'Jumat', 6 => 'Sabtu', 0 => 'Minggu'];
+
+    public function mount(): void
+    {
+        $this->simDate = now('Asia/Jakarta')->toDateString();
+    }
+
+    /** Tanggal simulasi kosong / tidak ada di kalender (mis. 2026-13-01) → kembali ke hari ini, bukan error 500. */
+    public function updatedSimDate(): void
+    {
+        if (self::isValidDate($this->simDate)) {
+            return;
+        }
+
+        if (trim($this->simDate) !== '') {
+            Notification::make()
+                ->title('Tanggal Tidak Valid')
+                ->body('Tanggal "'.$this->simDate.'" tidak ada di kalender. Simulasi dikembalikan ke hari ini.')
+                ->warning()
+                ->send();
+        }
+
+        $this->simDate = now('Asia/Jakarta')->toDateString();
+    }
+
+    /** Format Y-m-d DAN benar-benar ada di kalender (bukan 2026-13-01 / 2026-02-31). */
+    protected static function isValidDate(string $value): bool
+    {
+        return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+    }
 
     public function setActiveTab(string $tab): void
     {
-        $this->activeTab = in_array($tab, ['courts', 'equipments', 'peak_hours']) ? $tab : 'courts';
+        $this->activeTab = in_array($tab, ['courts', 'equipments', 'peak_hours', 'price_rules']) ? $tab : 'courts';
     }
 
     public function setEquipmentFilter(string $filter): void
@@ -686,6 +737,314 @@ class MasterData extends Page
         }
 
         return $summary;
+    }
+
+    // ==========================================
+    // LOGIKA TAB 4: HARGA KHUSUS PER PERIODE (Modul 32)
+    // Harga per jam untuk tanggal main / hari / jam tertentu di atas Harga Dasar. Dibaca PeakHourService::rateFor(),
+    // jadi POS, booking online, checkout & selisih reschedule langsung mengikuti. Booking yang sudah ada tidak berubah.
+    // Tidak ada hapus permanen — nonaktifkan saja, riwayat tetap ada.
+    // ==========================================
+
+    public function openCreatePriceRuleModal(): void
+    {
+        $this->authorizeCourtManagement();
+
+        $hours = $this->peakEditorHours;
+        $this->resetErrorBag();
+        $this->editingPriceRuleId = null;
+        $this->priceRuleName = '';
+        $this->priceRuleAllCourts = true;
+        $this->priceRuleCourtIds = [];
+        $this->priceRuleFrom = now('Asia/Jakarta')->toDateString();
+        $this->priceRuleUntil = '';
+        $this->priceRuleDays = array_map('strval', array_keys(self::DAY_LABELS));
+        $this->priceRuleHolidays = true;
+        $this->priceRuleStartHour = (int) min($hours);
+        $this->priceRuleEndHour = (int) max($hours) + 1;
+        $this->priceRulePrice = null;
+        $this->priceRuleIsPrime = false;
+        $this->priceRulePriority = 10;
+        $this->priceRuleIsActive = true;
+        $this->showPriceRuleModal = true;
+    }
+
+    public function openEditPriceRuleModal(string $ruleId): void
+    {
+        $this->authorizeCourtManagement();
+
+        $rule = PadelPriceRule::find($ruleId);
+        if (! $rule) {
+            Notification::make()->title('Harga khusus tidak ditemukan')->danger()->send();
+
+            return;
+        }
+
+        $this->resetErrorBag();
+        $this->editingPriceRuleId = $rule->id;
+        $this->priceRuleName = (string) $rule->name;
+        $this->priceRuleAllCourts = empty($rule->court_ids);
+        $this->priceRuleCourtIds = array_map('strval', (array) ($rule->court_ids ?? []));
+        $this->priceRuleFrom = $rule->valid_from->format('Y-m-d');
+        $this->priceRuleUntil = $rule->valid_until?->format('Y-m-d') ?? '';
+        $this->priceRuleDays = array_map('strval', (array) $rule->days);
+        $this->priceRuleHolidays = (bool) $rule->include_holidays;
+        $this->priceRuleStartHour = (int) $rule->start_hour;
+        $this->priceRuleEndHour = (int) $rule->end_hour;
+        $this->priceRulePrice = (float) $rule->price_per_hour;
+        $this->priceRuleIsPrime = (bool) $rule->is_prime;
+        $this->priceRulePriority = (int) $rule->priority;
+        $this->priceRuleIsActive = (bool) $rule->is_active;
+        $this->showPriceRuleModal = true;
+    }
+
+    public function closePriceRuleModal(): void
+    {
+        $this->showPriceRuleModal = false;
+        $this->editingPriceRuleId = null;
+    }
+
+    public function savePriceRule(): void
+    {
+        $this->authorizeCourtManagement();
+
+        $this->validate([
+            'priceRuleName' => ['required', 'string', 'max:100'],
+            'priceRuleCourtIds' => ['array'],
+            'priceRuleCourtIds.*' => ['string', 'exists:padel_courts,id'],
+            'priceRuleFrom' => ['required', 'date_format:Y-m-d'],
+            'priceRuleUntil' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:priceRuleFrom'],
+            'priceRuleDays' => ['array'],
+            'priceRuleDays.*' => ['integer', 'between:0,6'],
+            'priceRuleStartHour' => ['required', 'integer', 'between:0,23'],
+            'priceRuleEndHour' => ['required', 'integer', 'between:1,24', 'gt:priceRuleStartHour'],
+            'priceRulePrice' => ['required', 'numeric', 'min:1', 'max:100000000'],
+            'priceRulePriority' => ['required', 'integer', 'between:1,999'],
+        ], [
+            'priceRuleName.required' => 'Nama harga khusus wajib diisi.',
+            'priceRuleCourtIds.*.exists' => 'Lapangan yang dipilih tidak ditemukan.',
+            'priceRuleFrom.required' => 'Tanggal mulai berlaku wajib diisi.',
+            'priceRuleUntil.after_or_equal' => 'Tanggal akhir tidak boleh sebelum tanggal mulai.',
+            'priceRuleEndHour.gt' => 'Jam selesai harus lebih malam dari jam mulai.',
+            'priceRulePrice.required' => 'Harga per jam wajib diisi.',
+            'priceRulePrice.min' => 'Harga per jam harus lebih dari Rp0.',
+            'priceRulePriority.between' => 'Prioritas antara 1 sampai 999.',
+        ]);
+
+        $courtIds = $this->priceRuleAllCourts ? null : array_values(array_unique(array_map('strval', $this->priceRuleCourtIds)));
+        if ($courtIds === []) {
+            $this->addError('priceRuleCourtIds', 'Pilih minimal satu lapangan, atau pilih Semua Lapangan.');
+
+            return;
+        }
+        $days = array_values(array_unique(array_map('intval', $this->priceRuleDays)));
+        sort($days);
+        if ($days === [] && ! $this->priceRuleHolidays) {
+            $this->addError('priceRuleDays', 'Pilih minimal satu hari atau Tanggal Merah.');
+
+            return;
+        }
+
+        $data = [
+            'name' => trim($this->priceRuleName),
+            'court_ids' => $courtIds,
+            'valid_from' => $this->priceRuleFrom,
+            'valid_until' => $this->priceRuleUntil !== '' ? $this->priceRuleUntil : null,
+            'days' => $days,
+            'include_holidays' => $this->priceRuleHolidays,
+            'start_hour' => (int) $this->priceRuleStartHour,
+            'end_hour' => (int) $this->priceRuleEndHour,
+            'price_per_hour' => round((float) $this->priceRulePrice, 2),
+            'is_prime' => $this->priceRuleIsPrime,
+            'priority' => (int) $this->priceRulePriority,
+            'is_active' => $this->priceRuleIsActive,
+        ];
+
+        $rule = $this->editingPriceRuleId ? PadelPriceRule::find($this->editingPriceRuleId) : new PadelPriceRule;
+        if (! $rule) {
+            Notification::make()->title('Harga khusus tidak ditemukan')->danger()->send();
+
+            return;
+        }
+
+        if ($data['is_active'] && ($conflict = $this->conflictingPriceRule($data, $rule->id))) {
+            $this->addError('priceRulePriority', "Bentrok dengan \"{$conflict->name}\" (prioritas sama, lapangan / tanggal / hari / jam beririsan). Ubah prioritas, periode, hari, atau jamnya.");
+
+            return;
+        }
+
+        $isNew = ! $rule->exists;
+        $before = $isNew ? [] : $this->priceRuleSummary($rule);
+        $rule->fill($data)->save();
+        app(PeakHourService::class)->flush();
+        $after = $this->priceRuleSummary($rule);
+
+        ActivityLogger::record(
+            module: 'MASTER_DATA',
+            event: $isNew ? 'price_rule.created' : 'price_rule.updated',
+            description: ($isNew ? 'Menambah' : 'Mengubah')." harga khusus lapangan \"{$rule->name}\" — {$after['Harga']}/jam, {$after['Periode']}",
+            subject: $rule,
+            severity: ActivityLogger::WARNING,
+            changes: collect($after)->mapWithKeys(fn ($v, $k) => [$k => ['old' => $before[$k] ?? '-', 'new' => $v]])
+                ->filter(fn ($c) => $c['old'] !== $c['new'])->all(),
+            subjectLabel: $rule->name,
+        );
+
+        $this->closePriceRuleModal();
+        Notification::make()
+            ->title($isNew ? 'Harga Khusus Ditambahkan' : 'Harga Khusus Diperbarui')
+            ->body('Harga slot baru di POS, booking online, dan selisih reschedule langsung mengikuti. Booking yang sudah ada tidak berubah. Cek hasilnya di Simulasi Harga.')
+            ->success()
+            ->send();
+    }
+
+    public function togglePriceRule(string $ruleId): void
+    {
+        $this->authorizeCourtManagement();
+
+        $rule = PadelPriceRule::find($ruleId);
+        if (! $rule) {
+            Notification::make()->title('Harga khusus tidak ditemukan')->danger()->send();
+
+            return;
+        }
+
+        if (! $rule->is_active && ($conflict = $this->conflictingPriceRule($rule->only([
+            'court_ids', 'valid_from', 'valid_until', 'days', 'include_holidays', 'start_hour', 'end_hour', 'priority',
+        ]), $rule->id))) {
+            Notification::make()->title('Tidak Bisa Diaktifkan')
+                ->body("Bentrok dengan \"{$conflict->name}\" (prioritas sama, lapangan / tanggal / hari / jam beririsan). Ubah salah satunya dulu.")
+                ->danger()->send();
+
+            return;
+        }
+
+        $rule->update(['is_active' => ! $rule->is_active]);
+        app(PeakHourService::class)->flush();
+
+        ActivityLogger::record(
+            module: 'MASTER_DATA',
+            event: $rule->is_active ? 'price_rule.activated' : 'price_rule.deactivated',
+            description: ($rule->is_active ? 'Mengaktifkan' : 'Menonaktifkan')." harga khusus lapangan \"{$rule->name}\"",
+            subject: $rule,
+            severity: ActivityLogger::WARNING,
+            subjectLabel: $rule->name,
+        );
+
+        Notification::make()
+            ->title($rule->is_active ? 'Harga Khusus Diaktifkan' : 'Harga Khusus Dinonaktifkan')
+            ->body($rule->is_active ? "{$rule->name} kembali berlaku." : "Jam yang tadinya memakai {$rule->name} kembali ke Harga Dasar (atau harga khusus lain yang cocok).")
+            ->success()
+            ->send();
+    }
+
+    /**
+     * Harga khusus aktif lain dengan prioritas SAMA yang beririsan (lapangan, tanggal, hari / tanggal merah, jam) —
+     * dilarang supaya tidak ada jam dengan harga ambigu. Prioritas berbeda boleh beririsan (angka kecil menang).
+     */
+    protected function conflictingPriceRule(array $data, ?string $ignoreId): ?PadelPriceRule
+    {
+        $date = fn ($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : ($v ? (string) $v : null);
+        $from = $date($data['valid_from']);
+        $until = $date($data['valid_until'] ?? null);
+        $courts = empty($data['court_ids']) ? null : array_map('strval', (array) $data['court_ids']);
+        $days = array_map('intval', (array) $data['days']);
+
+        return PadelPriceRule::where('is_active', true)
+            ->where('priority', (int) $data['priority'])
+            ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
+            ->get()
+            ->first(function (PadelPriceRule $other) use ($data, $from, $until, $courts, $days) {
+                $otherFrom = $other->valid_from->format('Y-m-d');
+                $otherUntil = $other->valid_until?->format('Y-m-d');
+                $otherCourts = empty($other->court_ids) ? null : array_map('strval', (array) $other->court_ids);
+
+                return ($until === null || $otherFrom <= $until)
+                    && ($otherUntil === null || $from <= $otherUntil)
+                    && (int) $data['start_hour'] < (int) $other->end_hour && (int) $other->start_hour < (int) $data['end_hour']
+                    && ($courts === null || $otherCourts === null || array_intersect($courts, $otherCourts) !== [])
+                    && (array_intersect($days, array_map('intval', (array) $other->days)) !== []
+                        || ((bool) $data['include_holidays'] && (bool) $other->include_holidays));
+            });
+    }
+
+    /** Ringkasan satu harga khusus untuk tabel & Log Aktivitas. */
+    protected function priceRuleSummary(PadelPriceRule $rule): array
+    {
+        $courtNames = empty($rule->court_ids) ? 'Semua lapangan'
+            : PadelCourt::withTrashed()->whereIn('id', (array) $rule->court_ids)->ordered()->pluck('name')->implode(', ');
+
+        return [
+            'Nama' => (string) $rule->name,
+            'Lapangan' => $courtNames,
+            'Periode' => $rule->valid_from->translatedFormat('d M Y').' – '.($rule->valid_until ? $rule->valid_until->translatedFormat('d M Y') : 'seterusnya'),
+            'Hari' => self::daysLabel(array_map('intval', (array) $rule->days), (bool) $rule->include_holidays),
+            'Jam' => sprintf('%02d:00–%02d:00', $rule->start_hour, $rule->end_hour),
+            'Harga' => ActivityLogger::rupiah((float) $rule->price_per_hour),
+            'Jenis' => $rule->is_prime ? 'Prime' : 'Reguler',
+            'Prioritas' => (string) $rule->priority,
+            'Status' => $rule->is_active ? 'Aktif' : 'Nonaktif',
+        ];
+    }
+
+    /** "Senin–Jumat", "Sabtu & Minggu", "Setiap hari" (+ "Tanggal Merah"). */
+    public static function daysLabel(array $days, bool $holidays): string
+    {
+        sort($days);
+        $label = match (true) {
+            $days === [0, 1, 2, 3, 4, 5, 6] => 'Setiap hari',
+            $days === [1, 2, 3, 4, 5] => 'Senin–Jumat',
+            $days === [0, 6] => 'Sabtu & Minggu',
+            default => collect(self::DAY_LABELS)->filter(fn ($l, $d) => in_array($d, $days, true))->implode(', '),
+        };
+
+        return trim($label.($holidays ? ($label !== '' ? ' + ' : '').'Tanggal Merah' : ''));
+    }
+
+    public function getPriceRulesProperty(): Collection
+    {
+        $today = now('Asia/Jakarta')->toDateString();
+
+        return PadelPriceRule::query()->orderByDesc('is_active')->orderBy('valid_from')->orderBy('priority')->get()
+            ->map(function (PadelPriceRule $rule) use ($today) {
+                $rule->setAttribute('summary', $this->priceRuleSummary($rule));
+                $rule->setAttribute('period_status', match (true) {
+                    ! $rule->is_active => 'Nonaktif',
+                    $rule->valid_until && $rule->valid_until->format('Y-m-d') < $today => 'Selesai',
+                    $rule->valid_from->format('Y-m-d') > $today => 'Akan Datang',
+                    default => 'Berjalan',
+                });
+
+                return $rule;
+            })
+            ->sortBy(fn ($r) => ['Berjalan' => 0, 'Akan Datang' => 1, 'Selesai' => 2, 'Nonaktif' => 3][$r->period_status])
+            ->values();
+    }
+
+    /**
+     * Simulasi Harga: harga tiap jam operasional satu lapangan pada tanggal main yang dipilih, beserta sumbernya
+     * (nama Harga Khusus / Harga Dasar) — rumus yang sama persis dengan POS & booking online.
+     */
+    public function getPriceSimulationProperty(): array
+    {
+        $courts = PadelCourt::ordered()->get();
+        $court = $courts->firstWhere('id', $this->simCourtId) ?? $courts->firstWhere('is_active', true) ?? $courts->first();
+        $date = self::isValidDate($this->simDate) ? $this->simDate : now('Asia/Jakarta')->toDateString();
+        if (! $court) {
+            return ['court' => null, 'date' => $date, 'holiday' => null, 'rows' => []];
+        }
+
+        $peak = app(PeakHourService::class);
+        $open = (int) substr($court->open_time ?: '06:00', 0, 2);
+        $close = in_array($court->close_time, ['00:00', '24:00'], true) ? 24 : (int) substr($court->close_time ?: '23:00', 0, 2);
+        $day = \Carbon\Carbon::parse($date);
+        $rows = [];
+        for ($h = $open; $h < max($open + 1, $close); $h++) {
+            $rate = $peak->rateFor($court, $day->copy()->setTime($h, 0));
+            $rows[] = ['time' => sprintf('%02d:00–%02d:00', $h, $h + 1)] + $rate;
+        }
+
+        return ['court' => $court, 'date' => $date, 'holiday' => $peak->holidayName($day), 'rows' => $rows];
     }
 
     // ==========================================

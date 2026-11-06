@@ -103,7 +103,7 @@ class CorporateDashboardPageTest extends TestCase
             ->assertSee('PT Dashboard Test')
             ->assertSee('Budi Karyawan')
             ->assertSee('081234500001')
-            ->assertSee('5.0 jam') // 8 granted - 3 used
+            ->assertSee('5 jam') // 8 granted - 3 used (jam bulat, tanpa ".0")
             ->assertSee('Maks. 1 lapangan sekaligus');
     }
 
@@ -147,7 +147,7 @@ class CorporateDashboardPageTest extends TestCase
 
         $response = $this->actingAs($pic)->get('/corporate');
 
-        $response->assertStatus(200)->assertSee('data-recent-release="5.0 jam pukul', false);
+        $response->assertStatus(200)->assertSee('data-recent-release="5 jam pukul', false);
     }
 
     public function test_dashboard_shows_contract_quota_breakdown_when_quota_is_set(): void
@@ -177,11 +177,11 @@ class CorporateDashboardPageTest extends TestCase
 
         $response->assertStatus(200)
             ->assertSee('Kuota Kontrak')
-            ->assertSee('200.0')
+            ->assertSee('Kuota kontrak 200 jam')
             ->assertSee('Sisa Kuota')
-            ->assertSee('159.0')
+            ->assertSee('159 jam masih bisa diberikan')
             ->assertSee('Jam Diberikan')
-            ->assertSee('41.0');
+            ->assertSee('41 jam sudah diberikan')->assertDontSee('200.0');
     }
 
     public function test_dashboard_explains_plan_without_hour_quota_cannot_release(): void

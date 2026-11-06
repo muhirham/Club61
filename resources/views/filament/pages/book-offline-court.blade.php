@@ -225,7 +225,7 @@
                 // Kolom lapangan selebar nama/keterangan terpanjang (tidak terpotong, tidak turun baris); di HP dibatasi via CSS.
                 $courtColWidth = (int) min(300, max(116, collect($gridData)->map(fn ($cr) => max(
                     mb_strlen($cr['court']->name) * 8.6,
-                    mb_strlen($cr['court']->type . ' • Rp' . number_format($cr['court']->hourly_rate_regular / 1000, 0) . 'k') * 6.6,
+                    mb_strlen($cr['court']->type . ' • Rp' . number_format($cr['from_rate'] / 1000, 0) . 'k') * 6.6,
                 ) + 30)->max() ?? 116));
                 $hoursMinWidth = collect($deadHour)->sum(fn ($dead) => $dead ? 30 : 44);
                 // Booking lunas yang berurutan (kode sama) digabung jadi satu blok, seperti kalender klub padel.
@@ -283,7 +283,7 @@
                             @php $court = $courtRow['court']; @endphp
                             <div class="tl-court" wire:key="court-row-{{ $court->id }}">
                                 <div class="pos-court-name">{{ $court->name }}</div>
-                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($court->hourly_rate_regular / 1000, 0) }}k</div>
+                                <div class="pos-court-meta">{{ $court->type }} &bull; Rp{{ number_format($courtRow['from_rate'] / 1000, 0) }}k</div>
                                 <div class="pos-court-free">{{ collect($courtRow['slots'])->where('status', 'AVAILABLE')->count() }} jam kosong</div>
                             </div>
                             @foreach ($courtSegments[$ci] as $seg)
@@ -496,14 +496,14 @@
                         style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
                         <span class="pos-section-label" style="margin-bottom:0;">{{ $this->isCoaching ? 'Booking Coaching' : 'Data Customer' }}</span>
                         @if ($posStep === 'selection')
-                            {{-- Satu deret tab: Walk-In Baru | Cari Member | Coaching (Coaching hanya untuk izin book_coaching). --}}
+                            {{-- Satu deret tab: Walk-In Baru | Cari Akun | Coaching (Coaching hanya untuk izin book_coaching). --}}
                             <div class="pos-tab-group">
                                 <button type="button" wire:click="setCustomerMode('quick_create')"
                                     class="pos-tab {{ $customerMode === 'quick_create' && ! $this->isCoaching ? 'active' : '' }}">Walk-In
                                     Baru</button>
                                 <button type="button" wire:click="setCustomerMode('search')"
                                     class="pos-tab {{ $customerMode === 'search' && ! $this->isCoaching ? 'active' : '' }}">Cari
-                                    Member</button>
+                                    Akun</button>
                                 @if ($this->canBookCoaching)
                                     <button type="button" wire:click="setCustomerMode('coaching')" data-coaching-tab
                                         class="pos-tab {{ $this->isCoaching ? 'active' : '' }}">Coaching</button>
@@ -519,8 +519,9 @@
                         <div data-coaching-box style="display:flex; flex-direction:column; gap:0.4rem;">
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.4rem;">
                                 <input type="text" wire:model="walkInName" placeholder="Atas nama *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                                <input type="tel" wire:model="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                                <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                             </div>
+                            @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
                             <select wire:model.live="coachingCoachId" class="pos-input" style="background:#FFFFFF;" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 <option value="">Pilih coach utama *</option>
                                 @foreach ($this->coachOptions as $coachId => $coachLabel)
@@ -570,9 +571,10 @@
                             <input type="text" wire:model="walkInName" placeholder="Nama Lengkap *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                            <input type="tel" wire:model="walkInPhone" placeholder="No. WhatsApp / Telp *"
+                            <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                            @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
                             <input type="email" wire:model="walkInEmail" placeholder="Email (opsional)"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
@@ -599,10 +601,11 @@
                                     </button>
                                 @endif
                             </div>
+                            @include('filament.partials.pos-add-customer-phone')
                         @else
                             <div style="position:relative;">
                                 <input type="text" wire:model.live.debounce.300ms="customerSearch"
-                                    placeholder="Cari nama atau nomor telp..." class="pos-input" autocomplete="off"
+                                    placeholder="Cari nama, nomor HP, atau email..." class="pos-input" autocomplete="off"
                                     {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 @if (count($searchResults) > 0)
                                     <div
@@ -616,7 +619,11 @@
                                                 <div style="font-weight:800; color:#4F2F2A;">{{ $res->name }}
                                                 </div>
                                                 <div style="font-size:0.625rem; color:#662721;">
-                                                    {{ $res->phone ?? $res->email }}</div>
+                                                    {{ $res->phone ?: 'Belum ada nomor HP' }}
+                                                    @unless (\App\Support\PlaceholderEmail::is($res->email))
+                                                        · {{ $res->email }}
+                                                    @endunless
+                                                </div>
                                             </button>
                                         @endforeach
                                     </div>

@@ -4,6 +4,9 @@ namespace App\Support;
 
 class PhoneNumber
 {
+    /** Panjang kolom users.phone. */
+    public const MAX_LENGTH = 20;
+
     /**
      * Normalize a loosely-formatted Indonesian phone number (e.g. "+62 812-3456-7890",
      * "6281234567890", "0812 3456 7890") to the canonical storage/lookup format "08xxxxxxxxxx".
@@ -28,6 +31,12 @@ class PhoneNumber
             $digits = '0'.substr($digits, 2);
         } elseif (! str_starts_with($digits, '0')) {
             $digits = '0'.$digits;
+        }
+
+        // Kolom users.phone = 20 karakter. Lebih panjang dari itu bukan nomor HP — dulu lolos lalu MySQL menolak
+        // saat disimpan (error 500 di daftar web/app, profil, kasir walk-in, karyawan sponsor).
+        if (strlen($digits) > self::MAX_LENGTH) {
+            return null;
         }
 
         return $digits;

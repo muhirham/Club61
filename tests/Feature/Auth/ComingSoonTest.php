@@ -105,6 +105,7 @@ class ComingSoonTest extends TestCase
         $this->post('/register', [
             'name' => 'Calon Member',
             'email' => 'calon@example.com',
+            'phone' => '081234567891',
             'password' => 'password-kuat-123',
             'password_confirmation' => 'password-kuat-123',
         ])->assertRedirect(route('login'));

@@ -34,20 +34,46 @@ class AuthController extends Controller
             ]);
         }
 
-        if (User::where('phone', $normalizedPhone)->whereNull('deleted_at')->exists()) {
-            throw ValidationException::withMessages([
-                'phone' => ['Nomor HP ini sudah terdaftar.'],
-            ]);
+        // Modul 33: dua request daftar bersamaan (ketuk ganda) dulu bisa lolos validasi dua-duanya → dua akun dengan
+        // email / nomor HP yang sama. Dikunci per email & nomor, lalu dicek ulang di dalam kunci.
+        $locks = [
+            \Illuminate\Support\Facades\Cache::lock('register:email:'.strtolower($validated['email']), 15),
+            \Illuminate\Support\Facades\Cache::lock('register:phone:'.$normalizedPhone, 15),
+        ];
+        foreach ($locks as $i => $lock) {
+            if (! $lock->get()) {
+                foreach (array_slice($locks, 0, $i) as $held) {
+                    $held->release();
+                }
+
+                throw ValidationException::withMessages(['email' => ['Pendaftaran sedang diproses. Tunggu sebentar lalu coba masuk.']]);
+            }
         }
 
-        $user = User::create([
-            'name' => PersonName::clean($validated['name']),
-            'email' => $validated['email'],
-            'phone' => $normalizedPhone,
-            'password' => Hash::make($validated['password']),
-            'role' => 'CUSTOMER',
-            'is_active' => true,
-        ]);
+        try {
+            if (User::where('email', $validated['email'])->exists()) {
+                throw ValidationException::withMessages(['email' => ['Email ini sudah terdaftar.']]);
+            }
+
+            if (User::where('phone', $normalizedPhone)->whereNull('deleted_at')->exists()) {
+                throw ValidationException::withMessages([
+                    'phone' => ['Nomor HP ini sudah terdaftar.'],
+                ]);
+            }
+
+            $user = User::create([
+                'name' => PersonName::clean($validated['name']),
+                'email' => $validated['email'],
+                'phone' => $normalizedPhone,
+                'password' => Hash::make($validated['password']),
+                'role' => 'CUSTOMER',
+                'is_active' => true,
+            ]);
+        } finally {
+            foreach ($locks as $lock) {
+                $lock->release();
+            }
+        }
 
         $token = $user->createToken('flutter-mobile-app')->plainTextToken;
 

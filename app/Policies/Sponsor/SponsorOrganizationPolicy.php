@@ -4,6 +4,8 @@ namespace App\Policies\Sponsor;
 
 use App\Models\Sponsor\SponsorOrganization;
 use App\Models\User;
+use App\Support\SiteLocale;
+use Illuminate\Auth\Access\Response;
 
 /**
  * Corporate PIC (Person In Charge) authorization — scoped strictly to their own
@@ -32,5 +34,16 @@ class SponsorOrganizationPolicy
     public function manageMembers(User $user, SponsorOrganization $organization): bool
     {
         return $organization->sponsor_admin_user_id === $user->id;
+    }
+
+    /**
+     * Hak Akses PIC: aksi tertentu bisa dimatikan admin per perusahaan (SponsorOrganization::PIC_ACTIONS). Selalu
+     * dipakai BERSAMA manageMembers — tetap hanya PIC perusahaan itu sendiri.
+     */
+    public function performPicAction(User $user, SponsorOrganization $organization, string $action): Response
+    {
+        return $organization->sponsor_admin_user_id === $user->id && $organization->picAllows($action)
+            ? Response::allow()
+            : Response::deny(SiteLocale::text('corporate.pic_action_not_allowed'));
     }
 }

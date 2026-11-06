@@ -324,7 +324,12 @@
                 if (t.status === 'REFUNDED') return INV_T.refunded_title;
                 if (t.status === 'CANCELLED' && refund && refund.voucher_code) return INV_T.credit_converted_title;
                 if (t.status === 'CANCELLED') return INV_T.cancelled_title;
-                return t.total_paid > 0 ? INV_T.no_show_title : INV_T.payment_window_expired_title;
+                return this.wasPaid(t) ? INV_T.no_show_title : INV_T.payment_window_expired_title;
+            },
+
+            // Lunas termasuk Rp0 (voucher corporate / kuota member / voucher 100%): hangus = tidak hadir, bukan telat bayar.
+            wasPaid(t) {
+                return !!t && (Number(t.total_paid) > 0 || t.was_paid === true);
             },
 
             closedTicketMessage(t) {
@@ -336,7 +341,7 @@
                     return INV_T.credit_converted_message.replace(':amount', amount).replace(':code', refund.voucher_code) + (refund.voucher_valid_until ? INV_T.credit_valid_until.replace(':date', refund.voucher_valid_until) : '') + INV_T.credit_converted_suffix;
                 }
                 if (t.status === 'CANCELLED') return INV_T.cancelled_message;
-                return t.total_paid > 0 ? INV_T.no_show_message : INV_T.payment_window_expired_message;
+                return this.wasPaid(t) ? INV_T.no_show_message : INV_T.payment_window_expired_message;
             },
 
             renderQr(el, text, attempt = 0, level = "H") {
@@ -968,6 +973,9 @@
             statusLabel(status, ticket = null) {
                 if (status === 'LOCKED' && ticket && (ticket.has_pending_delta || Number(ticket.reschedule_count) > 0)) {
                     return INV_T.balance_due;
+                }
+                if (status === 'EXPIRED' && ticket && this.wasPaid(ticket)) {
+                    return INV_T.no_show_label;
                 }
                 const map = INV_STATUS;
                 return map[status] || (status ? String(status).replace(/_/g, ' ').toLowerCase().replace(/^\w/, c => c.toUpperCase()) : '-');

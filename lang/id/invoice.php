@@ -226,6 +226,7 @@ return [
         'credit_converted_title' => 'Diubah Jadi Voucher Saldo',
         'cancelled_title' => 'Reservasi Dibatalkan',
         'no_show_title' => 'Sesi Main Kedaluwarsa (Tidak Hadir)',
+        'no_show_label' => 'Tidak hadir',
         'payment_window_expired_title' => 'Batas Waktu Pembayaran Habis',
         'refund_review_message' => 'Reservasi ini sudah dibatalkan dan slot lapangan sudah dilepas. Refund Anda sebesar :amount sedang ditinjau oleh pihak klub.',
         'refunded_message' => 'Refund Anda sebesar :amount sudah diproses dan dikembalikan oleh administrasi klub.',

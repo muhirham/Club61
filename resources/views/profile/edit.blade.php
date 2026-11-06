@@ -99,11 +99,7 @@
                     <div class="p-6 sm:p-8 rounded-xl bg-[#FCF8EE] border border-[#E6DAC0]">
                         @include('profile.partials.update-password-form')
                     </div>
-                    <div class="p-6 sm:p-8 rounded-xl bg-[#FCF8EE] border border-[#E6DAC0] xl:col-span-2">
-                        <div class="max-w-xl">
-                            @include('profile.partials.delete-user-form')
-                        </div>
-                    </div>
+                    {{-- Hapus akun mandiri ditiadakan (Modul 33): riwayat booking, invoice & membership tetap melekat ke akun. --}}
                 </div>
             </section>
 

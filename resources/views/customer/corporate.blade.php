@@ -1,4 +1,14 @@
 <x-dynamic-component :component="! empty($previewMode) ? 'embed-layout' : 'app-layout'">
+    @php
+        // Jam voucher dibagi per jam bulat: tampil "200", bukan "200.0" (data lama berpecahan tetap tampil apa adanya).
+        $hrs = fn ($value) => fmod((float) $value, 1.0) == 0.0 ? number_format((float) $value, 0) : number_format((float) $value, 1);
+        // Hak Akses PIC (Kelola Sponsor > Edit): tombol yang tidak diizinkan disembunyikan; server tetap menolak.
+        $picCan = fn (string $action) => $organization?->picAllows($action) ?? false;
+        $canManageMembers = $picCan(\App\Models\Sponsor\SponsorOrganization::PIC_MANAGE_MEMBERS);
+        $canReleaseSingle = $picCan(\App\Models\Sponsor\SponsorOrganization::PIC_RELEASE_SINGLE);
+        $canReleaseBulk = $picCan(\App\Models\Sponsor\SponsorOrganization::PIC_RELEASE_BULK);
+        $canEditVouchers = $picCan(\App\Models\Sponsor\SponsorOrganization::PIC_EDIT_VOUCHERS);
+    @endphp
     <div class="py-6 sm:py-8 text-[#4F2F2A]">
         <div class="w-full px-4 sm:px-8 lg:px-12 2xl:px-16 space-y-6">
 
@@ -40,6 +50,12 @@
                     </div>
                 @endif
 
+                @if(! empty($organization->pic_restricted_actions))
+                    <div data-pic-restricted class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0] text-xs text-[#7A5A52] leading-relaxed">
+                        {{ __('corporate.pic_restricted_notice') }}
+                    </div>
+                @endif
+
                 <!-- Contract Summary -->
                 <div class="relative overflow-hidden rounded-xl p-6 sm:p-8 border-2 border-[#662721] shadow-[0_15px_35px_rgba(102,39,33,0.2)]"
                      style="background: linear-gradient(135deg, #F7F0DB 0%, #FFFFFF 100%);">
@@ -65,30 +81,38 @@
                             <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.contract_quota') }}</div>
                                 <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">
-                                    {{ $totalQuota !== null ? number_format($totalQuota, 1) : __('corporate.no_hour_quota') }}
+                                    {{ $totalQuota !== null ? $hrs($totalQuota) : __('corporate.no_hour_quota') }}
                                 </div>
                             </div>
                             <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.quota_remaining') }}</div>
                                 <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">
-                                    {{ $quotaRemaining !== null ? number_format($quotaRemaining, 1) : __('corporate.no_hour_quota') }}
+                                    {{ $quotaRemaining !== null ? $hrs($quotaRemaining) : __('corporate.no_hour_quota') }}
                                 </div>
                             </div>
                             <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.hours_released') }}</div>
-                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ number_format($totalHoursReleased, 1) }}</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ $hrs($totalHoursReleased) }}</div>
                             </div>
                             <div class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
                                 <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.hours_used') }}</div>
-                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ number_format($totalHoursUsed, 1) }}</div>
+                                <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ $hrs($totalHoursUsed) }}</div>
                             </div>
+                            @if($recurringHours > 0)
+                                <div data-recurring-hours class="p-4 rounded-lg bg-white border border-[#E6DAC0] shadow-sm text-center">
+                                    <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.hours_recurring') }}</div>
+                                    <div class="font-display font-black text-xl text-[#4F2F2A] mt-1">{{ $hrs($recurringHours) }}</div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                     <p class="text-[10px] text-[#7A5A52] mt-4 italic">
-                        @if($totalQuota !== null)
-                            {{ __('corporate.quota_summary', ['quota' => number_format($totalQuota, 1), 'released' => number_format($totalHoursReleased, 1), 'members' => $activeMemberCount, 'remaining' => number_format($quotaRemaining, 1), 'used' => number_format($totalHoursUsed, 1)]) }}
+                        @if($totalQuota !== null && $recurringHours > 0)
+                            {{ __('corporate.quota_summary_recurring', ['quota' => $hrs($totalQuota), 'released' => $hrs($totalHoursReleased), 'members' => $activeMemberCount, 'recurring' => $hrs($recurringHours), 'remaining' => $hrs($quotaRemaining), 'used' => $hrs($totalHoursUsed)]) }}
+                        @elseif($totalQuota !== null)
+                            {{ __('corporate.quota_summary', ['quota' => $hrs($totalQuota), 'released' => $hrs($totalHoursReleased), 'members' => $activeMemberCount, 'remaining' => $hrs($quotaRemaining), 'used' => $hrs($totalHoursUsed)]) }}
                         @else
-                            {{ __('corporate.no_quota_summary', ['released' => number_format($totalHoursReleased, 1), 'members' => $activeMemberCount, 'used' => number_format($totalHoursUsed, 1)]) }}
+                            {{ __('corporate.no_quota_summary', ['released' => $hrs($totalHoursReleased), 'members' => $activeMemberCount, 'used' => $hrs($totalHoursUsed)]) }}
                         @endif
                     </p>
                 </div>
@@ -97,9 +121,33 @@
                 <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
                     <h3 class="font-display font-extrabold text-base text-[#4F2F2A]">{{ __('corporate.schedule_title') }}</h3>
                     <p class="text-xs text-[#7A5A52] mt-0.5 mb-4">{{ __('corporate.schedule_hint') }}</p>
-                    @if($organization->accessSchedules->isEmpty())
+                    @if($organization->accessSchedules->isEmpty() && $recurringSchedules->isEmpty())
                         <p class="text-xs text-[#7A5A52] italic">{{ __('corporate.schedule_empty') }}</p>
-                    @else
+                    @endif
+                    @if($recurringSchedules->isNotEmpty())
+                        {{-- Jadwal Tetap Mingguan (Booking Mingguan di admin): booking otomatis tiap minggu dari kuota jam kontrak. --}}
+                        <div class="text-[10px] font-extrabold uppercase tracking-wider text-[#662721] mb-2">{{ __('corporate.recurring_title') }}</div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 {{ $organization->accessSchedules->isNotEmpty() ? 'mb-4' : '' }}">
+                            @foreach($recurringSchedules as $rs)
+                                <div class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0]/60 text-xs" data-recurring-schedule>
+                                    <div class="font-bold text-[#4F2F2A]">
+                                        {{ __('corporate.recurring_every', ['day' => __('corporate.days_long')[$rs->day_of_week] ?? $rs->day_of_week]) }}
+                                        &bull; {{ substr((string) $rs->start_time, 0, 5) }} &ndash; {{ substr((string) $rs->end_time, 0, 5) }}
+                                    </div>
+                                    @if(! empty($rs->court_names))
+                                        <div class="text-[#7A5A52] mt-1">{{ $rs->court_names }}</div>
+                                    @endif
+                                    <div class="text-[#7A5A52] mt-1">
+                                        {{ __('corporate.recurring_period', ['from' => $rs->starts_on?->translatedFormat('d M Y') ?? '-']) }}{{ $rs->ends_on ? ' – '.$rs->ends_on->translatedFormat('d M Y') : '' }}
+                                        @if($rs->status === \App\Models\Padel\PadelRecurringSchedule::STATUS_PAUSED)
+                                            &bull; <strong class="text-amber-700">{{ __('corporate.recurring_paused') }}</strong>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        </div>
+                    @endif
+                    @if($organization->accessSchedules->isNotEmpty())
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             @foreach($organization->accessSchedules as $sch)
                                 <div class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0]/60 text-xs">
@@ -122,7 +170,8 @@
                 </div>
 
                 <!-- Add Member & CSV Import -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                @if($canManageMembers)
+                <div data-pic-add-members class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
                         <h3 class="font-display font-extrabold text-base text-[#4F2F2A] mb-1">{{ __('corporate.add_one_title') }}</h3>
                         <p class="text-[11px] text-[#7A5A52] mb-4">{{ __('corporate.add_one_hint') }}</p>
@@ -131,18 +180,20 @@
                                    class="w-full px-4 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
                             <input type="text" name="phone" placeholder="{{ __('corporate.phone_placeholder') }}" required
                                    class="w-full px-4 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
+                            @if($canReleaseSingle)
                             <div>
                                 <label class="text-[11px] font-bold text-[#7A5A52] mb-1 block">{{ __('corporate.starting_hours') }}</label>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" onclick="stepValue('initial_hours_input', -0.5, 0)"
+                                    <button type="button" onclick="stepValue('initial_hours_input', -1, 0)"
                                             class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
-                                    <input type="number" step="0.5" min="0" name="initial_hours" id="initial_hours_input" placeholder="0"
+                                    <input type="number" step="1" min="0" name="initial_hours" id="initial_hours_input" placeholder="0"
                                            class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
-                                    <button type="button" onclick="stepValue('initial_hours_input', 0.5, 0)"
+                                    <button type="button" onclick="stepValue('initial_hours_input', 1, 0)"
                                             class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
                                     <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">{{ __('corporate.hrs') }}</span>
                                 </div>
                             </div>
+                            @endif
                             <button type="submit"
                                     class="w-full py-2.5 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-xs font-black uppercase tracking-wider shadow-md  active:scale-95 transition-all">
                                 {{ __('corporate.add_member') }}
@@ -172,15 +223,18 @@ Siti Rahma,081399887766,5</pre>
                         </form>
                     </div>
                 </div>
+                @endif
 
                 <!-- Team Roster -->
                 <div class="p-6 rounded-xl bg-white/95 border border-[#E6DAC0] shadow-sm">
                     <div class="flex items-start justify-between gap-3 flex-wrap mb-1">
                         <h3 class="font-display font-extrabold text-base text-[#4F2F2A]">{{ __('corporate.roster_title') }}</h3>
-                        <button type="button" onclick="openBulkModal()"
-                                class="px-3.5 py-2 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[11px] font-bold shrink-0">
-                            {{ __('corporate.give_bulk') }}
-                        </button>
+                        @if($canReleaseBulk)
+                            <button type="button" onclick="openBulkModal()" data-pic-bulk
+                                    class="px-3.5 py-2 rounded-xl bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[11px] font-bold shrink-0">
+                                {{ __('corporate.give_bulk') }}
+                            </button>
+                        @endif
                     </div>
                     <p class="text-[11px] text-[#7A5A52] mb-4">
                         {!! __('corporate.login_hint', ['link' => '<a href="'.e(route('login')).'" class="underline font-bold">/login</a>']) !!}
@@ -232,7 +286,7 @@ Siti Rahma,081399887766,5</pre>
                                         ->first();
                                 @endphp
                                 <tr class="border-b border-[#F7F0DB]" data-member-id="{{ $m->id }}"
-                                    data-recent-release="{{ $recentRelease ? __('corporate.recent_release', ['hours' => number_format((float) $recentRelease->hours_granted, 1), 'time' => $recentRelease->issued_at->format('H:i')]) : '' }}">
+                                    data-recent-release="{{ $recentRelease ? __('corporate.recent_release', ['hours' => $hrs((float) $recentRelease->hours_granted), 'time' => $recentRelease->issued_at->format('H:i')]) : '' }}">
                                     <td class="py-2.5 pr-3 font-bold text-[#4F2F2A]">{{ $m->user->name ?? '-' }}</td>
                                     <td class="py-2.5 pr-3 text-[#7A5A52]">{{ $m->user->phone ?? '-' }}</td>
                                     <td class="py-2.5 pr-3">
@@ -240,19 +294,21 @@ Siti Rahma,081399887766,5</pre>
                                             {{ __('corporate.statuses')[$m->status] ?? $m->status }}
                                         </span>
                                     </td>
-                                    <td class="py-2.5 pr-3 font-bold text-[#4F2F2A]">{{ __('corporate.hours_value', ['value' => number_format($m->totalRemainingHours(), 1)]) }}</td>
+                                    <td class="py-2.5 pr-3 font-bold text-[#4F2F2A]">{{ __('corporate.hours_value', ['value' => $hrs($m->totalRemainingHours())]) }}</td>
                                     <td class="py-2.5 pr-3">
                                         <div class="flex items-center gap-1.5 flex-wrap">
                                             <button type="button" onclick="toggleVouchers('{{ $m->id }}')"
                                                     class="px-2.5 py-1 rounded-lg bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                                 {{ __('corporate.vouchers_button', ['count' => $m->vouchers->count()]) }}
                                             </button>
-                                            <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="{{ __('corporate.give_hours_title') }}"
-                                                    class="px-2.5 py-1 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
-                                                {{ __('corporate.give_hours') }}
-                                            </button>
+                                            @if($canReleaseSingle)
+                                                <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="{{ __('corporate.give_hours_title') }}" data-pic-give-hours
+                                                        class="px-2.5 py-1 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
+                                                    {{ __('corporate.give_hours') }}
+                                                </button>
+                                            @endif
                                             {{-- Tidak ada Revoke (meeting 28 Okt 2026): jam karyawan tidak boleh tersangkut. Anggota lama yang terlanjur dicabut tetap bisa diaktifkan lagi. --}}
-                                            @if($m->status !== 'ACTIVE')
+                                            @if($m->status !== 'ACTIVE' && $canManageMembers)
                                                 <button type="button" onclick="reactivateMember('{{ $m->id }}')"
                                                         class="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
                                                     {{ __('corporate.activate') }}
@@ -281,21 +337,26 @@ Siti Rahma,081399887766,5</pre>
                                                     @foreach($m->vouchers->sortByDesc('issued_at') as $v)
                                                         <tr class="{{ $v->isExpired() ? 'opacity-50' : '' }}" data-voucher-id="{{ $v->id }}">
                                                             <td class="py-1.5 pr-3">
+                                                                @if($canEditVouchers)
                                                                 <div class="flex items-center gap-1">
-                                                                    <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', -0.5, 0.5)"
+                                                                    <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', -1, 1)"
                                                                             class="w-6 h-6 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
-                                                                    <input type="number" step="0.5" min="0.01" value="{{ (float) $v->hours_granted }}"
+                                                                    <input type="number" step="1" min="1" value="{{ (float) $v->hours_granted }}"
                                                                            class="w-14 text-center px-1 py-1 rounded-lg border border-[#E6DAC0] text-[11px]" id="voucher-hours-{{ $v->id }}">
-                                                                    <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', 0.5, 0.5)"
+                                                                    <button type="button" onclick="stepValue('voucher-hours-{{ $v->id }}', 1, 1)"
                                                                             class="w-6 h-6 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                                                 </div>
+                                                                @else
+                                                                    <span class="font-bold">{{ $hrs($v->hours_granted) }}</span>
+                                                                @endif
                                                             </td>
-                                                            <td class="py-1.5 pr-3">{{ number_format($v->hours_used, 1) }}</td>
-                                                            <td class="py-1.5 pr-3 font-bold">{{ number_format($v->remainingHours(), 1) }}</td>
+                                                            <td class="py-1.5 pr-3">{{ $hrs($v->hours_used) }}</td>
+                                                            <td class="py-1.5 pr-3 font-bold">{{ $hrs($v->remainingHours()) }}</td>
                                                             <td class="py-1.5 pr-3">{{ \Carbon\Carbon::parse($v->expires_at)->translatedFormat('d M Y') }} {{ $v->isExpired() ? __('corporate.expired_suffix') : '' }}</td>
                                                             <td class="py-1.5 pr-3">{{ __('corporate.sources')[$v->source] ?? $v->source }}</td>
                                                             <td class="py-1.5 pr-3">
-                                                                <div class="flex items-center gap-1">
+                                                                @if($canEditVouchers)
+                                                                <div class="flex items-center gap-1" data-pic-edit-voucher>
                                                                     <button type="button" onclick="saveVoucher('{{ $v->id }}')"
                                                                             class="px-2 py-1 rounded-lg bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[10px] font-bold">{{ __('corporate.save') }}</button>
                                                                     @if((float) $v->hours_used == 0)
@@ -303,6 +364,9 @@ Siti Rahma,081399887766,5</pre>
                                                                                 class="px-2 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-[10px] font-bold">{{ __('corporate.delete') }}</button>
                                                                     @endif
                                                                 </div>
+                                                                @else
+                                                                    -
+                                                                @endif
                                                             </td>
                                                         </tr>
                                                     @endforeach
@@ -329,7 +393,7 @@ Siti Rahma,081399887766,5</pre>
                                     ->first();
                             @endphp
                             <div class="rounded-lg border border-[#E6DAC0] bg-[#FCF8EE] p-4" data-member-id-mobile="{{ $m->id }}"
-                                 data-recent-release="{{ $recentReleaseMobile ? __('corporate.recent_release', ['hours' => number_format((float) $recentReleaseMobile->hours_granted, 1), 'time' => $recentReleaseMobile->issued_at->format('H:i')]) : '' }}">
+                                 data-recent-release="{{ $recentReleaseMobile ? __('corporate.recent_release', ['hours' => $hrs((float) $recentReleaseMobile->hours_granted), 'time' => $recentReleaseMobile->issued_at->format('H:i')]) : '' }}">
                                 <div class="flex items-start justify-between gap-2">
                                     <div class="min-w-0">
                                         <div class="font-bold text-sm text-[#4F2F2A] truncate">{{ $m->user->name ?? '-' }}</div>
@@ -342,7 +406,7 @@ Siti Rahma,081399887766,5</pre>
 
                                 <div class="mt-3 pt-3 border-t border-[#E6DAC0]/50">
                                     <div class="text-[9px] font-extrabold uppercase tracking-wider text-[#662721]">{{ __('corporate.th_active_hours') }}</div>
-                                    <div class="font-bold text-sm text-[#4F2F2A]">{{ __('corporate.hours_value', ['value' => number_format($m->totalRemainingHours(), 1)]) }}</div>
+                                    <div class="font-bold text-sm text-[#4F2F2A]">{{ __('corporate.hours_value', ['value' => $hrs($m->totalRemainingHours())]) }}</div>
                                 </div>
 
                                 <div class="flex items-center gap-1.5 flex-wrap mt-3">
@@ -350,11 +414,13 @@ Siti Rahma,081399887766,5</pre>
                                             class="px-2.5 py-1.5 rounded-lg bg-white hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
                                         {{ __('corporate.vouchers_button', ['count' => $m->vouchers->count()]) }}
                                     </button>
-                                    <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="{{ __('corporate.give_hours_title') }}"
-                                            class="px-2.5 py-1.5 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
-                                        {{ __('corporate.give_hours') }}
-                                    </button>
-                                    @if($m->status !== 'ACTIVE')
+                                    @if($canReleaseSingle)
+                                        <button type="button" onclick="releaseVoucher('{{ $m->id }}')" title="{{ __('corporate.give_hours_title') }}" data-pic-give-hours
+                                                class="px-2.5 py-1.5 rounded-lg bg-[#F7F0DB] hover:bg-[#F7F0DB] border border-[#E6DAC0] text-[#662721] text-[10px] font-bold">
+                                            {{ __('corporate.give_hours') }}
+                                        </button>
+                                    @endif
+                                    @if($m->status !== 'ACTIVE' && $canManageMembers)
                                         <button type="button" onclick="reactivateMember('{{ $m->id }}')"
                                                 class="px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 text-[10px] font-bold">
                                             {{ __('corporate.activate') }}
@@ -371,7 +437,7 @@ Siti Rahma,081399887766,5</pre>
                                                 <div class="grid grid-cols-2 gap-2 text-[11px] mb-2">
                                                     <div>
                                                         <div class="text-[9px] uppercase font-extrabold text-[#662721]">{{ __('corporate.used_remaining') }}</div>
-                                                        <div class="font-bold text-[#4F2F2A]">{{ number_format($v->hours_used, 1) }} / {{ __('corporate.hours_value', ['value' => number_format($v->remainingHours(), 1)]) }}</div>
+                                                        <div class="font-bold text-[#4F2F2A]">{{ $hrs($v->hours_used) }} / {{ __('corporate.hours_value', ['value' => $hrs($v->remainingHours())]) }}</div>
                                                     </div>
                                                     <div>
                                                         <div class="text-[9px] uppercase font-extrabold text-[#662721]">{{ __('corporate.th_expires') }}</div>
@@ -379,12 +445,15 @@ Siti Rahma,081399887766,5</pre>
                                                     </div>
                                                 </div>
                                                 <div class="text-[10px] text-[#7A5A52] mb-2">{{ __('corporate.source_label', ['source' => __('corporate.sources')[$v->source] ?? $v->source]) }}</div>
-                                                <div class="flex items-center gap-1.5">
-                                                    <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', -0.5, 0.5)"
+                                                @if(! $canEditVouchers)
+                                                    <div class="text-[11px] text-[#7A5A52]">{{ __('corporate.th_hours_granted') }}: <strong class="text-[#4F2F2A]">{{ $hrs($v->hours_granted) }}</strong></div>
+                                                @else
+                                                <div class="flex items-center gap-1.5" data-pic-edit-voucher>
+                                                    <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', -1, 1)"
                                                             class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
-                                                    <input type="number" step="0.5" min="0.01" value="{{ (float) $v->hours_granted }}"
+                                                    <input type="number" step="1" min="1" value="{{ (float) $v->hours_granted }}"
                                                            class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#E6DAC0] text-[11px]" id="voucher-hours-m-{{ $v->id }}">
-                                                    <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', 0.5, 0.5)"
+                                                    <button type="button" onclick="stepValue('voucher-hours-m-{{ $v->id }}', 1, 1)"
                                                             class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                                     <button type="button" onclick="saveVoucher('{{ $v->id }}', 'voucher-hours-m-{{ $v->id }}')"
                                                             class="px-2.5 py-1.5 rounded-lg bg-[#662721] hover:bg-[#511D18] text-[#F7F0DB] text-[10px] font-bold ml-auto">{{ __('corporate.save') }}</button>
@@ -393,6 +462,7 @@ Siti Rahma,081399887766,5</pre>
                                                                 class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 text-[10px] font-bold">{{ __('corporate.delete') }}</button>
                                                     @endif
                                                 </div>
+                                                @endif
                                             </div>
                                         @endforeach
                                     @endif
@@ -431,11 +501,11 @@ Siti Rahma,081399887766,5</pre>
                         <h3 id="app-modal-title" class="font-display font-black text-base text-[#4F2F2A] mb-2">{{ __('corporate.confirm') }}</h3>
                         <p id="app-modal-message" class="text-xs text-[#7A5A52] mb-4"></p>
                         <div id="app-modal-input-wrapper" class="hidden flex items-center gap-2 mb-4">
-                            <button type="button" onclick="stepValue('app-modal-input', -0.5, 0)"
+                            <button type="button" onclick="stepValue('app-modal-input', -1, 0)"
                                     class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
                             <input type="number" id="app-modal-input" placeholder="0"
                                    class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
-                            <button type="button" onclick="stepValue('app-modal-input', 0.5, 0)"
+                            <button type="button" onclick="stepValue('app-modal-input', 1, 0)"
                                     class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
                             <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">{{ __('corporate.hrs') }}</span>
                         </div>
@@ -458,7 +528,7 @@ Siti Rahma,081399887766,5</pre>
                         <h3 class="font-display font-black text-base text-[#4F2F2A] mb-1">{{ __('corporate.bulk_title') }}</h3>
                         <p class="text-xs text-[#7A5A52] mb-1">{{ __('corporate.bulk_hint') }}</p>
                         @if($quotaRemaining !== null)
-                            <p class="text-[11px] font-bold text-[#662721] mb-4">{{ __('corporate.bulk_quota', ['remaining' => number_format($quotaRemaining, 1), 'total' => number_format($totalQuota, 1)]) }}</p>
+                            <p class="text-[11px] font-bold text-[#662721] mb-4">{{ __('corporate.bulk_quota', ['remaining' => $hrs($quotaRemaining), 'total' => $hrs($totalQuota)]) }}</p>
                         @else
                             <p class="text-[11px] text-[#7A5A52] mb-4">&nbsp;</p>
                         @endif
@@ -479,11 +549,11 @@ Siti Rahma,081399887766,5</pre>
                                 {{ __('corporate.hours_per_member', ['count' => $activeMembersForBulk->count()]) }}
                             </label>
                             <div class="flex items-center gap-2">
-                                <button type="button" onclick="stepValue('bulk-uniform-hours', -0.5, 0)"
+                                <button type="button" onclick="stepValue('bulk-uniform-hours', -1, 0)"
                                         class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">&minus;</button>
-                                <input type="number" step="0.5" min="0" id="bulk-uniform-hours" placeholder="0"
+                                <input type="number" step="1" min="0" id="bulk-uniform-hours" placeholder="0"
                                        class="w-full text-center px-2 py-2.5 rounded-xl border border-[#E6DAC0] text-sm focus:outline-none focus:border-[#662721]">
-                                <button type="button" onclick="stepValue('bulk-uniform-hours', 0.5, 0)"
+                                <button type="button" onclick="stepValue('bulk-uniform-hours', 1, 0)"
                                         class="w-10 h-10 rounded-xl border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-base shrink-0">+</button>
                                 <span class="text-xs font-bold text-[#7A5A52] shrink-0 w-8">{{ __('corporate.hrs') }}</span>
                             </div>
@@ -494,11 +564,11 @@ Siti Rahma,081399887766,5</pre>
                                 <div class="flex items-center justify-between gap-2 p-2 rounded-xl bg-white/70 border border-[#E6DAC0]/50">
                                     <span class="text-xs font-bold text-[#4F2F2A] truncate">{{ $m->user->name ?? '-' }}</span>
                                     <div class="flex items-center gap-1 shrink-0">
-                                        <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', -0.5, 0)"
+                                        <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', -1, 0)"
                                                 class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">&minus;</button>
-                                        <input type="number" step="0.5" min="0" placeholder="0" data-member-id="{{ $m->id }}" id="bulk-hours-{{ $m->id }}"
+                                        <input type="number" step="1" min="0" placeholder="0" data-member-id="{{ $m->id }}" id="bulk-hours-{{ $m->id }}"
                                                class="w-16 text-center px-1 py-1.5 rounded-lg border border-[#E6DAC0] text-xs">
-                                        <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', 0.5, 0)"
+                                        <button type="button" onclick="stepValue('bulk-hours-{{ $m->id }}', 1, 0)"
                                                 class="w-7 h-7 rounded-md border border-[#E6DAC0] bg-white hover:bg-[#F7F0DB] text-[#662721] font-black text-xs shrink-0">+</button>
                                     </div>
                                 </div>
@@ -565,8 +635,8 @@ Siti Rahma,081399887766,5</pre>
                 document.getElementById('app-modal-input-wrapper').classList.remove('hidden');
                 const input = document.getElementById('app-modal-input');
                 input.value = '';
-                input.step = options.step || '0.5';
-                input.min = options.min ?? '0.01';
+                input.step = options.step || '1';
+                input.min = options.min ?? '1';
                 _appModalOnConfirm = () => {
                     if (!input.value) return;
                     onConfirm(input.value);
@@ -602,13 +672,14 @@ Siti Rahma,081399887766,5</pre>
                 return data;
             }
 
-            document.getElementById('add-member-form').addEventListener('submit', async function (e) {
+            // Form tambah karyawan / impor CSV / jam awal bisa tidak dirender (Hak Akses PIC).
+            document.getElementById('add-member-form')?.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const form = e.target;
                 const payload = {
                     name: form.name.value,
                     phone: form.phone.value,
-                    initial_hours: form.initial_hours.value || undefined,
+                    initial_hours: form.initial_hours?.value || undefined,
                 };
                 try {
                     const data = await apiCall(API_BASE + '/members', {
@@ -623,7 +694,7 @@ Siti Rahma,081399887766,5</pre>
                 }
             });
 
-            document.getElementById('csv-import-form').addEventListener('submit', async function (e) {
+            document.getElementById('csv-import-form')?.addEventListener('submit', async function (e) {
                 e.preventDefault();
                 const form = e.target;
                 const formData = new FormData(form);

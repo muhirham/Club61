@@ -97,6 +97,7 @@ trait ManagesCheckInAndTurnstile
                 'checked_in_at' => $booking->checked_in_at ? $booking->checked_in_at->toISOString() : $now->toISOString(),
                 'equipments' => $equipmentList,
                 'gate_marshall' => $staffUser->name,
+                'sponsor' => $this->sponsorCheckInInfo($booking),
             ];
         }
 
@@ -146,7 +147,26 @@ trait ManagesCheckInAndTurnstile
             'checked_in_at' => $now->toISOString(),
             'equipments' => $equipmentList,
             'gate_marshall' => $staffUser->name,
+            'sponsor' => $this->sponsorCheckInInfo($booking),
         ];
+    }
+
+    /**
+     * Booking yang dibayar jam voucher sponsor / corporate: nama perusahaan untuk tanda di layar check-in, supaya staf
+     * mencocokkan nama pemain dengan ID card karyawan (akun karyawan memakai password 6 digit terakhir HP).
+     * Null untuk booking biasa / bila benefit sponsor sudah gugur (jam voucher tidak terpakai).
+     *
+     * @return array{organization: string}|null
+     */
+    protected function sponsorCheckInInfo(PadelBooking $booking): ?array
+    {
+        if (! $booking->sponsor_member_voucher_id || (float) $booking->sponsor_hours_consumed <= 0) {
+            return null;
+        }
+
+        $organization = $booking->sponsorOrganization ?? $booking->sponsorMemberVoucher?->member?->organization;
+
+        return $organization ? ['organization' => (string) $organization->name] : null;
     }
 
     /**

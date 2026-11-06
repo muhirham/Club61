@@ -34,7 +34,17 @@ trait ManagesTicketsAndRefunds
             }
         }
 
-        return $query->get();
+        $bookings = $query->get();
+
+        // Sudah lunas = order punya pembayaran SUCCESS, berapa pun nominalnya (booking Rp0 voucher corporate / kuota member
+        // juga lunas). Halaman invoice memakainya membedakan "Tidak hadir" dari "Batas waktu pembayaran habis".
+        $paidOrderIds = \App\Models\Pos\Payment::whereIn('order_id', $bookings->pluck('order_id')->filter()->unique()->values())
+            ->where('status', 'SUCCESS')
+            ->distinct()
+            ->pluck('order_id')
+            ->flip();
+
+        return $bookings->each(fn (PadelBooking $b) => $b->setAttribute('was_paid', $b->order_id !== null && isset($paidOrderIds[$b->order_id])));
     }
 
     /**
@@ -131,6 +141,8 @@ trait ManagesTicketsAndRefunds
                 $booking->setAttribute('payment_method', $rawMethod);
                 $booking->setAttribute('payment_method_label', $methodLabel);
                 $booking->setAttribute('total_paid', $totalPaid);
+                // Lunas walau Rp0 (voucher corporate / kuota member / voucher 100%) — lihat myBookings().
+                $booking->setAttribute('was_paid', $order->payments->contains('status', 'SUCCESS'));
                 $booking->setAttribute('unpaid_delta', $unpaidDelta);
                 // Selisih reschedule juga untuk booking yang dulu 100% ditanggung kuota member / voucher (dibayar Rp0).
                 $isRescheduleBill = $pendingSupplementalPayment

@@ -69,7 +69,7 @@
                             </button>
                             <button type="button" wire:click="$set('customerMode', 'search')"
                                 class="pos-tab {{ $customerMode === 'search' ? 'active' : '' }}">
-                                Cari Member Lama
+                                Cari Akun
                             </button>
                         </div>
                     </div>
@@ -86,6 +86,7 @@
                                 Ganti
                             </button>
                         </div>
+                        @include('filament.partials.pos-add-customer-phone')
                     @elseif($customerMode === 'search')
                         <div style="position: relative;">
                             <input type="text" wire:model.live.debounce.300ms="customerSearch"
@@ -108,7 +109,8 @@
                         <div class="pos-form-grid">
                             <div>
                                 <label class="pos-field-label">Nomor WhatsApp *</label>
-                                <input type="text" wire:model="walkInPhone" placeholder="0812xxxxxxxx" class="pos-input" autocomplete="off">
+                                <input type="text" wire:model.blur="walkInPhone" placeholder="0812xxxxxxxx" class="pos-input" autocomplete="off">
+                                @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
                             </div>
                             <div>
                                 <label class="pos-field-label">Nama Lengkap</label>

@@ -14,6 +14,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
@@ -129,6 +130,20 @@ class SponsorOrganizationResource extends Resource
                         ->options(['ACTIVE' => 'Aktif', 'SUSPENDED' => 'Ditangguhkan'])
                         ->default('ACTIVE')
                         ->required(),
+                ])
+                ->columnSpanFull(),
+
+            // Disimpan sebagai daftar aksi yang DIMATIKAN (kosong = semua boleh), jadi perusahaan lama & aksi baru di
+            // masa depan otomatis tetap boleh. Formulir menampilkan kebalikannya: yang dicentang = diizinkan.
+            Section::make('Hak Akses PIC')
+                ->description('Atur aksi yang boleh dilakukan PIC di halaman Tim Corporate. Aksi yang tidak dicentang disembunyikan dari PIC dan ditolak oleh sistem. Melihat dashboard, daftar karyawan, dan jadwal tetap selalu diizinkan.')
+                ->schema([
+                    CheckboxList::make('pic_restricted_actions')
+                        ->label('PIC diizinkan untuk')
+                        ->options(SponsorOrganization::PIC_ACTIONS)
+                        ->formatStateUsing(fn ($state): array => array_values(array_diff(array_keys(SponsorOrganization::PIC_ACTIONS), (array) ($state ?? []))))
+                        ->dehydrateStateUsing(fn ($state): ?array => array_values(array_diff(array_keys(SponsorOrganization::PIC_ACTIONS), (array) ($state ?? []))) ?: null)
+                        ->bulkToggleable(),
                 ])
                 ->columnSpanFull(),
         ]);

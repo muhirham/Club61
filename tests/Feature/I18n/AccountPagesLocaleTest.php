@@ -85,7 +85,8 @@ class AccountPagesLocaleTest extends TestCase
             ->assertSee('Pengaturan Akun')
             ->assertSee('Informasi Profil')
             ->assertSee('Ubah Kata Sandi')
-            ->assertSee('Hapus Akun')
+            ->assertSee('No. WhatsApp')
+            ->assertDontSee('Hapus Akun')
             ->assertDontSee('Account Settings');
 
         $this->get('/profile/vouchers')->assertOk()->assertSee('Belum ada voucher')->assertSee('Tersedia');
@@ -94,7 +95,8 @@ class AccountPagesLocaleTest extends TestCase
             ->assertSee('Account Settings')
             ->assertSee('Profile Information')
             ->assertSee('Update Password')
-            ->assertSee('Delete Account')
+            ->assertSee('WhatsApp Number')
+            ->assertDontSee('Delete Account')
             ->assertDontSee('Pengaturan Akun');
 
         $this->get('/profile/vouchers')->assertOk()->assertSee('No vouchers yet')->assertSee('Available');

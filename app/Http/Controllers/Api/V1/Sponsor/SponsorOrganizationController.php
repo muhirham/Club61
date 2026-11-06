@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Sponsor\SponsorMemberVoucher;
 use App\Models\Sponsor\SponsorOrganization;
 use App\Models\Sponsor\SponsorOrganizationMember;
+use App\Services\Audit\ActivityLogger;
 use App\Services\Sponsor\SponsorOrganizationService;
 use App\Support\PersonName;
 use App\Support\SiteLocale;
@@ -40,6 +41,7 @@ class SponsorOrganizationController extends Controller
                 'active_member_count' => $activeMemberCount,
                 'total_hours_released' => $organization->totalHoursReleased(),
                 'quota_remaining' => $organization->remainingQuota(),
+                'pic_allowed_actions' => $organization->picAllowedActions(),
             ],
         ]);
     }
@@ -77,12 +79,17 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_MANAGE_MEMBERS]);
 
         $validated = $request->validate([
             'name' => PersonName::rules(),
             'phone' => 'required|string|max:20',
             'initial_hours' => 'nullable|numeric|min:0.01',
         ]);
+
+        if (isset($validated['initial_hours'])) {
+            $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_RELEASE_SINGLE]);
+        }
 
         try {
             $member = $this->service->addMemberManually(
@@ -112,6 +119,7 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_RELEASE_SINGLE]);
 
         $memberModel = $this->resolveOwnMember($organization, $member);
 
@@ -124,6 +132,12 @@ class SponsorOrganizationController extends Controller
         } catch (DomainException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+
+        $memberName = $memberModel->user?->name ?? 'karyawan';
+        $this->logPicAction($organization, 'sponsor.voucher_released', 'PIC memberikan '.$this->hours($voucher->hours_granted).' jam ke '.$memberName, [
+            'karyawan' => $memberName,
+            'jam' => (float) $voucher->hours_granted,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -140,6 +154,7 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_RELEASE_BULK]);
 
         $validated = $request->validate([
             'mode' => 'required|in:uniform,per_member',
@@ -162,6 +177,14 @@ class SponsorOrganizationController extends Controller
 
         $result = $this->service->bulkReleaseVoucher($organization, $map, $request->user());
 
+        if ($result['released'] > 0) {
+            $this->logPicAction($organization, 'sponsor.voucher_bulk_released', 'PIC memberikan jam ke '.$result['released'].' karyawan sekaligus', [
+                'mode' => $validated['mode'] === 'uniform' ? 'Jam sama rata' : 'Jam per karyawan',
+                'berhasil' => $result['released'],
+                'gagal' => count($result['failed']),
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'message' => SiteLocale::text('corporate.bulk_released', ['released' => $result['released'], 'failed' => count($result['failed'])]),
@@ -178,8 +201,10 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_EDIT_VOUCHERS]);
 
         $voucherModel = $this->resolveOwnVoucher($organization, $voucher);
+        $oldHours = (float) $voucherModel->hours_granted;
 
         $validated = $request->validate([
             'hours_granted' => 'required|numeric|min:0.01',
@@ -190,6 +215,13 @@ class SponsorOrganizationController extends Controller
         } catch (DomainException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+
+        $memberName = $voucherModel->member?->user?->name ?? 'karyawan';
+        $this->logPicAction($organization, 'sponsor.voucher_updated', 'PIC mengubah voucher '.$memberName.' dari '.$this->hours($oldHours).' menjadi '.$this->hours($voucherModel->hours_granted).' jam', [
+            'karyawan' => $memberName,
+            'jam_lama' => $oldHours,
+            'jam_baru' => (float) $voucherModel->hours_granted,
+        ]);
 
         return response()->json([
             'success' => true,
@@ -205,14 +237,22 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_EDIT_VOUCHERS]);
 
         $voucherModel = $this->resolveOwnVoucher($organization, $voucher);
+        $memberName = $voucherModel->member?->user?->name ?? 'karyawan';
+        $hours = (float) $voucherModel->hours_granted;
 
         try {
             $this->service->deleteVoucher($voucherModel);
         } catch (DomainException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
         }
+
+        $this->logPicAction($organization, 'sponsor.voucher_deleted', 'PIC menghapus voucher '.$this->hours($hours).' jam milik '.$memberName, [
+            'karyawan' => $memberName,
+            'jam' => $hours,
+        ], ActivityLogger::WARNING);
 
         return response()->json([
             'success' => true,
@@ -224,6 +264,7 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_MANAGE_MEMBERS]);
 
         $memberModel = $this->service->reactivateMember($this->resolveOwnMember($organization, $member));
 
@@ -242,6 +283,7 @@ class SponsorOrganizationController extends Controller
     {
         $organization = $this->resolveOwnOrganization($request);
         $this->authorize('manageMembers', $organization);
+        $this->authorize('performPicAction', [$organization, SponsorOrganization::PIC_MANAGE_MEMBERS]);
 
         try {
             $validated = $request->validate([
@@ -252,9 +294,23 @@ class SponsorOrganizationController extends Controller
         }
 
         try {
-            $result = $this->service->importMembersFromCsv($organization, $validated['file']->getRealPath(), $request->user());
+            $result = $this->service->importMembersFromCsv(
+                $organization,
+                $validated['file']->getRealPath(),
+                $request->user(),
+                allowHours: $organization->picAllows(SponsorOrganization::PIC_RELEASE_SINGLE),
+            );
         } catch (DomainException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);
+        }
+
+        if ($result['vouchers_issued'] + $result['vouchers_updated'] > 0) {
+            $this->logPicAction($organization, 'sponsor.voucher_csv_imported', 'PIC mengimpor CSV: '.$result['vouchers_issued'].' voucher baru, '.$result['vouchers_updated'].' voucher diperbarui', [
+                'karyawan_baru' => $result['imported'],
+                'voucher_baru' => $result['vouchers_issued'],
+                'voucher_diperbarui' => $result['vouchers_updated'],
+                'baris_gagal' => count($result['failed_rows']),
+            ]);
         }
 
         return response()->json([
@@ -269,6 +325,24 @@ class SponsorOrganizationController extends Controller
             ]),
             'data' => $result,
         ]);
+    }
+
+    /** Jejak aksi voucher PIC di Log Aktivitas (anggota & perusahaan sudah tercatat otomatis lewat AuditRegistry). */
+    private function logPicAction(SponsorOrganization $organization, string $event, string $description, array $meta, string $severity = ActivityLogger::INFO): void
+    {
+        ActivityLogger::record(
+            module: 'SPONSOR',
+            event: $event,
+            description: $description.' — '.$organization->name,
+            subject: $organization,
+            meta: ['perusahaan' => $organization->name] + $meta,
+            severity: $severity,
+        );
+    }
+
+    private function hours(mixed $value): string
+    {
+        return rtrim(rtrim(number_format((float) $value, 2, '.', ''), '0'), '.');
     }
 
     /**

@@ -9,7 +9,7 @@ use Filament\Notifications\Notification;
 
 /**
  * Customer transaksi kasir POS Walk-In. Butuh properti Livewire: customerMode, selectedCustomerId,
- * walkInName, walkInPhone, walkInEmail.
+ * selectedCustomerPhone, selectedCustomerNewPhone, walkInName, walkInPhone, walkInEmail.
  */
 trait ResolvesPosCustomer
 {
@@ -71,10 +71,90 @@ trait ResolvesPosCustomer
             return null;
         }
 
-        return $service->findOrCreateWalkInCustomer(
-            name: $name,
-            phone: $phone,
-            email: ! empty($this->walkInEmail) ? trim($this->walkInEmail) : null
-        );
+        if (! $this->walkInEmailAvailable($service)) {
+            return null;
+        }
+
+        try {
+            return $service->findOrCreateWalkInCustomer(
+                name: $name,
+                phone: $phone,
+                email: ! empty($this->walkInEmail) ? trim($this->walkInEmail) : null,
+                rejectTakenEmail: true,
+            );
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            Notification::make()->title('Customer Tidak Bisa Dibuat')->body($e->getMessage())->danger()->send();
+
+            return null;
+        }
+    }
+
+    /**
+     * Modul 33: nomor HP Walk-In yang sudah punya akun → transaksi masuk ke akun itu (nama yang diketik kasir diabaikan).
+     * Nama pemiliknya ditampilkan supaya kasir bisa mencocokkan dengan customer di depannya (nomor HP tidak diverifikasi OTP).
+     *
+     * @return array{name: string, phone: string}|null
+     */
+    public function getWalkInPhoneOwnerProperty(): ?array
+    {
+        if ($this->customerMode === 'search') {
+            return null;
+        }
+
+        $phone = \App\Support\PhoneNumber::normalize((string) $this->walkInPhone);
+        $owner = $phone === null ? null : User::where('phone', $phone)->first(['id', 'name', 'phone']);
+
+        return $owner ? ['name' => (string) $owner->name, 'phone' => (string) $owner->phone] : null;
+    }
+
+    /**
+     * Modul 33: email Walk-In Cepat yang sudah milik akun lain (nomor HP belum dikenal) → kasir diberi tahu & diarahkan ke
+     * Cari Akun, bukan diam-diam dibuatkan akun kedua.
+     */
+    protected function walkInEmailAvailable(PadelBookingService $service): bool
+    {
+        $owner = $service->walkInEmailOwner((string) $this->walkInPhone, (string) $this->walkInEmail);
+        if (! $owner) {
+            return true;
+        }
+
+        Notification::make()
+            ->title('Email Sudah Terdaftar')
+            ->body(PadelBookingService::walkInEmailTakenMessage($owner))
+            ->warning()
+            ->persistent()
+            ->send();
+
+        return false;
+    }
+
+    /**
+     * Modul 33 (Cari Akun): akun yang dipilih belum punya nomor HP (mis. daftar web lama) → kasir mengisinya supaya
+     * kunjungan berikutnya dikenali lewat nomor HP. Butuh properti Livewire selectedCustomerNewPhone.
+     */
+    public function saveSelectedCustomerPhone(): void
+    {
+        if (empty($this->selectedCustomerId)) {
+            return;
+        }
+
+        $customer = User::find($this->selectedCustomerId);
+        if (! $customer) {
+            Notification::make()->title('Customer Tidak Ditemukan')->danger()->send();
+
+            return;
+        }
+
+        try {
+            $customer = app(\App\Services\Customer\CustomerPhoneService::class)->attachToCustomer($customer, (string) $this->selectedCustomerNewPhone);
+        } catch (\DomainException $e) {
+            Notification::make()->title('Nomor HP Tidak Disimpan')->body($e->getMessage())->danger()->send();
+
+            return;
+        }
+
+        $this->selectedCustomerPhone = $customer->phone;
+        $this->selectedCustomerNewPhone = '';
+        Notification::make()->title('Nomor HP Disimpan')->body($customer->name.' sekarang dikenali lewat nomor '.$customer->phone.'.')->success()->send();
     }
 }

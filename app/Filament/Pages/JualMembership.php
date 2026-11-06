@@ -28,6 +28,8 @@ class JualMembership extends Page
     use \App\Livewire\Concerns\AutoPrintsReceipts;
     use \App\Livewire\Concerns\PrintsDailySalesRecap;
     use HasPageShield;
+    // Modul 33: cek email walk-in bentrok & isi nomor HP akun terpilih — sama dengan kasir Booking Lapangan.
+    use \App\Livewire\Concerns\ResolvesPosCustomer;
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-credit-card';
 
@@ -60,6 +62,9 @@ class JualMembership extends Page
     public ?string $selectedCustomerId = null;
     public ?string $selectedCustomerName = null;
     public ?string $selectedCustomerPhone = null;
+
+    /** Modul 33: nomor HP yang diisi kasir untuk akun terpilih yang belum punya nomor (saveSelectedCustomerPhone). */
+    public string $selectedCustomerNewPhone = '';
 
     // Quick create customer
     public string $walkInName = '';
@@ -111,6 +116,7 @@ class JualMembership extends Page
             $this->selectedCustomerId = $user->id;
             $this->selectedCustomerName = $user->name;
             $this->selectedCustomerPhone = $user->phone;
+            $this->selectedCustomerNewPhone = '';
             $this->customerSearch = '';
         }
     }
@@ -120,6 +126,7 @@ class JualMembership extends Page
         $this->selectedCustomerId = null;
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
+        $this->selectedCustomerNewPhone = '';
         $this->customerSearch = '';
     }
 
@@ -257,6 +264,11 @@ class JualMembership extends Page
                 Notification::make()->title('Nomor Telepon Tidak Valid')->body('Silakan masukkan nomor WhatsApp / telepon aktif minimal 8 digit.')->warning()->send();
                 return;
             }
+
+            // Modul 33: email milik akun lain → arahkan ke Cari Akun (dicek lagi saat transaksi diproses).
+            if (! $this->walkInEmailAvailable(app(\App\Services\Padel\PadelBookingService::class))) {
+                return;
+            }
         }
 
         $this->posStep = 'payment';
@@ -366,21 +378,15 @@ class JualMembership extends Page
                         throw new \DomainException('Nomor WhatsApp customer walk-in wajib diisi.');
                     }
 
-                    $customer = User::where('phone', $phone)->first();
-                    if (! $customer) {
-                        $name = \App\Support\PersonName::clean($this->walkInName) ?: 'Member Walk-In';
-                        $email = trim($this->walkInEmail) ?: ('mbr_' . preg_replace('/\D/', '', $phone) . '@club61.id');
-
-                        $customer = User::create([
-                            'name' => $name,
-                            'phone' => $phone,
-                            'email' => $email,
-                            'password' => Hash::make(Str::random(12)),
-                            'is_active' => true,
-                        ]);
-
-                        $customer->assignRole('customer');
-                    }
+                    // Modul 33: satu jalur pembuatan akun kasir (sama dengan Booking Lapangan) — nomor HP dinormalisasi
+                    // sebelum dicari (dulu "0812-…" / "+62…" tidak cocok dengan akun yang sama → akun dobel), email milik
+                    // akun lain ditolak, password awal 6 digit terakhir HP (bisa login dengan nomor HP).
+                    $customer = app(\App\Services\Padel\PadelBookingService::class)->findOrCreateWalkInCustomer(
+                        name: \App\Support\PersonName::clean($this->walkInName) ?: 'Member Walk-In',
+                        phone: $phone,
+                        email: trim($this->walkInEmail) !== '' ? trim($this->walkInEmail) : null,
+                        rejectTakenEmail: true,
+                    );
                 }
 
                 $orderNumber = 'ORD-POS-MBR-' . strtoupper(Str::random(8));

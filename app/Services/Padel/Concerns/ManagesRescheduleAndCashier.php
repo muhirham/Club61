@@ -107,7 +107,7 @@ trait ManagesRescheduleAndCashier
                     break;
                 }
 
-                if ($peakHours->isPeak($subStart)) {
+                if ($peakHours->rateFor($court, $subStart)['prime']) {
                     $hasPrime = true;
                 }
 

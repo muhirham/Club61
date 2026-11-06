@@ -265,8 +265,9 @@ class BookingSystem extends Page
         $startFormatted = sprintf('%02d:00', $h);
         $endFormatted = sprintf('%02d:00', $h + 1);
 
-        $isPrime = app(\App\Services\Padel\PeakHourService::class)->isPeak(Carbon::parse("{$this->selectedDate} {$startFormatted}"));
-        $rate = $isPrime ? (float) $court->hourly_rate_prime : (float) $court->hourly_rate_regular;
+        $slotRate = app(\App\Services\Padel\PeakHourService::class)->rateFor($court, Carbon::parse("{$this->selectedDate} {$startFormatted}"));
+        $isPrime = $slotRate['prime'];
+        $rate = $slotRate['price'];
 
         $this->inspectData = [
             'type' => 'available',
@@ -481,8 +482,9 @@ class BookingSystem extends Page
                         'price' => 0,
                     ];
                 } else {
-                    $isPrime = app(\App\Services\Padel\PeakHourService::class)->isPeak($targetDate->copy()->setTime((int) $h, 0));
-                    $slotPrice = $isPrime ? (float) $court->hourly_rate_prime : (float) $court->hourly_rate_regular;
+                    $slotRate = app(\App\Services\Padel\PeakHourService::class)->rateFor($court, $targetDate->copy()->setTime((int) $h, 0));
+                    $isPrime = $slotRate['prime'];
+                    $slotPrice = $slotRate['price'];
 
                     $courtRow['slots'][$h] = [
                         'type' => 'available',
@@ -494,6 +496,12 @@ class BookingSystem extends Page
                     ];
                 }
             }
+
+            // Harga termurah lapangan di tanggal ini (Harga Khusus / Harga Dasar) untuk keterangan di kolom lapangan.
+            $peakHours = app(\App\Services\Padel\PeakHourService::class);
+            $courtRow['from_rate'] = (float) (collect(range($courtOpen, max($courtOpen, $courtClose - 1)))
+                ->map(fn (int $hour) => $peakHours->rateFor($court, $targetDate->copy()->setTime($hour, 0))['price'])
+                ->min() ?? $court->hourly_rate_regular);
 
             $matrix[] = $courtRow;
         }

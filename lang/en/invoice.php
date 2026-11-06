@@ -226,6 +226,7 @@ return [
         'credit_converted_title' => 'Converted to Credit Voucher',
         'cancelled_title' => 'Reservation Cancelled',
         'no_show_title' => 'Match Session Expired (No-Show)',
+        'no_show_label' => 'No-show',
         'payment_window_expired_title' => 'Payment Window Expired',
         'refund_review_message' => 'This reservation has been cancelled and the court slot released. Your refund of :amount is being reviewed by the club.',
         'refunded_message' => 'Your refund of :amount has been processed and returned by the club administration.',
