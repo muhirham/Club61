@@ -183,4 +183,17 @@ class PicAccessRightsTest extends TestCase
 
         $this->assertNull($this->org->fresh()->pic_restricted_actions);
     }
+
+    /** Prod: >50 user — PIC yang tidak masuk daftar awal (50 nama pertama) tetap tampil namanya, bukan ID-nya. */
+    public function test_edit_form_shows_pic_name_even_outside_the_first_fifty_users(): void
+    {
+        Club61PermissionMatrix::syncAllPermissions('web');
+        $this->actingAs(User::factory()->admin()->create(['name' => 'Admin Club']));
+        User::factory()->count(55)->sequence(fn ($s) => ['name' => 'Aaron Pelanggan '.$s->index])->create();
+        $this->pic->update(['name' => 'Zulkifli Pic Corporate']);
+
+        Livewire::test(EditSponsorOrganization::class, ['record' => $this->org->getRouteKey()])
+            ->assertFormSet(['sponsor_admin_user_id' => $this->pic->id])
+            ->assertSee('Zulkifli Pic Corporate');
+    }
 }

@@ -108,6 +108,8 @@ class SponsorOrganizationResource extends Resource
                             ->orWhere('email', 'like', "%{$search}%")
                             ->limit(20)
                             ->pluck('name', 'id'))
+                        // Daftar awal hanya 50 user: PIC tersimpan di luar daftar itu tetap tampil namanya, bukan ID.
+                        ->getOptionLabelUsing(fn ($value) => User::find($value)?->name)
                         ->required(),
 
                     Select::make('user_membership_id')
