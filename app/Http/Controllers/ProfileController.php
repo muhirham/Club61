@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Services\Customer\CustomerAccountService;
+use App\Services\Customer\CustomerPhoneService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class ProfileController extends Controller
@@ -43,37 +45,45 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(ProfileUpdateRequest $request, CustomerPhoneService $phones): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $validated = $request->validated();
+        // Field tidak dikirim → nomor lama tetap (tidak terhapus diam-diam).
+        if (! array_key_exists('phone', $validated)) {
+            $validated['phone'] = $user->phone;
+        }
+        $user->fill($validated);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        if (! $user->isDirty('phone') || $user->phone === null) {
+            $user->save();
+
+            return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        }
+
+        // Nomor HP baru: dikunci & dicek ulang supaya dua akun tidak menyimpan nomor yang sama bersamaan (Modul 33).
+        $lock = Cache::lock('customer-phone:'.$user->phone, 10);
+        if (! $lock->get()) {
+            throw ValidationException::withMessages(['phone' => __('account.profile.phone_busy')]);
+        }
+
+        try {
+            if ($phones->ownerOf($user->phone, $user->id)) {
+                throw ValidationException::withMessages(['phone' => __('account.profile.phone_taken')]);
+            }
+
+            $user->save();
+        } finally {
+            $lock->release();
+        }
 
         return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
-    /**
-     * Delete the user's account.
-     */
-    public function destroy(Request $request): RedirectResponse
-    {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
-
-        $user = $request->user();
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return Redirect::to('/');
-    }
+    // Hapus akun mandiri ditiadakan (Modul 33): riwayat booking, invoice, membership & voucher tetap melekat ke akun.
+    // Penonaktifan / penghapusan akun hanya lewat admin (Data Pelanggan).
 }

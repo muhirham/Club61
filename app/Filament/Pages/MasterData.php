@@ -108,6 +108,30 @@ class MasterData extends Page
         $this->simDate = now('Asia/Jakarta')->toDateString();
     }
 
+    /** Tanggal simulasi kosong / tidak ada di kalender (mis. 2026-13-01) → kembali ke hari ini, bukan error 500. */
+    public function updatedSimDate(): void
+    {
+        if (self::isValidDate($this->simDate)) {
+            return;
+        }
+
+        if (trim($this->simDate) !== '') {
+            Notification::make()
+                ->title('Tanggal Tidak Valid')
+                ->body('Tanggal "'.$this->simDate.'" tidak ada di kalender. Simulasi dikembalikan ke hari ini.')
+                ->warning()
+                ->send();
+        }
+
+        $this->simDate = now('Asia/Jakarta')->toDateString();
+    }
+
+    /** Format Y-m-d DAN benar-benar ada di kalender (bukan 2026-13-01 / 2026-02-31). */
+    protected static function isValidDate(string $value): bool
+    {
+        return preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $m) === 1 && checkdate((int) $m[2], (int) $m[3], (int) $m[1]);
+    }
+
     public function setActiveTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['courts', 'equipments', 'peak_hours', 'price_rules']) ? $tab : 'courts';
@@ -1005,7 +1029,7 @@ class MasterData extends Page
     {
         $courts = PadelCourt::ordered()->get();
         $court = $courts->firstWhere('id', $this->simCourtId) ?? $courts->firstWhere('is_active', true) ?? $courts->first();
-        $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $this->simDate) === 1 ? $this->simDate : now('Asia/Jakarta')->toDateString();
+        $date = self::isValidDate($this->simDate) ? $this->simDate : now('Asia/Jakarta')->toDateString();
         if (! $court) {
             return ['court' => null, 'date' => $date, 'holiday' => null, 'rows' => []];
         }

@@ -141,7 +141,7 @@ class CoachingBookingTest extends TestCase
 
     public function test_receptionist_books_coaching_at_the_setoran_rate_and_it_is_booked_as_coaching(): void
     {
-        // Tab ketiga sederet "Walk-In Baru | Cari Member | Coaching".
+        // Tab ketiga sederet "Walk-In Baru | Cari Akun | Coaching".
         $page = $this->pos($this->slot($this->courtA, '18'))
             ->assertSee('data-coaching-tab', false)
             ->call('setCustomerMode', 'coaching')

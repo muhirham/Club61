@@ -31,11 +31,11 @@ class CustomerNameRuleTest extends TestCase
 
     public function test_web_registration_rejects_symbols_and_stores_the_tidied_name(): void
     {
-        $this->post('/register', ['name' => 'Andi (Customer)', 'email' => 'a@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
+        $this->post('/register', ['name' => 'Andi (Customer)', 'email' => 'a@example.com', 'phone' => '081234567892', 'password' => 'password', 'password_confirmation' => 'password'])
             ->assertSessionHasErrors(['name' => PersonName::MESSAGE]);
         $this->assertGuest();
 
-        $this->post('/register', ['name' => 'Andi   Wijaya', 'email' => 'a@example.com', 'password' => 'password', 'password_confirmation' => 'password'])
+        $this->post('/register', ['name' => 'Andi   Wijaya', 'email' => 'a@example.com', 'phone' => '081234567892', 'password' => 'password', 'password_confirmation' => 'password'])
             ->assertSessionHasNoErrors();
         $this->assertSame('Andi Wijaya', User::where('email', 'a@example.com')->value('name'));
     }

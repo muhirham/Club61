@@ -77,6 +77,9 @@ class BookOfflineCourt extends Page
 
     public ?string $selectedCustomerPhone = null;
 
+    /** Modul 33: nomor HP yang diisi kasir untuk akun terpilih yang belum punya nomor (saveSelectedCustomerPhone). */
+    public string $selectedCustomerNewPhone = '';
+
     public ?array $activeMembershipInfo = null;
 
     // Toggle kasir: pakai/tidak pakai benefit membership customer ini untuk transaksi sekarang.
@@ -565,7 +568,7 @@ class BookOfflineCourt extends Page
 
     public function setCustomerMode(string $mode): void
     {
-        // Tab ketiga "Coaching" (sederet dengan Walk-In Baru / Cari Member): pemesan diisi seperti Walk-In Baru
+        // Tab ketiga "Coaching" (sederet dengan Walk-In Baru / Cari Akun): pemesan diisi seperti Walk-In Baru
         // (nomor HP lama tetap dikenali), harga memakai tarif coaching.
         if ($mode === 'coaching') {
             if (! $this->canBookCoaching) {
@@ -595,6 +598,7 @@ class BookOfflineCourt extends Page
             $this->selectedCustomerId = $user->id;
             $this->selectedCustomerName = $user->name;
             $this->selectedCustomerPhone = $user->phone;
+            $this->selectedCustomerNewPhone = '';
             $this->customerSearch = '';
 
             $this->loadBenefitInfo($user);
@@ -614,6 +618,7 @@ class BookOfflineCourt extends Page
         $this->selectedCustomerId = null;
         $this->selectedCustomerName = null;
         $this->selectedCustomerPhone = null;
+        $this->selectedCustomerNewPhone = '';
         $this->loadBenefitInfo(null);
         $this->customerSearch = '';
         $this->saveDraft();
@@ -692,7 +697,7 @@ class BookOfflineCourt extends Page
     }
 
     /**
-     * Customer yang benefitnya dihitung di layar: dipilih lewat "Cari Member", atau — di mode Walk-In Baru — akun
+     * Customer yang benefitnya dihitung di layar: dipilih lewat "Cari Akun", atau — di mode Walk-In Baru — akun
      * lama dengan nomor HP yang sama (server memakai akun itu juga saat checkout, lihat findOrCreateWalkInCustomer()).
      */
     protected function benefitCustomer(): ?User
@@ -1515,6 +1520,11 @@ class BookOfflineCourt extends Page
                     ->body('Silakan masukkan nomor WhatsApp / telepon aktif minimal 8 digit.')
                     ->warning()
                     ->send();
+                return;
+            }
+
+            // Modul 33: email milik akun lain → arahkan ke Cari Akun (dicek lagi saat transaksi diproses).
+            if (! $this->walkInEmailAvailable(app(PadelBookingService::class))) {
                 return;
             }
         }

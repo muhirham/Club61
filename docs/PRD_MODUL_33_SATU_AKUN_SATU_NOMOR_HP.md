@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Versi** | v0.1 — PLAN, belum dibangun (menunggu persetujuan) |
+| **Versi** | v0.3 — Tahap 1 DIBANGUN 6 Nov 2026 (belum di-commit); Tahap 2 ditunda (belum digabung, cukup daftar kandidat); Tahap 3 menunggu |
 | **Tanggal** | 5 Nov 2026 |
 | **Terkait** | Modul 01 (Auth), POS Walk-In (BookOfflineCourt / Jual Membership), Modul 12 (Sponsor) |
 
@@ -27,7 +27,7 @@ Akibatnya:
    `deleted_at` NULL (NULL dianggap selalu berbeda). Keunikan hanya dijaga validasi aplikasi, sehingga klik ganda pada
    tombol Daftar bisa membuat dua akun dengan email yang sama.
 4. Nomor yang salah ketik dengan awalan `0` + `62…` (mis. `062819…`) tidak dinormalisasi, jadi tidak pernah cocok
-   dengan `0819…` dan menghasilkan akun baru.
+   dengan `0819…` dan menghasilkan akun baru. (Tidak dinormalisasi otomatis — lihat poin 6 di §3.)
 
 **Nama sama tetapi orangnya berbeda tidak termasuk masalah.** Nama tidak pernah dipakai untuk mencocokkan akun dan
 memang harus tetap terpisah.
@@ -50,18 +50,32 @@ dengan OTP** (sama seperti sekarang).
 
 | # | Perubahan | Rincian |
 |---|---|---|
-| 1 | **Daftar web wajib nomor HP** | Field "No. WhatsApp" di `auth/register`. Dinormalisasi `PhoneNumber::normalize`, unik di antara akun aktif. Akun baru diberi role `customer` (seragam dengan walk-in). Kalau nomornya sudah dimiliki akun lain, pendaftaran ditolak dengan pesan: "Nomor ini sudah punya akun Club 61. Masuk memakai nomor HP. Kalau akun dibuat di kasir, password awalnya 6 digit terakhir nomor HP." |
+| 1 | **Daftar web wajib nomor HP** | Field "No. WhatsApp" di `auth/register`. Dinormalisasi `PhoneNumber::normalize`, unik di antara akun aktif. Akun baru diberi role `customer` (seragam dengan walk-in). Kalau nomornya sudah dimiliki akun lain, pendaftaran ditolak dengan pesan: "Nomor ini sudah punya akun Club 61. Masuk memakai nomor HP. Kalau akun dibuat di kasir, password awalnya 6 digit terakhir nomor HP." Ditambah tombol **WhatsApp resepsionis** (`CompanyProfileSetting::whatsappUrl`, nomor dari Konten Website; tombol tidak tampil kalau nomor kosong) untuk yang lupa password — akun kasir tidak punya email asli untuk reset. |
 | 2 | **Edit Profil: isi / ubah nomor HP** | Field nomor HP di `profile/edit` (unik, dinormalisasi). Tercatat otomatis di Log Aktivitas (kolom `phone` sudah dipantau AuditRegistry). |
-| 2b | **Banner "Lengkapi nomor WhatsApp"** | Muncul di halaman customer untuk akun tanpa nomor HP, dengan tautan ke Edit Profil. Hilang setelah diisi. |
-| 3 | **POS Walk-In Cepat: email bentrok tidak lagi diam-diam** | Kalau email yang diketik kasir sudah dimiliki akun lain, transaksi tidak diproses dan kasir diberi tahu: "Email ini sudah terdaftar atas nama X. Pilih lewat Cari Member." Berlaku di Booking Lapangan, Jual Membership, dan semua kasir yang memakai `ResolvesPosCustomer`. |
-| 4 | **POS Cari Member: kasir bisa mengisi nomor HP** | Kalau akun yang dipilih belum punya nomor HP, muncul isian nomor HP dan nomor itu disimpan ke akun tersebut (unik). Dengan ini akun web dan kunjungan kasir tersambung. |
+| 2b | **Banner "Lengkapi nomor WhatsApp"** | Muncul di **semua halaman customer** (layout customer) untuk akun tanpa nomor HP, dengan tautan ke Edit Profil. Hilang setelah diisi. Tidak tampil di halaman Edit Profil itu sendiri, panel admin, dan akun staf. |
+| 3 | **POS Walk-In Cepat: email bentrok tidak lagi diam-diam** | Kalau email yang diketik kasir sudah dimiliki akun lain, transaksi tidak diproses dan kasir diberi tahu: "Email ini sudah terdaftar atas nama X. Pilih lewat Cari Akun." Berlaku di Booking Lapangan, Jual Membership, dan semua kasir yang memakai `ResolvesPosCustomer`. |
+| 4 | **POS Cari Akun: kasir bisa mengisi nomor HP** | Kalau akun yang dipilih belum punya nomor HP, muncul isian nomor HP dan nomor itu disimpan ke akun tersebut (unik). Dengan ini akun web dan kunjungan kasir tersambung. |
 | 5 | **Anti klik ganda saat daftar** | Tombol Daftar terkunci setelah diklik, dan server memakai `Cache::lock` per email/nomor HP selama proses daftar (web & app), lalu mengecek ulang keunikan di dalam kunci. |
-| 6 | **Normalisasi `062…`** | `062` + nomor seluler (`0628…` dst. dengan panjang nomor HP) dinormalisasi ke `08…`. Akan dicek dulu supaya tidak mengenai kode area telepon rumah. |
+| ~~6~~ | ~~Normalisasi `062…`~~ | **Dibatalkan.** `062x` adalah kode area telepon rumah yang sah di Sumatera Utara (mis. 0622 Pematang Siantar, 0623 Kisaran), jadi mengubahnya otomatis bisa merusak nomor asli. Nomor yang salah ketik dibetulkan manual lewat Data Pelanggan → Edit. |
 
-Yang tidak berubah: akun yang sudah ada, cara login (email / nomor HP), password walk-in 6 digit, alur app Flutter.
+| 7 | **Hapus akun mandiri ditiadakan** (permintaan user 6 Nov) | Tombol "Hapus Akun" di Edit Profil dibuang, rute `DELETE /profile` dihapus (server menolak 405). Riwayat booking, invoice, membership & voucher tetap melekat ke akun; penonaktifan / penghapusan hanya lewat admin. |
+| 8 | **Kasir Jual Membership memakai jalur akun yang sama** | Akun walk-in dari Jual Membership dibuat lewat `findOrCreateWalkInCustomer` (sama dengan kasir lapangan). Dulu nomor HP dicari tanpa dinormalisasi (`0812-…` / `+62…` tidak cocok → akun dobel), email yang sudah dipakai tetap dibuatkan akun kedua, dan password-nya acak (tidak bisa login). Sekarang: nomor dinormalisasi, email bentrok ditolak, password awal 6 digit terakhir HP, role `customer`, `registration_source` WALK_IN. Akun `mbr_…` lama tidak diubah (di produksi per 5 Nov tidak ada). |
 
-Test: daftar web dengan HP baru / HP milik walk-in / HP format `+62`, klik ganda, edit profil HP bentrok, Walk-In Cepat
-dengan email bentrok, Cari Member mengisi HP, banner tampil/hilang.
+Yang tidak berubah: akun yang sudah ada, cara login (email / nomor HP), password walk-in 6 digit, aturan daftar app Flutter
+(hanya ditambah kunci anti ketuk ganda), impor penjualan (`SalesImportService` tetap memakai perilaku lama).
+
+**Implementasi (6 Nov 2026):** `App\Services\Customer\CustomerPhoneService` (cek pemilik nomor, kasir mengisi nomor ke
+akun tanpa nomor — dikunci & dicek ulang, hanya akun customer, tidak menimpa nomor), `RegisteredUserController`
+(nomor wajib + kunci `register:email:*` / `register:phone:*`), `Api\V1\Auth\AuthController::register` (kunci yang sama),
+`ProfileUpdateRequest` + `ProfileController::update` (nomor `sometimes`: tidak dikirim = tetap; sudah ada = tidak bisa
+dikosongkan; dikunci `customer-phone:*`), banner `data-phone-banner` di `layouts/app`, `ResolvesPosCustomer`
+(`walkInEmailAvailable`, `saveSelectedCustomerPhone`; dipakai Booking Lapangan & Jual Membership), partial
+`filament/partials/pos-add-customer-phone`, `findOrCreateWalkInCustomer(..., rejectTakenEmail: true)` untuk kasir.
+Test: `tests/Feature/Auth/OneAccountPerPhoneTest.php`.
+
+Test: daftar web dengan HP baru / HP milik walk-in (pesan + tombol WhatsApp) / HP format `+62`, klik ganda, edit
+profil HP bentrok, Walk-In Cepat dengan email bentrok, Cari Akun mengisi HP, banner tampil di halaman customer &
+hilang setelah HP diisi.
 
 ## 4. Tahap 2 — Alat "Gabungkan Akun" (untuk dobel yang sudah ada)
 
@@ -127,13 +141,14 @@ FROM users WHERE deleted_at IS NULL GROUP BY nama HAVING jumlah > 1;
 
 | Tahap | Isi | Migration | Status |
 |---|---|---|---|
-| 1 | Pencegahan (poin 1–6) | Tidak | Menunggu persetujuan |
-| 2 | Gabungkan Akun | Tidak | Menunggu Tahap 1 + pemetaan kolom lengkap |
+| 1 | Pencegahan (poin 1–5, 7, 8) | Tidak | **Dibangun 6 Nov 2026**, belum di-commit |
+| 2 | Gabungkan Akun | Tidak | **Ditunda** (keputusan user 6 Nov): akun dobel belum digabung, cukup daftar kandidat untuk dicek manual (query §6) |
 | 3 | Unique index aktif | Ya (aditif) | Setelah dobel bersih |
 
-## 8. Pertanyaan terbuka
+## 8. Keputusan (5 Nov 2026)
 
-1. Pesan penolakan daftar web untuk nomor yang sudah dipakai: cukup arahan login, atau ditambah kontak WhatsApp
-   resepsionis?
-2. Siapa yang boleh menggabungkan akun (permission `merge_customer_accounts` diberikan ke role apa)?
-3. Banner "Lengkapi nomor WhatsApp": cukup di Dashboard & Invoice, atau semua halaman customer?
+1. Pesan penolakan daftar web untuk nomor yang sudah dipakai: **arahan login + tombol WhatsApp resepsionis**.
+2. Penggabungan akun: permission `merge_customer_accounts` hanya ditambahkan ke matriks; user meng-assign ke role
+   secara manual (sama seperti permission lain).
+3. Banner "Lengkapi nomor WhatsApp": **semua halaman customer**.
+4. Normalisasi `062…` dibatalkan (lihat §3 poin 6).

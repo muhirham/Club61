@@ -289,6 +289,27 @@ class CourtPriceRuleTest extends TestCase
         $this->assertTrue(ActivityLog::where('event', 'price_rule.deactivated')->exists());
     }
 
+    public function test_invalid_simulation_date_warns_and_falls_back_to_today_instead_of_500(): void
+    {
+        $today = now('Asia/Jakarta')->toDateString();
+
+        foreach (['2026-13-01', '2026-02-31', 'bukan-tanggal'] as $invalid) {
+            Livewire::test(MasterData::class)->call('setActiveTab', 'price_rules')
+                ->set('simDate', $invalid)
+                ->assertOk()
+                ->assertSet('simDate', $today)
+                ->assertNotified('Tanggal Tidak Valid')
+                ->assertSee('Simulasi Harga');
+        }
+
+        // Dikosongkan: kembali ke hari ini tanpa peringatan.
+        Livewire::test(MasterData::class)->call('setActiveTab', 'price_rules')
+            ->set('simDate', '')
+            ->assertOk()
+            ->assertSet('simDate', $today)
+            ->assertNotNotified('Tanggal Tidak Valid');
+    }
+
     public function test_staff_without_pricing_permission_cannot_manage_price_rules(): void
     {
         $rule = $this->rule();

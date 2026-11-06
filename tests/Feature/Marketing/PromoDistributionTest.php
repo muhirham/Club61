@@ -290,7 +290,7 @@ class PromoDistributionTest extends TestCase
 
         // Daftar akun baru dari link promo juga kembali ke promo.
         $this->get(route('promo.claim.auth', ['KLAIM15', 'daftar']))->assertRedirect(route('register'));
-        $this->post('/register', ['name' => 'Pelanggan Baru', 'email' => 'baru@contoh.test', 'password' => 'Password-12345', 'password_confirmation' => 'Password-12345'])
+        $this->post('/register', ['name' => 'Pelanggan Baru', 'email' => 'baru@contoh.test', 'phone' => '081234567893', 'password' => 'Password-12345', 'password_confirmation' => 'Password-12345'])
             ->assertRedirect('/promo/KLAIM15');
         auth()->logout();
 

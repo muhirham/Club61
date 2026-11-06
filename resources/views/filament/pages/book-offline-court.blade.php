@@ -496,14 +496,14 @@
                         style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.6rem;">
                         <span class="pos-section-label" style="margin-bottom:0;">{{ $this->isCoaching ? 'Booking Coaching' : 'Data Customer' }}</span>
                         @if ($posStep === 'selection')
-                            {{-- Satu deret tab: Walk-In Baru | Cari Member | Coaching (Coaching hanya untuk izin book_coaching). --}}
+                            {{-- Satu deret tab: Walk-In Baru | Cari Akun | Coaching (Coaching hanya untuk izin book_coaching). --}}
                             <div class="pos-tab-group">
                                 <button type="button" wire:click="setCustomerMode('quick_create')"
                                     class="pos-tab {{ $customerMode === 'quick_create' && ! $this->isCoaching ? 'active' : '' }}">Walk-In
                                     Baru</button>
                                 <button type="button" wire:click="setCustomerMode('search')"
                                     class="pos-tab {{ $customerMode === 'search' && ! $this->isCoaching ? 'active' : '' }}">Cari
-                                    Member</button>
+                                    Akun</button>
                                 @if ($this->canBookCoaching)
                                     <button type="button" wire:click="setCustomerMode('coaching')" data-coaching-tab
                                         class="pos-tab {{ $this->isCoaching ? 'active' : '' }}">Coaching</button>
@@ -599,10 +599,11 @@
                                     </button>
                                 @endif
                             </div>
+                            @include('filament.partials.pos-add-customer-phone')
                         @else
                             <div style="position:relative;">
                                 <input type="text" wire:model.live.debounce.300ms="customerSearch"
-                                    placeholder="Cari nama atau nomor telp..." class="pos-input" autocomplete="off"
+                                    placeholder="Cari nama, nomor HP, atau email..." class="pos-input" autocomplete="off"
                                     {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 @if (count($searchResults) > 0)
                                     <div
@@ -616,7 +617,11 @@
                                                 <div style="font-weight:800; color:#4F2F2A;">{{ $res->name }}
                                                 </div>
                                                 <div style="font-size:0.625rem; color:#662721;">
-                                                    {{ $res->phone ?? $res->email }}</div>
+                                                    {{ $res->phone ?: 'Belum ada nomor HP' }}
+                                                    @unless (\App\Support\PlaceholderEmail::is($res->email))
+                                                        · {{ $res->email }}
+                                                    @endunless
+                                                </div>
                                             </button>
                                         @endforeach
                                     </div>

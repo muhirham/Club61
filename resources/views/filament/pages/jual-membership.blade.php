@@ -69,7 +69,7 @@
                             </button>
                             <button type="button" wire:click="$set('customerMode', 'search')"
                                 class="pos-tab {{ $customerMode === 'search' ? 'active' : '' }}">
-                                Cari Member Lama
+                                Cari Akun
                             </button>
                         </div>
                     </div>
@@ -86,6 +86,7 @@
                                 Ganti
                             </button>
                         </div>
+                        @include('filament.partials.pos-add-customer-phone')
                     @elseif($customerMode === 'search')
                         <div style="position: relative;">
                             <input type="text" wire:model.live.debounce.300ms="customerSearch"

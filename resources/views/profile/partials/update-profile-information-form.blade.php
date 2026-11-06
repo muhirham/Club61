@@ -47,6 +47,15 @@
             @endif
         </div>
 
+        {{-- Modul 33: nomor HP = identitas di kasir & login. Sudah terisi → tidak bisa dikosongkan. --}}
+        <div>
+            <x-input-label for="phone" :value="__('account.profile.phone')" />
+            <x-text-input id="phone" name="phone" type="tel" inputmode="tel" class="mt-1 block w-full" :value="old('phone', $user->phone)"
+                          :required="filled($user->phone)" autocomplete="tel" placeholder="0812xxxxxxxx" />
+            <p class="mt-1 text-xs text-[#7A5A52]">{{ __('account.profile.phone_hint') }}</p>
+            <x-input-error class="mt-2" :messages="$errors->get('phone')" />
+        </div>
+
         <div class="flex items-center gap-4">
             <x-primary-button>{{ __('account.profile.save') }}</x-primary-button>
 
