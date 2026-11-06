@@ -237,6 +237,40 @@ class OneAccountPerPhoneTest extends TestCase
         $this->assertTrue($new->hasRole('customer'));
     }
 
+    public function test_walk_in_form_shows_who_owns_the_typed_phone_number(): void
+    {
+        $this->actingAs($this->membershipCashier());
+        $this->walkIn('081266660000');
+
+        Livewire::test(BookOfflineCourt::class)
+            ->set('customerMode', 'quick_create')
+            ->set('walkInPhone', '0812-6666-0000')
+            ->assertSee('data-walkin-phone-owner', false)
+            ->assertSee('Budi Kasir')
+            ->set('walkInPhone', '081266669999')
+            ->assertDontSee('data-walkin-phone-owner', false);
+
+        Livewire::test(JualMembership::class)
+            ->set('customerMode', 'quick_create')
+            ->set('walkInPhone', '+62 812 6666 0000')
+            ->assertSee('data-walkin-phone-owner', false)
+            ->assertSee('Budi Kasir');
+    }
+
+    public function test_profile_updates_are_rate_limited(): void
+    {
+        $user = User::factory()->create(['name' => 'Rina Web', 'phone' => null]);
+        $this->actingAs($user);
+
+        for ($i = 1; $i <= 10; $i++) {
+            $this->patch('/profile', ['name' => 'Rina Web', 'email' => $user->email, 'phone' => '0812000099'.str_pad((string) $i, 2, '0', STR_PAD_LEFT)])
+                ->assertStatus(302);
+            $user->forceFill(['phone' => null])->save();
+        }
+
+        $this->patch('/profile', ['name' => 'Rina Web', 'email' => $user->email])->assertStatus(429);
+    }
+
     public function test_cashier_adds_a_phone_to_a_selected_account_without_one(): void
     {
         $this->actingAs($this->membershipCashier());

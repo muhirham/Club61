@@ -90,6 +90,24 @@ trait ResolvesPosCustomer
     }
 
     /**
+     * Modul 33: nomor HP Walk-In yang sudah punya akun → transaksi masuk ke akun itu (nama yang diketik kasir diabaikan).
+     * Nama pemiliknya ditampilkan supaya kasir bisa mencocokkan dengan customer di depannya (nomor HP tidak diverifikasi OTP).
+     *
+     * @return array{name: string, phone: string}|null
+     */
+    public function getWalkInPhoneOwnerProperty(): ?array
+    {
+        if ($this->customerMode === 'search') {
+            return null;
+        }
+
+        $phone = \App\Support\PhoneNumber::normalize((string) $this->walkInPhone);
+        $owner = $phone === null ? null : User::where('phone', $phone)->first(['id', 'name', 'phone']);
+
+        return $owner ? ['name' => (string) $owner->name, 'phone' => (string) $owner->phone] : null;
+    }
+
+    /**
      * Modul 33: email Walk-In Cepat yang sudah milik akun lain (nomor HP belum dikenal) → kasir diberi tahu & diarahkan ke
      * Cari Akun, bukan diam-diam dibuatkan akun kedua.
      */

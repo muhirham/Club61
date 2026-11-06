@@ -519,8 +519,9 @@
                         <div data-coaching-box style="display:flex; flex-direction:column; gap:0.4rem;">
                             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.4rem;">
                                 <input type="text" wire:model="walkInName" placeholder="Atas nama *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                                <input type="tel" wire:model="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                                <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                             </div>
+                            @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
                             <select wire:model.live="coachingCoachId" class="pos-input" style="background:#FFFFFF;" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 <option value="">Pilih coach utama *</option>
                                 @foreach ($this->coachOptions as $coachId => $coachLabel)
@@ -570,9 +571,10 @@
                             <input type="text" wire:model="walkInName" placeholder="Nama Lengkap *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                            <input type="tel" wire:model="walkInPhone" placeholder="No. WhatsApp / Telp *"
+                            <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                            @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
                             <input type="email" wire:model="walkInEmail" placeholder="Email (opsional)"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>

@@ -90,7 +90,6 @@
                                onfocus="this.style.borderColor='#511D18'; this.style.boxShadow='0 0 0 3px rgba(102,39,33,0.25)';"
                                onblur="this.style.borderColor='#E6DAC0'; this.style.boxShadow='none';" />
                     </div>
-                    <p class="mt-1 text-[11px] text-[#7A5A52]">{{ __('account.register.phone_hint') }}</p>
                     <x-input-error :messages="$errors->get('phone')" class="mt-1 text-xs text-rose-600" />
                     @if ($errors->first('phone') === __('account.register.phone_taken'))
                         @php($registerWa = \App\Models\Setting\CompanyProfileSetting::whatsappUrl(__('site.whatsapp_float_message')))
