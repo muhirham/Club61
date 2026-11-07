@@ -45,7 +45,9 @@
             const alignOf = (cs) => (cs.textAlign === 'center' ? 'center' : ((cs.textAlign === 'right' || cs.textAlign === 'end') ? 'right' : 'left'));
             const hasBorder = (style, width) => style !== 'none' && style !== 'hidden' && parseFloat(width) > 0;
             const rule = () => { if (lines.length && lines[lines.length - 1].kind !== 'rule') { lines.push({ kind: 'rule' }); } };
-            const text = (t, cs) => { t = tidy(t); if (t) { lines.push({ kind: 'text', text: t, align: alignOf(cs), bold: isBold(cs), scale: scaleOf(cs) }); } };
+            // data-print-indent="N": semua baris menjorok N kolom; data-print-hang="N": baris sambungan menjorok N kolom.
+            const cols = (el, key) => (el && el.dataset ? parseInt(el.dataset[key], 10) : 0) || 0;
+            const text = (t, cs, el) => { t = tidy(t); if (t) { lines.push({ kind: 'text', text: t, align: alignOf(cs), bold: isBold(cs), scale: scaleOf(cs), indent: cols(el, 'printIndent'), hang: cols(el, 'printHang') }); } };
 
             const walk = (el) => {
                 const cs = getComputedStyle(el);
@@ -55,7 +57,17 @@
                 const kids = Array.from(el.children).filter((k) => ! hidden(k, getComputedStyle(k)));
                 const isRowFlex = cs.display.indexOf('flex') !== -1 && cs.flexDirection.indexOf('column') === -1;
 
-                if (isRowFlex && kids.length >= 2 && cs.justifyContent.indexOf('space-between') !== -1) {
+                if (el.hasAttribute('data-print-pair') && kids.length >= 2) {
+                    // Label lalu nilai rapat kiri ("Waktu  06/11/2026 15:58"); data-print-pair="N" = lebar kolom label.
+                    lines.push({
+                        kind: 'pair',
+                        left: tidy(kids[0].innerText || kids[0].textContent),
+                        right: tidy(kids.slice(1).map((k) => k.innerText || k.textContent).join(' ')),
+                        width: cols(el, 'printPair'),
+                        bold: isBold(cs),
+                        scale: scaleOf(cs),
+                    });
+                } else if (isRowFlex && kids.length >= 2 && cs.justifyContent.indexOf('space-between') !== -1) {
                     const last = kids[kids.length - 1];
                     const styles = kids.map((k) => getComputedStyle(k));
                     lines.push({
@@ -67,7 +79,7 @@
                         scale: Math.max(scaleOf(cs), ...styles.map(scaleOf)),
                     });
                 } else if (isRowFlex || kids.length === 0 || kids.every((k) => getComputedStyle(k).display.indexOf('inline') === 0 || k.tagName === 'BR')) {
-                    String(el.innerText || el.textContent || '').split('\n').forEach((t) => text(t, cs));
+                    String(el.innerText || el.textContent || '').split('\n').forEach((t) => text(t, cs, el));
                 } else {
                     // Campuran: teks lepas di antara blok dicetak sebagai barisnya sendiri.
                     for (const node of el.childNodes) {
@@ -97,13 +109,20 @@
             // Font printer hanya ASCII: titik tengah / tanda pisah → "-", huruf beraksen → huruf biasa, sisanya dibuang.
             const ascii = (s) => String(s || '').replace(/[•·–—]/g, '-').replace(/[“”]/g, '"').replace(/[‘’]/g, "'")
                 .normalize('NFKD').replace(/[^\x20-\x7E]/g, '').replace(/ +/g, ' ').trim();
-            const wrap = (s, width) => {
+            // rest = lebar baris sambungan (bawaan sama dengan baris pertama).
+            const wrap = (s, width, rest) => {
                 const lines = [];
+                const room = () => (lines.length ? (rest || width) : width);
                 let line = '';
                 for (let word of s.split(' ')) {
-                    while (word.length > width) { if (line) { lines.push(line); line = ''; } lines.push(word.slice(0, width)); word = word.slice(width); }
+                    while (word.length > room()) {
+                        if (line) { lines.push(line); line = ''; continue; }
+                        const w = room();
+                        lines.push(word.slice(0, w));
+                        word = word.slice(w);
+                    }
                     if (! word) { continue; }
-                    if (! line) { line = word; } else if (line.length + 1 + word.length <= width) { line += ' ' + word; } else { lines.push(line); line = word; }
+                    if (! line) { line = word; } else if (line.length + 1 + word.length <= room()) { line += ' ' + word; } else { lines.push(line); line = word; }
                 }
                 if (line) { lines.push(line); }
                 return lines.length ? lines : [''];
@@ -139,7 +158,19 @@
                 const big = (l.scale || 1) >= 1.15 || (l.kind === 'row' && /^total\b/i.test(l.left));
                 const o = { bold: l.bold || big, big, align: l.align };
                 if (l.kind === 'row') { twoCol(ascii(l.left), ascii(l.right), { ...o, align: 'left' }); continue; }
+                if (l.kind === 'pair') {
+                    const label = ascii(l.left);
+                    const w = Math.max(label.length + 1, l.width || 0);
+                    if (COLS - w < 8) { twoCol(label, ascii(l.right), { ...o, align: 'left' }); continue; }
+                    wrap(ascii(l.right), COLS - w).forEach((t, i) => push((i ? '' : label).padEnd(w) + t, { ...o, align: 'left' }));
+                    continue;
+                }
                 const text = ascii(l.text);
+                if (l.indent || l.hang) {
+                    const ind = Math.min(l.indent || 0, 8), hang = Math.min(l.hang || 0, 8);
+                    wrap(text, COLS - ind, COLS - ind - hang).forEach((t, i) => push(' '.repeat(ind + (i ? hang : 0)) + t, { ...o, align: 'left' }));
+                    continue;
+                }
                 // "Kasir: Super Admin" → label kiri, nilai rata kanan (gaya struk POS).
                 const m = l.align === 'left' && ! big ? text.match(/^([^:]{1,16}):\s+(.+)$/) : null;
                 if (m && m[1].length + 2 + m[2].length <= COLS) { push(pad(m[1] + ':', m[2]), o); continue; }
@@ -148,17 +179,24 @@
             return out;
         };
 
-        /** Baris struk → byte ESC/POS teks (font A bawaan printer, {{ $paper::COLUMNS }} kolom). */
-        window.club61LayoutToEscPos = function (layout) {
+        /**
+         * Baris struk → byte ESC/POS teks (font A bawaan printer, {{ $paper::COLUMNS }} kolom). leftMargin (titik printer,
+         * GS L) hanya untuk slip stasiun: kertas 58mm di printer 80mm.
+         */
+        window.club61LayoutToEscPos = function (layout, leftMargin) {
             const ESC = 0x1B, GS = 0x1D;
             const align = { left: 0, center: 1, right: 2 };
+            const margin = Math.max(0, Math.min(192, parseInt(leftMargin, 10) || 0));
             const out = [ESC, 0x40, ESC, 0x74, 0x00];
+            // Lebar area cetak dikunci {{ $paper::COLUMNS }} kolom (384 titik) supaya rata tengah / kanan tetap di kertas 58mm.
+            if (margin) { out.push(GS, 0x4C, margin & 0xFF, margin >> 8, GS, 0x57, 0x80, 0x01); }
             for (const l of layout) {
                 out.push(ESC, 0x61, align[l.align] || 0, ESC, 0x45, l.bold ? 1 : 0, GS, 0x21, l.big ? 0x01 : 0x00);
                 for (const ch of l.text) { out.push(ch.charCodeAt(0) & 0x7F); }
                 out.push(0x0A);
             }
             out.push(ESC, 0x61, 0, ESC, 0x45, 0, GS, 0x21, 0);
+            if (margin) { out.push(ESC, 0x40); }             // margin & lebar kembali bawaan untuk cetakan berikutnya
             out.push(ESC, 0x64, {{ $paper::FEED_LINES }});   // sisa kertas untuk disobek
             out.push(GS, 0x56, 0x42, 0x00);                    // potong (diabaikan printer tanpa pemotong)
             return out;
@@ -322,15 +360,16 @@
             setTimeout(() => host.remove(), 20000);
         };
 
-        window.club61Toast = function (message) {
+        // failed = pesan gagal: merah & tampil lebih lama supaya sempat dibaca.
+        window.club61Toast = function (message, failed) {
             const box = document.createElement('div');
-            box.setAttribute('role', 'status');
+            box.setAttribute('role', failed ? 'alert' : 'status');
             box.style.cssText = 'position:fixed;left:50%;bottom:1.5rem;transform:translateX(-50%);z-index:100000;max-width:min(92vw,420px);'
-                + 'background:#065F46;color:#FFFFFF;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,0.25);padding:0.75rem 1.1rem;'
+                + 'background:' + (failed ? '#991B1B' : '#065F46') + ';color:#FFFFFF;border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,0.25);padding:0.75rem 1.1rem;'
                 + 'font:700 14px/1.4 system-ui,sans-serif;text-align:center;';
             box.textContent = message;
             document.body.appendChild(box);
-            setTimeout(() => box.remove(), 3500);
+            setTimeout(() => box.remove(), failed ? 8000 : 3500);
         };
 
         /**
@@ -367,14 +406,25 @@
          * lewat window.Club61Print.postMessage, lalu aplikasinya memanggil window.club61LanPrintResult(id, ok, error).
          * Aplikasi yang sudah mendukung memasang window.Club61Caps = { lanPrint: true } (docs/FLUTTER_LAN_PRINT.md).
          */
+        // Kasir yang memakai BROWSER (PC/laptop, bukan aplikasi Club61): config/station_print.php. 'tablet' = perilaku lama.
+        // Skrip ini juga termuat di halaman login panel → alamat & token agent hanya untuk staf yang sudah login.
+        @php($stationAgent = config('station_print.driver') === 'agent' && auth()->check())
+        window.club61StationPrintConfig = @js(array_filter([
+            'driver' => config('station_print.driver'),
+            'agentUrl' => $stationAgent ? config('station_print.agent_url') : null,
+            'agentToken' => $stationAgent ? config('station_print.agent_token') : null,
+            // Berlaku juga untuk aplikasi Android: printer stasiunnya sama.
+            'leftMargin' => config('station_print.left_margin') ?: null,
+        ]));
+
         window.club61LanPending = {};
         window.club61LanPrintResult = function (id, ok, error) {
             const done = window.club61LanPending[id];
             if (done) { delete window.club61LanPending[id]; done({ ok: !! ok, error: error || null }); }
         };
 
-        /** HTML slip → byte ESC/POS base64 (tata letak yang sama dengan struk RawBT). */
-        window.club61HtmlToEscPosBase64 = function (html) {
+        /** HTML slip dirender sementara di luar layar (gaya terhitung) → fn(daftar slip). */
+        const club61WithSlips = function (html, fn) {
             const host = document.createElement('div');
             host.setAttribute('aria-hidden', 'true');
             host.style.cssText = 'position:fixed;left:-10000px;top:0;width:420px;pointer-events:none;';
@@ -382,20 +432,113 @@
             document.body.appendChild(host);
             try {
                 const slips = Array.from(host.querySelectorAll('[data-print-slip]'));
-                const bytes = [].concat(...(slips.length ? slips : [host.firstElementChild]).map((one) => window.club61LayoutToEscPos(window.club61ReceiptLayout(one))));
-                let binary = '';
-                for (let i = 0; i < bytes.length; i += 4096) { binary += String.fromCharCode.apply(null, bytes.slice(i, i + 4096)); }
-                return btoa(binary);
+                return fn(slips.length ? slips : [host.firstElementChild]);
             } finally {
                 host.remove();
             }
         };
 
+        /** HTML slip → byte ESC/POS base64 (tata letak yang sama dengan struk RawBT). */
+        window.club61HtmlToEscPosBase64 = function (html) {
+            return club61WithSlips(html, (slips) => {
+                const margin = (window.club61StationPrintConfig || {}).leftMargin || 0;
+                const bytes = [].concat(...slips.map((one) => window.club61LayoutToEscPos(window.club61ReceiptLayout(one), margin)));
+                let binary = '';
+                for (let i = 0; i < bytes.length; i += 4096) { binary += String.fromCharCode.apply(null, bytes.slice(i, i + 4096)); }
+                return btoa(binary);
+            });
+        };
+
+        /** HTML slip → teks {{ $paper::COLUMNS }} kolom seperti hasil cetak (pratinjau mode tes). */
+        window.club61HtmlToText = function (html) {
+            const COLS = {{ $paper::COLUMNS }};
+            return club61WithSlips(html, (slips) => slips.map((one) => window.club61ReceiptLayout(one).map((l) => (
+                l.align === 'center' ? ' '.repeat(Math.max(0, Math.floor((COLS - l.text.length) / 2))) + l.text
+                    : (l.align === 'right' ? l.text.padStart(COLS) : l.text)
+            )).join('\n')).join('\n\n'));
+        };
+
+        /**
+         * Slip dari BROWSER (PC kasir): byte ESC/POS dibuat persis seperti di aplikasi (club61HtmlToEscPosBase64), lalu
+         * - agent: dititipkan ke Club61 Print Agent di komputer ini (127.0.0.1) yang meneruskannya ke printer stasiun;
+         * - mock : tidak ke printer — disimpan server (storage/logs/print-mock) & ditampilkan di layar.
+         */
+        window.club61SendFromBrowser = async function (job, wire) {
+            const cfg = window.club61StationPrintConfig || {};
+            if (cfg.driver !== 'agent' && cfg.driver !== 'mock') {
+                return { ok: false, error: 'Kirim ke printer stasiun hanya bisa dari aplikasi Club61 di tablet kasir.' };
+            }
+
+            let data;
+            try { data = window.club61HtmlToEscPosBase64(job.html); } catch (e) { return { ok: false, error: 'Slip gagal disiapkan.' }; }
+
+            if (cfg.driver === 'mock') {
+                if (! wire) { return { ok: false, error: 'Mode tes: halaman kasir tidak ditemukan.' }; }
+                try {
+                    const text = await wire.call('saveMockStationPrint', job.ticket_id, data);
+                    window.club61MockPreview(job.station_name, text);
+                    return { ok: true, error: null };
+                } catch (e) {
+                    return { ok: false, error: 'Mode tes: slip gagal disimpan.' };
+                }
+            }
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 10000);
+            try {
+                const res = await fetch(cfg.agentUrl + '/print', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Club61-Agent-Token': cfg.agentToken || '' },
+                    body: JSON.stringify({ host: job.host, port: job.port || 9100, data_base64: data }),
+                    signal: controller.signal,
+                });
+                let json = {};
+                try { json = await res.json(); } catch (e) {}
+                if (res.ok && json.ok) { return { ok: true, error: null }; }
+                return { ok: false, error: json.error || ('Print agent menolak permintaan (HTTP ' + res.status + ').') };
+            } catch (e) {
+                return { ok: false, error: 'Print agent belum aktif di komputer ini (atau akses jaringan lokal diblokir browser). Jalankan Club61 Print Agent, lalu Coba Lagi.' };
+            } finally {
+                clearTimeout(timer);
+            }
+        };
+
+        /** Mode tes (mock): isi slip yang akan tercetak, ditampilkan di layar. */
+        window.club61MockPreview = function (stationName, text) {
+            const old = document.getElementById('club61-mock-preview');
+            if (old) { old.remove(); }
+            const box = document.createElement('div');
+            box.id = 'club61-mock-preview';
+            box.setAttribute('data-mock-preview', '');
+            box.style.cssText = 'position:fixed;inset:0;z-index:100002;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;padding:1rem;';
+            const card = document.createElement('div');
+            card.style.cssText = 'background:#FFFFFF;border-radius:14px;max-width:min(92vw,420px);max-height:85vh;overflow:auto;padding:1rem;box-shadow:0 12px 30px rgba(0,0,0,0.3);font:600 13px/1.4 system-ui,sans-serif;color:#1F2937;';
+            const title = document.createElement('div');
+            title.style.cssText = 'font-weight:800;margin-bottom:0.5rem;';
+            title.textContent = 'Mode tes — slip ' + stationName + ' (tidak dikirim ke printer)';
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'font:12px/1.35 Consolas,monospace;background:#F9FAFB;border:1px dashed #D1D5DB;border-radius:8px;padding:0.6rem;white-space:pre;overflow:auto;margin:0;';
+            pre.textContent = text;
+            const close = document.createElement('button');
+            close.type = 'button';
+            close.textContent = 'Tutup';
+            close.style.cssText = 'margin-top:0.7rem;float:right;padding:0.4rem 0.9rem;border-radius:9px;border:none;background:#662721;color:#FFFFFF;font-weight:700;cursor:pointer;';
+            close.addEventListener('click', () => box.remove());
+            card.append(title, pre, close);
+            box.appendChild(card);
+            box.addEventListener('click', (e) => { if (e.target === box) { box.remove(); } });
+            document.body.appendChild(box);
+        };
+
         /** Satu slip → printer LAN stasiunnya. Selalu selesai dengan { ok, error } (tidak pernah menggantung). */
-        window.club61SendToStation = function (job) {
+        window.club61SendToStation = function (job, wire) {
             return new Promise((resolve) => {
                 if (! job.host) { resolve({ ok: false, error: 'IP printer stasiun belum diatur (Menu F&B > Stasiun & Printer).' }); return; }
-                if (! window.club61InApp()) { resolve({ ok: false, error: 'Kirim ke printer stasiun hanya bisa dari aplikasi Club61 di tablet kasir.' }); return; }
+                // Browser (bukan aplikasi Club61): Print Agent / mode tes. Jalur aplikasi di bawah tidak berubah.
+                if (! window.club61InApp()) {
+                    window.club61SendFromBrowser(job, wire).then(resolve, () => resolve({ ok: false, error: 'Slip gagal dikirim.' }));
+                    return;
+                }
                 if (! (window.Club61Caps && window.Club61Caps.lanPrint)) { resolve({ ok: false, error: 'Aplikasi Club61 belum versi terbaru (belum bisa kirim ke printer LAN).' }); return; }
 
                 let data;
@@ -459,7 +602,7 @@
         window.club61SendStationJobs = async function (jobs, wire, queueNumber) {
             const failed = [];
             for (const job of jobs) {
-                const result = await window.club61SendToStation(job);
+                const result = await window.club61SendToStation(job, wire);
                 try { if (wire) { await wire.reportStationPrint(job.ticket_id, result.ok, result.error); } } catch (e) {}
                 if (! result.ok) { failed.push({ job, error: result.error || 'Gagal mengirim.' }); }
             }
@@ -476,6 +619,24 @@
             if (! Array.isArray(detail.jobs) || ! detail.jobs.length) { return; }
             const wire = window.Livewire && window.Livewire.find(detail.wireId);
             window.club61SendStationJobs(detail.jobs, wire, detail.queueNumber);
+        });
+
+        // Tombol "Tes Cetak" (Menu F&B > Stasiun & Printer) → { job: { station_name, host, port, html } }. Jalur kirim sama
+        // dengan slip pesanan; tidak ada slip / order yang dicatat.
+        window.addEventListener('club61-station-test-print', async (event) => {
+            const job = (event.detail || {}).job;
+            if (! job) { return; }
+            const cfg = window.club61StationPrintConfig || {};
+            if (! window.club61InApp() && cfg.driver === 'mock') {
+                try { window.club61MockPreview(job.station_name, window.club61HtmlToText(job.html)); } catch (e) { window.club61Toast('Slip tes gagal disiapkan.', true); }
+                return;
+            }
+            const result = await window.club61SendToStation(job, null);
+            if (result.ok) {
+                window.club61Toast('Tes cetak ' + job.station_name + ' terkirim. Periksa hasilnya di printer.');
+            } else {
+                window.club61Toast('Tes cetak ' + job.station_name + ' gagal: ' + (result.error || 'Gagal mengirim.'), true);
+            }
         });
     }
 </script>

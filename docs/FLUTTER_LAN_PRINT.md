@@ -7,6 +7,8 @@ Begitu pesanan F&B lunas:
 
 Server tidak bisa menjangkau printer di jaringan venue, dan browser tidak bisa membuka koneksi ke IP printer. Karena itu yang mengirim adalah aplikasi Flutter di tablet kasir, yang satu WiFi dengan printer.
 
+Kasir yang memakai **browser di PC/laptop** (bukan aplikasi) memakai Club61 Print Agent: lihat `docs/PRINT_AGENT.md`.
+
 Nama stasiun dan IP printernya diatur di **Admin → Menu F&B → tab Stasiun & Printer**.
 
 ## Kontrak web ↔ aplikasi

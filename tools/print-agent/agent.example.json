@@ -1,0 +1,13 @@
+{
+  "port": 9120,
+  "token": "GANTI-DENGAN-TOKEN-ACAK-MINIMAL-24-KARAKTER",
+  "allowed_origins": [
+    "https://GANTI-DOMAIN-PRODUCTION",
+    "https://GANTI-DOMAIN-SANDBOX",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000"
+  ],
+  "printers": [
+    "10.10.2.137:9100"
+  ]
+}
