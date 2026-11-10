@@ -17,15 +17,21 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
  * holdBatchSlots (cek bentrok + jam operasional + kunci slot) → applyMembershipBenefitToCourtBookings (kartu dipilih
  * eksplisit: masa berlaku & jam akses paket dicek, kuota dipotong lewat ledger) → order Rp0 → markOrderAsPaid.
  * Tidak ada uang masuk, jadi tidak butuh shift kasir. Kuota kurang = gagal (tidak pernah jadi tagihan).
+ *
+ * Membership Tagihan Bulanan (Modul 34): tidak memotong kuota — booking dicatat atas nama PIC / pemilik kartu, langsung
+ * terkonfirmasi Rp0, dan masuk rekap jam main yang ditagihkan Finance per bulan.
  */
 trait ManagesRecurringBookings
 {
     public function createRecurringBooking(PadelRecurringSchedule $schedule, string $courtId, string $date, User $actor): PadelBooking
     {
-        $owner = $schedule->membership?->user;
         $balance = $schedule->padelBalance();
-        if (! $owner || ! $balance) {
-            throw new HttpException(422, 'Membership jadwal ini tidak punya kuota jam PADEL.');
+        $monthly = $balance ? null : $schedule->monthlyBillingBalance();
+        $owner = $monthly
+            ? User::find(\App\Services\Membership\MonthlyBilling::bookerId($schedule->membership))
+            : $schedule->membership?->user;
+        if (! $owner || (! $balance && ! $monthly)) {
+            throw new HttpException(422, 'Membership jadwal ini tidak punya kuota jam PADEL atau Tagihan Bulanan.');
         }
 
         // Dibayar kuota jam (bukan harga lapangan) → hanya tanggal tutup yang berlaku, bukan batas tanggal dibuka.
@@ -36,7 +42,7 @@ trait ManagesRecurringBookings
         $bookingIds = collect($hold['bookings'])->pluck('id')->all();
 
         try {
-            return DB::transaction(function () use ($schedule, $courtId, $date, $actor, $owner, $balance, $bookingIds) {
+            return DB::transaction(function () use ($schedule, $courtId, $date, $actor, $owner, $balance, $monthly, $bookingIds) {
                 // Kunci catatan minggu ini: proses lain (tombol admin & perintah terjadwal bersamaan) yang sudah
                 // membuat booking-nya → batalkan hold ini.
                 $occurrence = PadelRecurringOccurrence::where('recurring_schedule_id', $schedule->id)
@@ -52,6 +58,15 @@ trait ManagesRecurringBookings
                     ->where('status', 'LOCKED')->lockForUpdate()->get();
                 if ($bookings->count() !== count($bookingIds)) {
                     throw new HttpException(422, 'Slot yang ditahan sudah tidak berlaku.');
+                }
+
+                if ($monthly) {
+                    \App\Services\Membership\MonthlyBilling::recordBookings($bookings, $monthly, $owner, $actor, 'WALK_IN', 'Jadwal Tetap', 'RECURRING_SCHEDULE', ['recurring_schedule_id' => $schedule->id]);
+
+                    $booking = $bookings->first();
+                    $occurrence->update(['status' => PadelRecurringOccurrence::STATUS_BOOKED, 'booking_id' => $booking->id, 'note' => null]);
+
+                    return $booking->fresh(['court']);
                 }
 
                 $benefit = $this->applyMembershipBenefitToCourtBookings($bookings, $owner, $balance->id);
@@ -145,6 +160,8 @@ trait ManagesRecurringBookings
                 throw new HttpException(422, 'Lapangan tujuan tidak aktif.');
             }
             $b = PadelBooking::with(['court', 'recurringSchedule'])->whereKey($booking->id)->lockForUpdate()->firstOrFail();
+            // Modul 34: booking Tagihan Bulanan (Rp0, tanpa kuota) — dipindah tanpa potong / kembalikan kuota.
+            $isTab = \App\Services\Membership\MonthlyBilling::isTabBooking($b);
 
             if ($b->status !== 'PAID' || ! $b->recurring_schedule_id) {
                 throw new HttpException(422, "Booking {$b->booking_code} berstatus {$b->status}, tidak dipindah.");
@@ -176,15 +193,18 @@ trait ManagesRecurringBookings
             $oldHours = (float) $b->member_hours_consumed;
             $newHours = round($start->diffInMinutes($end) / 60, 2);
             $keptDuration = false;
-            if ($newHours - $oldHours > 0 && (float) $balance->remaining_quota < $newHours - $oldHours) {
+            if (! $isTab && $newHours - $oldHours > 0 && (float) $balance->remaining_quota < $newHours - $oldHours) {
                 // Kuota tidak cukup untuk jam tambahan → durasi lama, jam mulai tetap pindah.
                 $end = $start->copy()->addMinutes((int) round($oldHours * 60));
                 $newHours = $oldHours;
                 $keptDuration = true;
             }
 
-            if (\App\Services\Membership\PadelAccessRule::violation($balance, $start, $end)) {
-                throw new HttpException(422, 'Jam tujuan di luar ketentuan paket member (berlaku: '.\App\Services\Membership\PadelAccessRule::label($balance).').');
+            if ($reason = $isTab
+                ? \App\Services\Membership\MonthlyBilling::unusableReason($balance, $start, $end)
+                : (\App\Services\Membership\PadelAccessRule::violation($balance, $start, $end)
+                    ? 'Jam tujuan di luar ketentuan paket member (berlaku: '.\App\Services\Membership\PadelAccessRule::label($balance).').' : null)) {
+                throw new HttpException(422, $reason);
             }
 
             $open = (int) substr($court->open_time ?: '06:00', 0, 2);
@@ -208,6 +228,36 @@ trait ManagesRecurringBookings
             }
 
             $before = ($b->court?->name ?? '-').', '.$b->booking_date->translatedFormat('D d M Y').' '.$b->start_time->format('H:i').'-'.$b->end_time->format('H:i');
+
+            if ($isTab) {
+                // Tagihan Bulanan: tanpa kuota & tanpa harga — cukup jadwalnya yang pindah (jam main ikut rekap).
+                $this->releaseSlotCacheLocks($b);
+                $b->forceFill([
+                    'court_id' => $court->id,
+                    'booking_date' => $start->toDateString(),
+                    'start_time' => $start,
+                    'end_time' => $end,
+                    'reschedule_count' => (int) $b->reschedule_count + 1,
+                ])->save();
+                \App\Models\Pos\OrderItem::where('order_id', $b->order_id)->where('item_type', 'PADEL')->where('reference_id', $b->id)
+                    ->update(['item_name' => 'Sewa '.$court->name.' · Jadwal Tetap']);
+
+                \App\Services\Audit\ActivityLogger::record(
+                    module: 'PADEL',
+                    event: 'recurring.moved',
+                    description: "Booking {$b->booking_code} ikut perubahan Jadwal Tetap \"{$b->recurringSchedule?->name}\"",
+                    subject: $b,
+                    meta: [
+                        'sebelum' => $before,
+                        'sesudah' => $court->name.', '.$start->translatedFormat('D d M Y').' '.$start->format('H:i').'-'.$end->format('H:i'),
+                        'tagihan_bulanan' => 'ya',
+                    ],
+                    causer: $actor,
+                );
+
+                return ['booking' => $b->fresh(['court']), 'kept_duration' => false];
+            }
+
             $delta = round($newHours - $oldHours, 2);
             if ($delta != 0.0) {
                 app(\App\Services\Membership\MembershipBalanceService::class)->adjustQuota(

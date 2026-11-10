@@ -202,6 +202,9 @@
                                 <template x-if="membershipBenefit.benefit_type === 'HOURS'">
                                     <span>{!! __('checkout.member_hours_html', ['hours' => '<b class="text-[#662721]" x-text="t(\'hr\', { count: membershipBenefit.hours_to_consume })"></b>', 'left' => '<b x-text="t(\'hr\', { count: membershipBenefit.remaining_quota_after })"></b>']) !!}</span>
                                 </template>
+                                <template x-if="membershipBenefit.benefit_type === 'MONTHLY_BILLING'">
+                                    <span x-text="t('member_monthly', { company: membershipBenefit.plan_name })"></span>
+                                </template>
                                 <template x-if="membershipBenefit.benefit_type === 'DISCOUNT_PERCENT'">
                                     <span>{!! __('checkout.member_discount_html', ['percent' => '<b class="text-[#662721]" x-text="membershipBenefit.discount_percent + \'%\'"></b>']) !!}</span>
                                 </template>
@@ -317,7 +320,7 @@
                             <span class="shrink-0 font-bold tabular-nums whitespace-nowrap" x-text="'Rp ' + formatNumber(addonsTotal)"></span>
                         </div>
                         <div x-show="membershipDiscountAmount > 0" class="flex items-start justify-between gap-3 font-bold text-[#662721]">
-                            <span class="min-w-0" x-text="'Membership' + (membershipBenefit ? ' · ' + membershipBenefit.plan_name : '')"></span>
+                            <span class="min-w-0" x-text="membershipBenefit && membershipBenefit.benefit_type === 'MONTHLY_BILLING' ? t('member_monthly_row', { company: membershipBenefit.plan_name }) : 'Membership' + (membershipBenefit ? ' · ' + membershipBenefit.plan_name : '')"></span>
                             <span class="shrink-0 tabular-nums whitespace-nowrap" x-text="'- Rp ' + formatNumber(membershipDiscountAmount)"></span>
                         </div>
                         <div x-show="sponsorVoucherDiscountAmount > 0" class="flex items-start justify-between gap-3 font-bold text-[#4F2F2A]">
@@ -414,7 +417,7 @@
                             <span class="shrink-0 font-bold tabular-nums whitespace-nowrap" x-text="'Rp ' + formatNumber(addonsTotal)"></span>
                         </div>
                         <div x-show="membershipDiscountAmount > 0" class="flex items-start justify-between gap-3 font-bold">
-                            <span class="min-w-0" x-text="'Membership' + (membershipBenefit ? ' · ' + membershipBenefit.plan_name : '')"></span>
+                            <span class="min-w-0" x-text="membershipBenefit && membershipBenefit.benefit_type === 'MONTHLY_BILLING' ? t('member_monthly_row', { company: membershipBenefit.plan_name }) : 'Membership' + (membershipBenefit ? ' · ' + membershipBenefit.plan_name : '')"></span>
                             <span class="shrink-0 tabular-nums whitespace-nowrap" x-text="'- Rp ' + formatNumber(membershipDiscountAmount)"></span>
                         </div>
                         <div x-show="sponsorVoucherDiscountAmount > 0" class="flex items-start justify-between gap-3 font-bold">

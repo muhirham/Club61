@@ -97,6 +97,12 @@ class PadelRecurringSchedule extends Model
         return $balance && $balance->quota_type === 'HOURS' ? $balance : null;
     }
 
+    /** Kartu Padel Tagihan Bulanan jadwal ini (Modul 34): booking dicatat sebagai tagihan, tidak memotong kuota jam. */
+    public function monthlyBillingBalance(): ?UserMembershipBalance
+    {
+        return \App\Services\Membership\MonthlyBilling::balanceOf($this->membership);
+    }
+
     /** Nama pemilik kuota: nama perusahaan untuk corporate, nama member untuk individu. */
     public function ownerLabel(): string
     {

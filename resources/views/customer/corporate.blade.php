@@ -50,6 +50,12 @@
                     </div>
                 @endif
 
+                @if($organization->usesMonthlyBilling())
+                    <div data-monthly-billing class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0] text-xs text-[#7A5A52] leading-relaxed">
+                        <strong>{{ __('corporate.monthly_billing_title') }}</strong> {{ __('corporate.monthly_billing_notice') }}
+                    </div>
+                @endif
+
                 @if(! empty($organization->pic_restricted_actions))
                     <div data-pic-restricted class="p-4 rounded-lg bg-[#FCF8EE] border border-[#E6DAC0] text-xs text-[#7A5A52] leading-relaxed">
                         {{ __('corporate.pic_restricted_notice') }}

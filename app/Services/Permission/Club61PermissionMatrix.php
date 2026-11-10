@@ -482,6 +482,12 @@ class Club61PermissionMatrix
                             'manage_membership_facilities' => 'Kelola Master Fasilitas Membership (tambah fasilitas, nama & deskripsi benefit)',
                         ],
                     ],
+                    'membership_monthly_billing' => [
+                        'label' => 'Tagihan Bulanan Membership',
+                        'actions' => [
+                            'View:TagihanBulanan' => 'Akses Halaman Tagihan Bulanan (Rekap Jam Main, Unduh Excel / PDF & Riwayat Transfer)',
+                        ],
+                    ],
                 ],
             ],
 
@@ -495,6 +501,7 @@ class Club61PermissionMatrix
                             'view_sponsor_organizations' => 'Lihat Daftar Akun Sponsor Corporate',
                             'manage_sponsor_organizations' => 'Kelola (Tambah/Ubah/Hapus) Akun Sponsor Corporate',
                             'grant_corporate_membership' => 'Berikan Paket Membership Corporate Langsung (Tanpa Pembelian)',
+                            \App\Services\Sponsor\CorporateTransfer::PERMISSION => 'Catat Pembayaran Transfer Corporate (Membership Corporate & Tagihan Bulanan) dan Batalkan Pencatatan',
                         ],
                     ],
                     'sponsor_access_schedules' => [

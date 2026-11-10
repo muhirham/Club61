@@ -118,8 +118,8 @@ trait ManagesRescheduleAndCashier
                 try {
                     $quote = $this->quoteReschedule($booking, $court, $slotStart, $slotEnd, $benefitContext);
                 } catch (HttpException $e) {
-                    // Booking coaching: jam tanpa tarif coaching tidak ditawarkan.
-                    if ($booking->coaching_booking_id) {
+                    // Booking coaching: jam tanpa tarif coaching tidak ditawarkan. Tagihan Bulanan: jam di luar ketentuan kartu.
+                    if ($booking->coaching_booking_id || $benefitContext['monthly_balance']) {
                         continue;
                     }
                     throw $e;
@@ -181,6 +181,10 @@ trait ManagesRescheduleAndCashier
     public function quoteReschedule(PadelBooking $booking, PadelCourt $court, Carbon $start, Carbon $end, ?array $benefitContext = null): array
     {
         $benefitContext ??= $this->rescheduleBenefitContext($booking);
+
+        if ($benefitContext['monthly_balance'] ?? null) {
+            return $this->quoteMonthlyReschedule($booking, $court, $start, $end, $benefitContext['monthly_balance']);
+        }
 
         // Tarif normal jadwal baru — jam peak/reguler dari pengaturan Master Data (sama dengan grid & checkout).
         // Booking coaching (Modul 24 Opsi B): tarif setoran coaching jadwal baru (+ coach tambahan), bukan harga reguler.
@@ -247,6 +251,34 @@ trait ManagesRescheduleAndCashier
         ];
     }
 
+    /**
+     * Modul 34 — booking Tagihan Bulanan: Rp0 di jadwal mana pun (harga ditagihkan Finance dari rekap jam main), jadi
+     * tidak ada selisih yang ditagih atau hangus. Jadwal baru di luar ketentuan kartu (masa aktif, hari / jam) → 422,
+     * slotnya tidak ditawarkan.
+     */
+    protected function quoteMonthlyReschedule(PadelBooking $booking, PadelCourt $court, Carbon $start, Carbon $end, \App\Models\Membership\UserMembershipBalance $balance): array
+    {
+        if ($reason = \App\Services\Membership\MonthlyBilling::unusableReason($balance, $start, $end)) {
+            throw new HttpException(422, $reason);
+        }
+
+        return [
+            'gross_new' => 0.0,
+            'member_discount_new' => 0.0,
+            'sponsor_discount_new' => 0.0,
+            'net_new' => 0.0,
+            'paid_court' => (float) $booking->court_fee,
+            'court_delta' => 0.0,
+            'tax' => 0.0,
+            'admin_fee' => 0.0,
+            'total_charge' => 0.0,
+            'forfeited' => 0.0,
+            'member_benefit_dropped' => false,
+            'sponsor_benefit_dropped' => false,
+            'benefit_dropped_reason' => null,
+        ];
+    }
+
     /** Tarif coaching jadwal baru dengan jumlah coach tambahan sesi ini. Jam tanpa tarif → 422. */
     protected function coachingFeeFor(PadelBooking $booking, Carbon $start, Carbon $end): float
     {
@@ -268,7 +300,17 @@ trait ManagesRescheduleAndCashier
      */
     protected function rescheduleBenefitContext(PadelBooking $booking): array
     {
-        $context = ['time_window' => null, 'member_balance' => null, 'member_end_date' => null, 'member_active' => true, 'sponsor_expires_at' => null, 'sponsor_balance' => null];
+        $context = ['time_window' => null, 'member_balance' => null, 'member_end_date' => null, 'member_active' => true, 'sponsor_expires_at' => null, 'sponsor_balance' => null, 'monthly_balance' => null];
+
+        // Modul 34: booking Tagihan Bulanan selalu Rp0 menurut kartunya (bukan proporsi benefit).
+        if ($booking->membership_balance_id && ! $booking->coaching_booking_id) {
+            $balance = \App\Models\Membership\UserMembershipBalance::with('membership.sponsorOrganization')->find($booking->membership_balance_id);
+            if (\App\Services\Membership\MonthlyBilling::forBalance($balance)) {
+                $context['monthly_balance'] = $balance;
+
+                return $context;
+            }
+        }
 
         if ($booking->membership_balance_id && (float) $booking->member_discount_court > 0) {
             $balance = \App\Models\Membership\UserMembershipBalance::with('membership')->find($booking->membership_balance_id);

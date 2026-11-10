@@ -312,6 +312,7 @@ class MembershipBalanceService
                 ->lockForUpdate()->pluck('id');
 
             $balances = 0;
+            $monthly = ['applied' => 0, 'skipped' => []];
             foreach ($plan->benefits as $benefit) {
                 $balances += UserMembershipBalance::whereIn('user_membership_id', $membershipIds)
                     ->where('facility', $benefit->facility)
@@ -323,6 +324,10 @@ class MembershipBalanceService
                         'peak_only' => (bool) $benefit->peak_only,
                         'updated_at' => now(),
                     ]);
+
+                if ($benefit->facility === 'PADEL') {
+                    $this->applyPlanMonthlyBilling($benefit, $membershipIds->all(), $monthly);
+                }
             }
 
             \App\Services\Audit\ActivityLogger::record(
@@ -334,13 +339,60 @@ class MembershipBalanceService
                     'paket' => $plan->name,
                     'membership_aktif' => $membershipIds->count(),
                     'aturan' => $plan->benefits->mapWithKeys(fn ($b) => [$b->facility => PadelAccessRule::label($b) ?? 'tanpa batas'])->all(),
+                    'tagihan_bulanan_diterapkan' => $monthly['applied'] ?: null,
+                    'tagihan_bulanan_dilewati' => $monthly['skipped'] !== [] ? implode(' | ', array_slice($monthly['skipped'], 0, 10)) : null,
                 ]),
                 severity: \App\Services\Audit\ActivityLogger::WARNING,
                 causer: $by,
             );
 
-            return ['memberships' => $membershipIds->count(), 'balances' => $balances];
+            return ['memberships' => $membershipIds->count(), 'balances' => $balances, 'monthly_skipped' => $monthly['skipped']];
         });
+    }
+
+    /**
+     * Modul 34 — samakan pengaturan Tagihan Bulanan kartu dengan paket (bagian dari Terapkan Aturan). Booking yang sudah
+     * tercatat tidak berubah. Dilewati (tidak diubah):
+     *  - kartu yang punya kuota jam Padel → tidak bisa dijadikan Tagihan Bulanan;
+     *  - kartu yang masih punya booking Tagihan Bulanan yang belum dimainkan → Tagihan Bulanan tidak bisa dimatikan
+     *    sebelum booking itu dibatalkan / selesai.
+     *
+     * @param  array<int, string>  $membershipIds
+     * @param  array{applied: int, skipped: array<int, string>}  $result
+     */
+    private function applyPlanMonthlyBilling(\App\Models\Membership\MembershipPlanBenefit $benefit, array $membershipIds, array &$result): void
+    {
+        $planSettings = MonthlyBilling::settings($benefit->extra_benefits);
+        $planValue = $planSettings ? ($benefit->extra_benefits[MonthlyBilling::KEY] ?? null) : null;
+
+        $cards = UserMembershipBalance::with('membership:id,membership_code')->whereIn('user_membership_id', $membershipIds)
+            ->where('facility', 'PADEL')->lockForUpdate()->get();
+        foreach ($cards as $balance) {
+            $cardSettings = MonthlyBilling::settings($balance->extra_benefits);
+            if ($cardSettings == $planSettings) {
+                continue;
+            }
+            $code = $balance->membership?->membership_code ?? $balance->user_membership_id;
+            if ($planSettings && $balance->quota_type === 'HOURS') {
+                $result['skipped'][] = "{$code}: kartu memiliki kuota jam, Tagihan Bulanan tidak diterapkan";
+
+                continue;
+            }
+            if (! $planSettings && \App\Models\Padel\PadelBooking::where('membership_balance_id', $balance->id)
+                ->whereIn('status', ['PAID', 'CHECKED_IN'])->where('end_time', '>', now())->exists()) {
+                $result['skipped'][] = "{$code}: masih ada booking Tagihan Bulanan yang belum dimainkan";
+
+                continue;
+            }
+
+            $extra = (array) $balance->extra_benefits;
+            unset($extra[MonthlyBilling::KEY]);
+            if ($planValue) {
+                $extra[MonthlyBilling::KEY] = $planValue;
+            }
+            $balance->update(['extra_benefits' => $extra]);
+            $result['applied']++;
+        }
     }
 
     /**

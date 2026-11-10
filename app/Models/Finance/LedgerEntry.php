@@ -53,6 +53,7 @@ class LedgerEntry extends Model
         'POS_MEMBERSHIP' => 'POS Membership',
         'ONLINE_MEMBERSHIP' => 'Membership Online',
         'POS_FNB' => 'POS F&B',
+        'CORPORATE_TRANSFER' => 'Transfer Corporate',
         'LAINNYA' => 'Lainnya',
     ];
 

@@ -66,8 +66,10 @@ trait ManagesCheckoutAndPayments
                 throw new HttpException(422, \App\Support\SiteLocale::text('checkout.hold_invalid_minutes', ['minutes' => $bookingTimes->holdMinutes()]));
             }
 
-            // Terapkan kuota atau diskon membership jika ada
-            $membershipBenefitResult = $this->applyMembershipBenefitToCourtBookings($bookings, $user, $membershipBalanceId);
+            // Terapkan kuota atau diskon membership jika ada. Modul 34: PIC perusahaan Tagihan Bulanan → sewa lapangan Rp0
+            // (masuk rekap tagihan bulanan), sisa tagihan (sewa alat, pajak) dibayar seperti biasa.
+            $membershipBenefitResult = $this->applyMonthlyBillingToCourtBookings($bookings, $user, $membershipBalanceId)
+                ?? $this->applyMembershipBenefitToCourtBookings($bookings, $user, $membershipBalanceId);
 
             // Voucher jam sponsor corporate HANYA dipakai untuk booking yang belum ter-cover 100%
             // oleh benefit membership individual di atas — mencegah 1 booking "gratis dobel" dari
@@ -289,6 +291,7 @@ trait ManagesCheckoutAndPayments
                 // 'MEMBERSHIP_QUOTA' walau yang benar-benar menutupnya voucher jam sponsor corporate
                 // (atau kombinasi keduanya), bikin invoice/payment method salah label.
                 $coveredBy = match (true) {
+                    $membershipBenefitResult['benefit_type'] === \App\Services\Membership\MonthlyBilling::METHOD => \App\Services\Membership\MonthlyBilling::METHOD,
                     $membershipBenefitResult['benefit_type'] !== 'NONE' && $sponsorBenefitResult['benefit_type'] !== 'NONE' => 'MEMBERSHIP_AND_SPONSOR_VOUCHER',
                     $sponsorBenefitResult['benefit_type'] !== 'NONE' => 'SPONSOR_VOUCHER',
                     $membershipBenefitResult['benefit_type'] !== 'NONE' => 'MEMBERSHIP_QUOTA',
@@ -935,6 +938,14 @@ trait ManagesCheckoutAndPayments
             return 'Tagihan Berkala Academy (belum dibayar)';
         }
 
+        // Modul 34: booking yang dicatat pada Tagihan Bulanan perusahaan & transfer perusahaan ke rekening Club 61.
+        if (strtoupper((string) $method) === \App\Services\Membership\MonthlyBilling::METHOD) {
+            return \App\Services\Membership\MonthlyBilling::METHOD_LABEL;
+        }
+        if (! empty($payload['corporate_transfer'])) {
+            return \App\Services\Sponsor\CorporateTransfer::LABEL;
+        }
+
         // 1. Metode yang BENAR-BENAR dipakai customer menurut Midtrans (webhook / rekonsiliasi).
         if (!empty($payload['payment_type'])) {
             $pt = strtolower((string) $payload['payment_type']);
@@ -1167,8 +1178,9 @@ trait ManagesCheckoutAndPayments
                     ? app(\App\Services\Coaching\CoachingBookingService::class)->attach($bookings, $coaching, $cashier)
                     : null;
 
-                // Terapkan kuota atau diskon membership jika ada
-                $membershipBenefitResult = $this->applyMembershipBenefitToCourtBookings($bookings, $customer, $membershipBalanceId);
+                // Terapkan kuota atau diskon membership jika ada (Modul 34: PIC Tagihan Bulanan → sewa lapangan Rp0).
+                $membershipBenefitResult = $this->applyMonthlyBillingToCourtBookings($bookings, $customer, $membershipBalanceId)
+                    ?? $this->applyMembershipBenefitToCourtBookings($bookings, $customer, $membershipBalanceId);
 
                 // Voucher jam corporate (karyawan sponsor yang datang langsung) — urutan sama dengan checkout online:
                 // hanya untuk sisa sewa lapangan yang belum ditanggung membership pribadi.
@@ -1261,7 +1273,9 @@ trait ManagesCheckoutAndPayments
                     throw new HttpException(422, 'Voucher tidak menutup seluruh tagihan. Pilih metode pembayaran untuk sisa tagihan.');
                 }
                 if ($coveredByVoucher) {
-                    $paymentMethod = $this->fullyCoveredMethod(
+                    $paymentMethod = $membershipBenefitResult['benefit_type'] === \App\Services\Membership\MonthlyBilling::METHOD
+                        ? \App\Services\Membership\MonthlyBilling::METHOD
+                        : $this->fullyCoveredMethod(
                         byMembership: $membershipBenefitResult['benefit_type'] !== 'NONE',
                         bySponsor: $sponsorBenefitResult['benefit_type'] !== 'NONE',
                         byVoucher: (bool) $voucherResult['voucher'],
@@ -1610,6 +1624,66 @@ trait ManagesCheckoutAndPayments
         return $order;
     }
 
+    /**
+     * Modul 34 — kartu Tagihan Bulanan yang berlaku untuk booking ini: akun = PIC aktif kartu, semua jam main sesuai
+     * ketentuan kartu (masa aktif, perusahaan aktif, aturan akses). 'NONE' (benefit dimatikan) / kartu lain → null.
+     */
+    protected function monthlyBillingCardFor(iterable $bookings, User $user, ?string $membershipBalanceId = null): ?\App\Models\Membership\UserMembershipBalance
+    {
+        if (in_array($membershipBalanceId, ['NONE', 'none'], true)) {
+            return null;
+        }
+        $card = \App\Services\Membership\MonthlyBilling::cardForBooker($user);
+        if (! $card || ($membershipBalanceId && $membershipBalanceId !== (string) $card->id)) {
+            return null;
+        }
+        foreach ($bookings as $b) {
+            if (\App\Services\Membership\MonthlyBilling::unusableReason($card, \Carbon\Carbon::parse($b->start_time), \Carbon\Carbon::parse($b->end_time))) {
+                return null;
+            }
+        }
+
+        return $card;
+    }
+
+    /**
+     * Modul 34 — sewa lapangan PIC dicatat pada Tagihan Bulanan: harga sewa Rp0 & booking ditautkan ke kartu (masuk
+     * rekap jam main), tanpa kuota & tanpa nilai benefit. Bentuk hasil sama dengan applyMembershipBenefitToCourtBookings,
+     * benefit_type MONTHLY_BILLING. null = tidak berlaku (pemanggil memakai benefit membership biasa).
+     */
+    protected function applyMonthlyBillingToCourtBookings(iterable $bookings, User $user, ?string $membershipBalanceId = null, bool $commit = true): ?array
+    {
+        $bookings = collect($bookings);
+        $card = $bookings->isEmpty() ? null : $this->monthlyBillingCardFor($bookings, $user, $membershipBalanceId);
+        if (! $card) {
+            return null;
+        }
+
+        $courtTotal = (float) $bookings->sum('court_fee');
+        if ($commit) {
+            foreach ($bookings as $booking) {
+                $booking->forceFill([
+                    'membership_balance_id' => $card->id,
+                    'member_hours_consumed' => 0,
+                    'member_discount_court' => 0,
+                    'total_amount' => max(0, (float) $booking->total_amount - (float) $booking->court_fee),
+                    'court_fee' => 0,
+                ])->save();
+            }
+        }
+
+        return [
+            'applied_balance' => $card,
+            'hours_consumed' => 0.0,
+            'total_court_discount' => $courtTotal,
+            'benefit_type' => \App\Services\Membership\MonthlyBilling::METHOD,
+            'plan_name' => \App\Services\Membership\MonthlyBilling::billedName($card->membership),
+            'discount_percent' => 0.0,
+            'remaining_quota_after' => null,
+            'rejected_reason' => null,
+            'membership_end_date' => $card->membership?->end_date?->format('Y-m-d'),
+        ];
+    }
     /**
      * Terapkan kuota atau diskon membership pada koleksi booking lapangan padel.
      *
@@ -2072,12 +2146,23 @@ trait ManagesCheckoutAndPayments
             $transient = collect($lines)->map(fn ($l) => (new PadelBooking)->forceFill([
                 'start_time' => $l['start'], 'end_time' => $l['end'], 'court_fee' => $l['normal_fee'], 'total_amount' => $l['normal_fee'],
             ]));
-            $m = $this->applyMembershipBenefitToCourtBookings($transient, $user, $membershipBalanceId, commit: false);
+            $monthly = $this->applyMonthlyBillingToCourtBookings($transient, $user, $membershipBalanceId, commit: false);
+            $m = $monthly ?? $this->applyMembershipBenefitToCourtBookings($transient, $user, $membershipBalanceId, commit: false);
             $membership['rejected_reason'] = $m['rejected_reason'];
             $membership['plan_name'] = $m['plan_name'];
             $membership['access_rule'] = $m['access_rule'] ?? null;
+            $membership['monthly'] = $monthly !== null;
 
-            if ($m['applied_balance'] && ! $m['rejected_reason']) {
+            if ($monthly) {
+                // Modul 34: seluruh sewa lapangan masuk Tagihan Bulanan (bukan diskon / kuota).
+                foreach ($lines as &$l) {
+                    $l['member_discount'] = $l['fee_after'];
+                    $l['fee_after'] = 0.0;
+                }
+                unset($l);
+                $membership['balance_id'] = $monthly['applied_balance']->id;
+                $membership['applies'] = true;
+            } elseif ($m['applied_balance'] && ! $m['rejected_reason']) {
                 $balance = $m['applied_balance'];
                 $remaining = (float) $balance->remaining_quota;
                 foreach ($lines as &$l) {
@@ -2200,7 +2285,8 @@ trait ManagesCheckoutAndPayments
             throw new HttpException(422, \App\Support\SiteLocale::text('checkout.hold_invalid'));
         }
 
-        $result = $this->applyMembershipBenefitToCourtBookings($bookings, $user, $membershipBalanceId, commit: false);
+        $result = $this->applyMonthlyBillingToCourtBookings($bookings, $user, $membershipBalanceId, commit: false)
+            ?? $this->applyMembershipBenefitToCourtBookings($bookings, $user, $membershipBalanceId, commit: false);
 
         $courtSubtotal = (float) $bookings->sum('court_fee');
         $projectedCourtTotal = max(0, $courtSubtotal - $result['total_court_discount']);

@@ -151,6 +151,7 @@ return [
         'below_used_hours' => 'Tidak bisa diset di bawah jam yang sudah terpakai (:hours jam).',
         'organization_suspended' => 'Organisasi :organization sedang ditangguhkan — jam voucher tidak bisa dirilis. Hubungi admin Club 61.',
         'no_padel_quota' => 'Paket corporate organisasi ini tidak punya kuota jam Padel, jadi jam voucher tidak bisa dirilis.',
+        'monthly_billing_no_hours' => 'Paket perusahaan ini memakai Tagihan Bulanan, jadi jam tidak dapat dibagikan ke karyawan.',
         'voucher_used_cannot_delete' => 'Voucher ini sudah pernah terpakai, tidak bisa dihapus. Gunakan koreksi jumlah jam saja.',
         'csv_unreadable' => 'File CSV tidak dapat dibaca.',
         'csv_empty' => 'File CSV kosong.',

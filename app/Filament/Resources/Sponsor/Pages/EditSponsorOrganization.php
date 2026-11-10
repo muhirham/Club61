@@ -13,6 +13,7 @@ class EditSponsorOrganization extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            SponsorOrganizationResource::recordTransferAction(),
             DeleteAction::make(),
         ];
     }

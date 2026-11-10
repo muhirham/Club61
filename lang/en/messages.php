@@ -150,6 +150,7 @@ return [
         'below_used_hours' => 'Cannot be set below the hours already used (:hours hours).',
         'organization_suspended' => ':organization is currently suspended — voucher hours cannot be issued. Please contact Club 61.',
         'no_padel_quota' => 'This company plan has no padel hours, so voucher hours cannot be issued.',
+        'monthly_billing_no_hours' => 'This company plan uses Monthly Billing, so hours cannot be shared with employees.',
         'voucher_used_cannot_delete' => 'This voucher has already been used and cannot be deleted. Please adjust its hours instead.',
         'csv_unreadable' => 'The CSV file cannot be read.',
         'csv_empty' => 'The CSV file is empty.',

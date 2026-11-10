@@ -102,6 +102,106 @@ class SponsorOrganizationService
     }
 
     /**
+     * Pemberian paket corporate yang DIBAYAR perusahaan lewat transfer langsung ke rekening Club 61. Jalurnya sama dengan
+     * pembelian (order MEMBERSHIP → purchasePlan → markOrderAsPaid → aktivasi + organisasi lewat fulfillment), nominal =
+     * harga paket + pajak sesuai Master Data, dibayar CorporateTransfer (tanpa shift kasir) beserta bukti transfer —
+     * jadi tercatat di pembayaran, Buku Transaksi (Membership) & Analitik.
+     *
+     * @param  array<string, mixed>  $transferData  isian CorporateTransfer::formFields()
+     */
+    public function grantCorporateMembershipPaid(User $pic, \App\Models\Membership\MembershipPlan $plan, string $companyName, User $grantedBy, array $transferData): SponsorOrganization
+    {
+        try {
+            if ($plan->ownership_type !== 'ORGANIZATIONAL') {
+                throw new DomainException('Paket yang dipilih bukan paket Corporate / Sponsor (ORGANIZATIONAL).');
+            }
+            if (! $grantedBy->can(CorporateTransfer::PERMISSION)) {
+                throw new DomainException('Anda tidak memiliki izin untuk mencatat pembayaran transfer perusahaan.');
+            }
+            $details = CorporateTransfer::details($transferData, $grantedBy);
+            CorporateTransfer::assertReferenceUnused($details);
+
+            $calc = app(\App\Services\Finance\TaxAndFeeService::class)->calculate(
+                subtotal: (float) $plan->price,
+                discountAmount: 0,
+                channel: 'POS_WALKIN',
+                module: 'MEMBERSHIP'
+            );
+            if ((float) $calc['grand_total'] <= 0) {
+                throw new DomainException('Harga paket Rp0. Gunakan pilihan Tanpa Pembayaran.');
+            }
+
+            return DB::transaction(function () use ($pic, $plan, $companyName, $grantedBy, $details, $calc) {
+                // Kunci akun PIC: dua pemberian bersamaan tidak boleh menerbitkan dua kartu dari satu transfer.
+                User::whereKey($pic->id)->lockForUpdate()->first();
+
+                $order = \App\Models\Pos\Order::create([
+                    'order_number' => 'ORD-CT-MBR-'.strtoupper(\Illuminate\Support\Str::random(8)),
+                    'user_id' => $pic->id,
+                    'cashier_id' => $grantedBy->id,
+                    'order_type' => 'MEMBERSHIP',
+                    'subtotal' => $calc['subtotal'],
+                    'discount_amount' => 0,
+                    'tax_amount' => $calc['tax_amount'],
+                    'service_charge' => $calc['admin_fee_amount'],
+                    'grand_total' => $calc['grand_total'],
+                    'payment_status' => 'UNPAID',
+                ]);
+                $order->items()->create([
+                    'item_type' => 'MEMBERSHIP',
+                    'reference_id' => $plan->id,
+                    'item_name' => 'Membership: '.$plan->name,
+                    'quantity' => 1,
+                    'unit_price' => $plan->price,
+                    'subtotal' => $plan->price,
+                ]);
+
+                $membership = $this->balanceService->purchasePlan($pic, $plan, [
+                    'owner_type' => 'ORGANIZATIONAL',
+                    'status' => 'PENDING_PAYMENT',
+                    'order_id' => $order->id,
+                    'sold_by_admin_id' => $grantedBy->id,
+                ]);
+
+                CorporateTransfer::markPaid($order, (float) $calc['grand_total'], $details, [
+                    'corporate_kind' => CorporateTransfer::KIND_GRANT,
+                    'corporate_company' => trim($companyName),
+                    'corporate_plan' => $plan->name,
+                ]);
+
+                $membership->refresh();
+                if ($membership->status !== 'ACTIVE') {
+                    throw new DomainException('Membership gagal diaktifkan. Transaksi dibatalkan.');
+                }
+                $organization = $this->ensureOrganizationForMembership($membership);
+                $organization->update(['name' => trim($companyName)]);
+
+                \App\Services\Audit\ActivityLogger::record(
+                    module: 'MEMBERSHIP',
+                    event: 'membership.granted_paid',
+                    description: "Memberikan paket corporate \"{$plan->name}\" ke {$pic->name} untuk ".trim($companyName)
+                        .' — dibayar transfer '.\App\Services\Audit\ActivityLogger::rupiah((float) $calc['grand_total']),
+                    subject: $organization,
+                    meta: [
+                        'paket' => $plan->name,
+                        'pic' => $pic->name,
+                        'perusahaan' => trim($companyName),
+                        'transfer' => $details['sender_bank'].' '.$details['reference'].' ('.$details['transfer_date'].')',
+                    ],
+                    severity: \App\Services\Audit\ActivityLogger::WARNING,
+                    causer: $grantedBy,
+                );
+
+                return $organization;
+            });
+        } catch (\Throwable $e) {
+            CorporateTransfer::discardProof($transferData['proof_path'] ?? null);
+
+            throw $e;
+        }
+    }
+
+    /**
      * Tambah anggota tim secara manual (Nama, No HP, jam voucher awal opsional). Kalau nomor
      * HP sudah terdaftar sebagai user, akun itu ditautkan langsung. Kalau belum, dibuatkan akun
      * customer baru dengan password default 6 digit terakhir nomor HP.
@@ -295,7 +395,7 @@ class SponsorOrganizationService
         $balance = $organization->padelHourBalance();
 
         if ($balance === null) {
-            throw new DomainException(SiteLocale::text('corporate.no_padel_quota'));
+            throw new DomainException(SiteLocale::text($organization->usesMonthlyBilling() ? 'corporate.monthly_billing_no_hours' : 'corporate.no_padel_quota'));
         }
 
         $this->balanceService->adjustQuota(

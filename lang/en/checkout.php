@@ -22,7 +22,7 @@ return [
 
     'payment_method' => 'Payment method',
     'payment_method_hint' => 'Paid online — confirmed automatically.',
-    'fully_covered_no_payment' => 'Fully covered — no payment needed.',
+    'fully_covered_no_payment' => 'Fully covered. No payment is required.',
     'no_method' => 'No online payment method is available for this total. Please contact the front desk.',
 
     'payment_summary' => 'Payment Summary',
@@ -108,7 +108,9 @@ return [
         'tax' => 'Tax',
         'choose_method' => 'Choose a payment method',
         'fully_covered' => 'Fully covered',
-        'fully_covered_no_payment' => 'Fully covered — no payment needed',
+        'fully_covered_no_payment' => 'No payment required',
+        'member_monthly' => 'The court fee goes on the :company monthly bill.',
+        'member_monthly_row' => ':company Monthly Billing',
         'via' => 'via :method',
         'online_payment' => 'Online payment',
         'processing' => 'Processing…',

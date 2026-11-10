@@ -22,7 +22,7 @@ return [
 
     'payment_method' => 'Metode Pembayaran',
     'payment_method_hint' => 'Dibayar online — terkonfirmasi otomatis.',
-    'fully_covered_no_payment' => 'Ditanggung penuh — tidak perlu membayar.',
+    'fully_covered_no_payment' => 'Biaya telah ditanggung sepenuhnya. Tidak diperlukan pembayaran.',
     'no_method' => 'Belum ada metode pembayaran online untuk total ini. Silakan hubungi resepsionis.',
 
     'payment_summary' => 'Ringkasan Pembayaran',
@@ -107,8 +107,10 @@ return [
         'service_fee' => 'Biaya Layanan',
         'tax' => 'Pajak',
         'choose_method' => 'Pilih metode pembayaran',
-        'fully_covered' => 'Ditanggung penuh',
-        'fully_covered_no_payment' => 'Ditanggung penuh — tidak perlu membayar',
+        'fully_covered' => 'Ditanggung sepenuhnya',
+        'fully_covered_no_payment' => 'Tidak diperlukan pembayaran',
+        'member_monthly' => 'Sewa lapangan masuk tagihan bulanan :company.',
+        'member_monthly_row' => 'Tagihan Bulanan :company',
         'via' => 'melalui :method',
         'online_payment' => 'Pembayaran online',
         'processing' => 'Memproses…',

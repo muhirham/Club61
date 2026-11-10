@@ -37,7 +37,7 @@ class DailySalesRecapService
     ];
 
     /** Pembayaran yang bukan uang dari payment gateway (kasir, kuota, transfer manual) — tidak masuk bagian "online". */
-    private const NON_ONLINE_GATEWAYS = ['CASHIER_POS', 'MEMBERSHIP_QUOTA', 'TRANSFER_MANUAL'];
+    private const NON_ONLINE_GATEWAYS = ['CASHIER_POS', 'MEMBERSHIP_QUOTA', 'TRANSFER_MANUAL', 'MONTHLY_BILLING', 'CORPORATE_TRANSFER'];
 
     private const TZ = 'Asia/Jakarta';
 
@@ -60,6 +60,7 @@ class DailySalesRecapService
     private const OTHER_SHORT = [
         'CASH' => 'Tunai',
         'MEMBERSHIP_QUOTA' => 'Kuota Membership',
+        'MONTHLY_BILLING' => 'Tagihan Bulanan',
         'SPONSOR_VOUCHER' => 'Voucher Corporate',
         'MEMBERSHIP_AND_SPONSOR_VOUCHER' => 'Kuota + Voucher Corporate',
         'PROMO_VOUCHER' => 'Kode Promo',
