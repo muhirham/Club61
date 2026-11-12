@@ -7,7 +7,7 @@
 | Metadata Dokumen | Spesifikasi |
 | :--- | :--- |
 | **Kode Dokumen** | `PRD-MODUL-24-COACHING-OPSI-B` |
-| **Versi** | `v0.3.0` |
+| **Versi** | `v0.4.0` (11 Nov 2026 — Ganti Coach & toolbar tanggal Jadwal Coaching) |
 | **Status** | **DIPILIH (23 Okt 2026).** Opsi A (`PRD_MODUL_24_COACHING.md`) tidak dikerjakan sekarang. Tahap 1 & 2 dibangun (belum di-commit). |
 | **Sumber** | Diskusi WhatsApp PM, Head IT Mandau & pihak Club 61 (8 Okt 2026); request resepsionis/manager & keputusan owner aplikasi (22–23 Okt 2026). |
 | **Dependensi** | POS Walk-In Booking (`BookOfflineCourt`), Buku Transaksi (Modul 17), Analytics, Reschedule/Refund (Modul 21), Role & Hak Akses (Modul 9). |
@@ -101,5 +101,16 @@ Preset resepsionis: `View:JadwalCoaching`, `book_coaching`. Semua perubahan terc
 
 ---
 
-## 6. Di Luar Lingkup
+## 6. Ganti Coach & Tampilan Jadwal Coaching (11 Nov 2026, tanpa migrasi)
+Latar: coach diganti di lapangan tetapi data tidak bisa diubah, sehingga resepsionis mengingatkan coach yang salah.
+
+- **Ganti Coach** — tombol per sesi di Jadwal Coaching (izin `book_coaching`, dicek ulang di server). Satu pilihan per coach sesi (coach utama / tambahan). Pengganti wajib coach **aktif** dari **academy yang sama** (setoran & tagihan berkala tetap ke academy itu), tidak boleh dipilih dua kali, dan tidak boleh punya sesi lain di jam sesi ini. Berlaku untuk seluruh jam sesi; hanya sesi yang masih berjalan (belum bayar tagihan academy, lunas, sedang main), bukan yang selesai / batal. Alasan opsional.
+- Jumlah coach tetap → harga, pembayaran, Buku Transaksi & setoran tidak berubah. Peran (utama / tambahan) ikut ke coach pengganti.
+- Setelah diganti: Jadwal Coaching, Monitoring Lapangan, pesan pengingat WhatsApp, dan rekap per coach di Analytics memakai coach pengganti. Coach utama selalu disebut lebih dulu.
+- Tercatat di Log Aktivitas (`coaching.coach_changed`: coach lama → baru, jadwal, alasan).
+- **Toolbar tanggal** menggantikan panel filter: **Hari Ini / Besok / Semua Mendatang** + pilihan tanggal, langsung berubah tanpa tombol terapkan, dengan label tanggal & jumlah sesi. Kolom jam & lapangan digabung supaya tombol aksi muat di layar tablet. Keterangan halaman di atas tabel dihapus.
+
+---
+
+## 7. Di Luar Lingkup
 Payout & utang ke coach, akun/portal coach, booking coach oleh customer, pembagian uang coaching, pengingat WhatsApp otomatis (butuh WA gateway), biaya ballboy (belum ada kepastian).

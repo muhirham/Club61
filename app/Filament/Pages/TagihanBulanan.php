@@ -195,8 +195,6 @@ class TagihanBulanan extends Page
             'months' => self::monthOptions(),
             'recap' => $data,
             'transfers' => CorporateTransfer::history(),
-            'sponsorUrl' => \App\Filament\Resources\Sponsor\SponsorOrganizationResource::canViewAny()
-                ? \App\Filament\Resources\Sponsor\SponsorOrganizationResource::getUrl() : null,
         ];
     }
 }

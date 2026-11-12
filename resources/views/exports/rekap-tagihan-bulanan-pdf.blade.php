@@ -102,9 +102,5 @@
             </tr>
         </tbody>
     </table>
-
-    <div class="muted" style="margin-top:10px;">
-        Rekap ini tidak memuat harga. Harga per jam dan tagihan ditentukan serta diterbitkan oleh Finance Club 61.
-    </div>
 </body>
 </html>

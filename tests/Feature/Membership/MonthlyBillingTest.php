@@ -316,7 +316,7 @@ class MonthlyBillingTest extends TestCase
         );
         $booking = $result['bookings']->first();
         $this->assertSame(['PAID', 'WALK_IN', $this->balance->id, MonthlyBilling::METHOD], [$booking->status, $booking->order->order_type, $booking->membership_balance_id, $result['payment_method']]);
-        $this->assertSame('Walk-in Kasir', MonthlyBilling::recap($this->balance, '2026-11')['rows'][0]['source']);
+        $this->assertSame('Walk-in Resepsionis', MonthlyBilling::recap($this->balance, '2026-11')['rows'][0]['source']);
 
         // Customer bukan PIC → tidak ada Tagihan Bulanan.
         $stranger = User::factory()->customer()->create();

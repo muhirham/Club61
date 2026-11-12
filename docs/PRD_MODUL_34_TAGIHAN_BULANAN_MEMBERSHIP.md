@@ -40,7 +40,7 @@ Setiap booking wajib dibayar saat itu juga. Klien korporat ingin memakai slot te
 Booking dibuat atas nama PIC aktif, tidak memotong kuota, order Rp0 lunas dengan metode **"Tagihan Bulanan — ditagihkan oleh Club 61"** (gateway `MONTHLY_BILLING`, tanpa shift).
 
 ### 3.2 PIC booking online
-Ringkasan checkout menampilkan kartu **MEMBER · {perusahaan}** dengan toggle (otomatis aktif untuk PIC kartu aktif yang jam mainnya sesuai ketentuan), keterangan *"Sewa lapangan masuk tagihan bulanan {perusahaan}."*, dan baris **"Tagihan Bulanan {perusahaan} − Rp …"**. Total Rp0 → *"Ditanggung penuh — tidak perlu membayar"* + **Konfirmasi Booking**. Ada sewa alat → alat dibayar online seperti biasa. Toggle dimatikan → harga normal, tidak masuk rekap. Server memeriksa ulang (PIC aktif, masa berlaku, perusahaan aktif, aturan akses). API: tanpa parameter baru — preview mengembalikan `benefit_type = MONTHLY_BILLING`; `membership_balance_id = NONE` mematikannya. Aplikasi Flutter cukup menampilkan benefit dari preview (teks khusus opsional).
+Ringkasan checkout menampilkan kartu **MEMBER · {perusahaan}** dengan toggle (otomatis aktif untuk PIC kartu aktif yang jam mainnya sesuai ketentuan), keterangan *"Sewa lapangan masuk tagihan bulanan {perusahaan}."*, dan baris **"Tagihan Bulanan {perusahaan} − Rp …"**. Total Rp0 → *"Biaya telah ditanggung sepenuhnya. Tidak diperlukan pembayaran."* + **Konfirmasi Booking**. Ada sewa alat → alat dibayar online seperti biasa. Toggle dimatikan → harga normal, tidak masuk rekap. Server memeriksa ulang (PIC aktif, masa berlaku, perusahaan aktif, aturan akses). API: tanpa parameter baru — preview mengembalikan `benefit_type = MONTHLY_BILLING`; `membership_balance_id = NONE` mematikannya. Aplikasi Flutter cukup menampilkan benefit dari preview (teks khusus opsional).
 
 ### 3.3 Resepsionis (POS Walk-In)
 Customer terpilih (Cari Akun) adalah PIC → badge member **"Tagihan Bulanan {perusahaan} • Sewa lapangan masuk tagihan bulanan"** dengan toggle, sama seperti member lain. Sewa lapangan Rp0; sewa alat dibayar EDC / QRIS biasa.
@@ -48,7 +48,7 @@ Customer terpilih (Cari Akun) adalah PIC → badge member **"Tagihan Bulanan {pe
 Label **"Tagihan Bulanan · {perusahaan}"**. Tombol refund disembunyikan; pembatalan memakai **Batalkan Sesi Tagihan** (batas waktu reschedule). Reschedule tanpa selisih harga.
 
 ### 3.5 Halaman "Tagihan Bulanan" (Customer & Membership)
-Pilih perusahaan + periode (tanggal main) → total jam, jam reguler / peak (Master Data), status pembayaran, rincian per booking (status Belum Main / Main / Tidak Hadir, sumber Jadwal Tetap / Booking Online PIC / Walk-in Kasir). **Unduh Excel & PDF** untuk Finance (tanpa harga). Riwayat transfer perusahaan (membership & Tagihan Bulanan) dengan unduh bukti dan Batalkan Pencatatan.
+Pilih perusahaan + periode (tanggal main) → total jam, jam reguler / peak (Master Data), status pembayaran, rincian per booking (status Belum Main / Main / Tidak Hadir, sumber Jadwal Tetap / Booking Online PIC / Walk-in Resepsionis). **Unduh Excel & PDF** untuk Finance (tanpa harga; sejak 11 Nov 2026 tanpa kalimat keterangan harga di PDF dan tanpa kotak keterangan di atas halaman). Riwayat transfer perusahaan (membership & Tagihan Bulanan) dengan unduh bukti dan Batalkan Pencatatan.
 
 ### 3.6 Kelola Sponsor
 - Tombol **"Catat Transfer"** (tabel & halaman Edit Sponsor, izin `record_corporate_transfer`): jenis Tagihan Bulanan (menampilkan ringkasan jam periode terpilih) atau Pembayaran Paket Membership.

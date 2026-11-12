@@ -7,6 +7,7 @@ use App\Models\Coaching\CoachingBooking;
 use App\Models\Padel\PadelBooking;
 use App\Models\Pos\Order;
 use App\Models\User;
+use App\Services\Audit\ActivityLogger;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -22,6 +23,9 @@ class CoachingBookingService
 
     /** Status booking yang masih memakai jadwal coach (sama dengan slot lapangan yang masih hidup). */
     public const ACTIVE_STATUSES = ['LOCKED', 'PENDING_PAYMENT', 'PENDING', 'PAID', 'CHECKED_IN'];
+
+    /** Status slot yang coach-nya masih boleh diganti (belum bayar tagihan academy, lunas, sedang main). */
+    public const CHANGEABLE_STATUSES = ['PENDING_PAYMENT', 'PENDING', 'PAID', 'CHECKED_IN'];
 
     public function __construct(protected CoachingPricingService $pricing) {}
 
@@ -150,5 +154,87 @@ class CoachingBookingService
     public function linkOrder(CoachingBooking $record, Order $order): void
     {
         $record->update(['order_id' => $order->id]);
+    }
+
+    /** @return Collection<int, Coach> coach aktif satu academy yang bisa menggantikan coach ini (termasuk dirinya). */
+    public static function replacementOptions(Coach $coach): Collection
+    {
+        return Coach::query()->where('academy_id', $coach->academy_id)
+            ->where(fn ($q) => $q->where('is_active', true)->orWhere('id', $coach->id))
+            ->with('academy:id,name')->orderBy('sort_order')->orderBy('name')->get();
+    }
+
+    /**
+     * Ganti coach sesi coaching yang sudah dibooking (coach berhalangan / diganti di lapangan). Jumlah coach tetap → harga,
+     * pembayaran & ledger tidak berubah. Pengganti harus coach aktif dari academy yang sama (setoran / tagihan berkala
+     * ditagihkan ke academy) dan kosong di jam sesi ini.
+     *
+     * @param  array<string, string>  $replacements  id coach lama => id coach pengganti
+     */
+    public function changeCoaches(CoachingBooking $record, array $replacements, ?string $reason, User $by): CoachingBooking
+    {
+        if (! $by->can('book_coaching')) {
+            throw new HttpException(403, 'Akses ditolak: Anda tidak memiliki izin [book_coaching] untuk mengganti coach.');
+        }
+
+        return DB::transaction(function () use ($record, $replacements, $reason, $by) {
+            $record = CoachingBooking::whereKey($record->id)->lockForUpdate()->firstOrFail();
+            $slots = $record->bookings()->whereIn('status', self::CHANGEABLE_STATUSES)->orderBy('start_time')->get();
+            if ($slots->isEmpty()) {
+                throw new HttpException(422, 'Coach tidak dapat diganti karena sesi coaching ini sudah selesai atau dibatalkan.');
+            }
+
+            $current = $record->coaches()->get()->keyBy(fn (Coach $c) => (string) $c->id);
+            $replacements = collect($replacements)->mapWithKeys(fn ($new, $old) => [(string) $old => trim((string) $new)]);
+            if ($replacements->keys()->sort()->values()->all() !== $current->keys()->sort()->values()->all() || $replacements->contains('')) {
+                throw new HttpException(422, 'Data coach sesi ini sudah berubah. Muat ulang halaman lalu coba lagi.');
+            }
+            if ($replacements->unique()->count() !== $replacements->count()) {
+                throw new HttpException(422, 'Satu coach tidak boleh dipilih dua kali dalam sesi yang sama.');
+            }
+
+            $changes = $replacements->filter(fn (string $new, string $old) => $new !== $old);
+            if ($changes->isEmpty()) {
+                throw new HttpException(422, 'Belum ada coach yang diganti. Pilih coach pengganti terlebih dahulu.');
+            }
+
+            $newCoaches = Coach::whereIn('id', $changes->values())->get()->keyBy(fn (Coach $c) => (string) $c->id);
+            foreach ($changes as $old => $new) {
+                $coach = $newCoaches[$new] ?? null;
+                if (! $coach || ! $coach->is_active) {
+                    throw new HttpException(422, 'Coach pengganti tidak ditemukan atau sudah nonaktif. Muat ulang halaman lalu pilih lagi.');
+                }
+                if ((string) $coach->academy_id !== (string) $current[$old]->academy_id) {
+                    throw new HttpException(422, "Coach {$coach->name} berasal dari academy lain. Pengganti {$current[$old]->name} harus dari academy yang sama.");
+                }
+            }
+
+            // Hanya coach yang baru masuk sesi ini yang dicek bentrok; slot sesi ini sendiri tidak dihitung.
+            $added = $changes->values()->diff($current->keys())->values()->all();
+            if ($added !== []) {
+                $this->assertCoachesFree($added, $slots->map(fn (PadelBooking $b) => [$b->start_time, $b->end_time]), $slots->pluck('id')->map(fn ($id) => (string) $id)->all());
+            }
+
+            foreach ($changes as $old => $new) {
+                $role = $current[$old]->pivot->role;
+                $record->coaches()->detach($old);
+                $record->coaches()->attach($new, ['role' => $role]);
+                if ($role === 'HEAD') {
+                    $record->update(['head_coach_id' => $new]);
+                }
+            }
+
+            $summary = $changes->map(fn (string $new, string $old) => $current[$old]->name.' → '.$newCoaches[$new]->name)->implode(', ');
+            $first = $slots->first();
+            ActivityLogger::record('COACHING', 'coaching.coach_changed',
+                "Mengganti coach sesi coaching {$first->booking_code}: {$summary}",
+                subject: $record,
+                meta: array_filter(['perubahan' => $summary, 'jadwal' => $first->start_time->format('d/m/Y H:i'), 'alasan' => $reason ? trim(mb_substr($reason, 0, 500)) : null]),
+                causer: $by,
+                subjectLabel: $first->booking_code,
+            );
+
+            return $record->fresh('coaches');
+        });
     }
 }

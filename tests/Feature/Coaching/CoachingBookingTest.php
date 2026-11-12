@@ -311,7 +311,7 @@ class CoachingBookingTest extends TestCase
         $booking = PadelBooking::with(['court', 'user', 'coachingBooking.coaches'])->where('order_id', $result['order']->id)->sole();
 
         Livewire::test(JadwalCoaching::class)
-            ->filterTable('tanggal', ['date' => $this->date])
+            ->set('date', $this->date)
             ->assertCanSeeTableRecords([$booking])
             ->assertSee('Maimun')
             ->assertSee('Murid: Norfita')
@@ -321,7 +321,7 @@ class CoachingBookingTest extends TestCase
         // Jam lewat tanpa check-in (EXPIRED otomatis) tetap tampil di jadwal tanggal itu.
         $booking->update(['status' => 'EXPIRED']);
         Livewire::test(JadwalCoaching::class)
-            ->filterTable('tanggal', ['date' => $this->date])
+            ->set('date', $this->date)
             ->assertCanSeeTableRecords([$booking])
             ->assertSee('Tidak check-in');
 
@@ -409,5 +409,70 @@ class CoachingBookingTest extends TestCase
         $this->assertNull($booking->coach_id);
         $this->assertNull($booking->coaching_booking_id);
         $this->assertEquals(300000, (float) $booking->court_fee, 'harga reguler — tarif coaching hanya dari POS');
+    }
+
+    // ── Ganti coach ────────────────────────────────────────────────────────────────────────────────────────────
+
+    public function test_receptionist_changes_the_coach_of_a_booked_session(): void
+    {
+        $rizki = Coach::create(['academy_id' => $this->maimun->academy_id, 'name' => 'Rizki', 'title' => 'COACH', 'phone' => '081234500003', 'is_active' => true]);
+        $result = $this->coachingCheckout($this->courtA, '08', ['head_coach_id' => $this->maimun->id, 'extra_coach_ids' => [$this->nalda->id], 'students' => [], 'notes' => null]);
+        $booking = PadelBooking::where('order_id', $result['order']->id)->sole();
+        $total = (float) $booking->total_amount;
+
+        Livewire::test(JadwalCoaching::class)
+            ->set('date', $this->date)
+            ->assertTableActionVisible('changeCoach', $booking)
+            ->callTableAction('changeCoach', $booking, data: ['coaches' => [$this->maimun->id => $rizki->id, $this->nalda->id => $this->nalda->id], 'reason' => 'Coach berhalangan'])
+            ->assertHasNoTableActionErrors()
+            ->assertNotified('Coach berhasil diganti.');
+
+        $session = CoachingBooking::with('coaches')->findOrFail($booking->coaching_booking_id);
+        $this->assertSame($rizki->id, $session->head_coach_id);
+        $this->assertEqualsCanonicalizing([$rizki->id, $this->nalda->id], $session->coaches->pluck('id')->all());
+        $this->assertSame('HEAD', $session->coaches->firstWhere('id', $rizki->id)->pivot->role);
+        $this->assertEquals($total, (float) $booking->fresh()->total_amount, 'harga tidak berubah');
+
+        // Pengingat WhatsApp & jadwal ikut coach pengganti.
+        $booking = PadelBooking::with(['court', 'user', 'coachingBooking.coaches'])->findOrFail($booking->id);
+        $message = rawurldecode(CoachingReminder::url($rizki, $booking));
+        $this->assertStringContainsString('Coach: Rizki & Nalda', $message);
+        $this->assertDatabaseHas('activity_logs', ['event' => 'coaching.coach_changed']);
+        $this->assertStringContainsString('Maimun → Rizki', ActivityLog::where('event', 'coaching.coach_changed')->sole()->description);
+    }
+
+    public function test_coach_change_rules(): void
+    {
+        $service = app(\App\Services\Coaching\CoachingBookingService::class);
+        $other = Coach::create(['academy_id' => CoachingAcademy::create(['name' => 'Academy Lain', 'is_active' => true])->id, 'name' => 'Budi', 'title' => 'COACH', 'is_active' => true]);
+        $inactive = Coach::create(['academy_id' => $this->maimun->academy_id, 'name' => 'Tono', 'title' => 'COACH', 'is_active' => false]);
+        $result = $this->coachingCheckout($this->courtA, '08', ['head_coach_id' => $this->maimun->id, 'extra_coach_ids' => [], 'students' => [], 'notes' => null]);
+        $this->coachingCheckout($this->courtB, '08', ['head_coach_id' => $this->nalda->id, 'extra_coach_ids' => [], 'students' => [], 'notes' => null], '081299887701');
+        $booking = PadelBooking::where('order_id', $result['order']->id)->sole();
+        $session = $booking->coachingBooking;
+
+        $expect = function (array $replacements, string $message, ?User $by = null) use ($service, $session) {
+            try {
+                $service->changeCoaches($session, $replacements, null, $by ?? $this->receptionist);
+                $this->fail('Harus ditolak: '.$message);
+            } catch (HttpException $e) {
+                $this->assertStringContainsString($message, $e->getMessage());
+            }
+        };
+
+        $expect([$this->maimun->id => $other->id], 'academy lain');
+        $expect([$this->maimun->id => $inactive->id], 'nonaktif');
+        $expect([$this->maimun->id => $this->nalda->id], 'Coach Nalda sudah punya sesi coaching');
+        $expect([$this->maimun->id => $this->maimun->id], 'Belum ada coach yang diganti');
+        $expect([$this->nalda->id => $this->maimun->id], 'Muat ulang halaman');
+        $expect([$this->maimun->id => $this->nalda->id], 'izin [book_coaching]', User::factory()->cashier()->create(['is_active' => true]));
+        $this->assertSame($this->maimun->id, $session->fresh()->head_coach_id, 'tidak ada yang berubah');
+
+        // Sesi selesai / dibatalkan tidak bisa diganti, tombolnya juga tidak tampil.
+        $booking->update(['status' => 'COMPLETED']);
+        $expect([$this->maimun->id => $inactive->id], 'sudah selesai atau dibatalkan');
+        Livewire::test(JadwalCoaching::class)
+            ->set('date', $this->date)
+            ->assertTableActionHidden('changeCoach', $booking);
     }
 }

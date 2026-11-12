@@ -510,6 +510,7 @@ PRD: [`PRD_MODUL_24_COACHING_OPSI_B_SEWA_LAPANGAN_ACADEMY.md`](PRD_MODUL_24_COAC
   - **API** `GET /api/v1/coaching/coaches` (publik, read-only, sama dengan halaman web).
   - **Link bio** `/links` (publik): tombol diatur di Marketing & Event → Link Bio Instagram (izin `manage_link_bio`, preset admin). Default: Book Court, Lokasi, Admin Coaching, Pricelist (gambar, nonaktif sampai diunggah), Admin Club 61; media sosial dari Konten Website. Tombol tanpa tujuan tidak tampil; link bebas wajib http/https.
   - **Analytics**: Rekap Coaching per Academy (sesi, jam, nilai sewa) & per Coach (sesi utama / tambahan, jam).
+- [x] **Ganti Coach** (11 Nov 2026, tanpa migrasi, PRD §6): tombol per sesi di Jadwal Coaching (izin `book_coaching`); pengganti coach aktif satu academy, tidak bentrok jadwal; harga & pembayaran tidak berubah; pengingat WA, Monitoring & Analytics ikut coach pengganti; tercatat di Log Aktivitas. Jadwal Coaching memakai toolbar Hari Ini / Besok / Semua Mendatang + tanggal (panel filter dihapus), kolom jam & lapangan digabung untuk tablet.
 
 ---
 ## MODUL 28: HASIL MEETING TRAINING (28 OKT 2026)

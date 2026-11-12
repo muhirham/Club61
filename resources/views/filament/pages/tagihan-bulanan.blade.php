@@ -7,17 +7,6 @@
         @endphp
 
         <div class="c61-card">
-            <div class="c61-card-body" style="font-size: 0.8125rem; line-height: 1.55; color: var(--c-muted); padding: 0.9rem 1.25rem;">
-                Rekap jam main paket <b style="color: var(--c-brown);">Tagihan Bulanan</b> perusahaan untuk Finance. Harga per jam dan tagihan
-                ditentukan serta diterbitkan oleh Finance. Pembayaran yang ditransfer perusahaan dicatat melalui
-                <b style="color: var(--c-brown);">Kelola Sponsor → Catat Transfer</b>.
-                @if ($sponsorUrl)
-                    <a href="{{ $sponsorUrl }}" style="color: var(--c-terra); font-weight: 700;">Buka Kelola Sponsor →</a>
-                @endif
-            </div>
-        </div>
-
-        <div class="c61-card">
             <div class="c61-card-body" style="padding: 0.9rem 1.25rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: flex-end;">
                 <div class="c61-field" style="flex: 1 1 260px; margin: 0;">
                     <label class="c61-label">Perusahaan</label>

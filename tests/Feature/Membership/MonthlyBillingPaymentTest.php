@@ -314,7 +314,7 @@ class MonthlyBillingPaymentTest extends TestCase
         $this->assertDatabaseHas('activity_logs', ['event' => 'monthly_bill.recap_exported']);
 
         $html = view('exports.rekap-tagihan-bulanan-pdf', app(MonthlyBillingRecapExport::class)->data($this->balance, '2026-11') + ['printedBy' => 'Finance', 'printedAt' => '-'])->render();
-        foreach (['Rekap Jam Main Tagihan Bulanan', 'Huawei', 'PIC Huawei', 'November 2026', 'Belum dibayar', '6 jam', 'tidak memuat harga'] as $text) {
+        foreach (['Rekap Jam Main Tagihan Bulanan', 'Huawei', 'PIC Huawei', 'November 2026', 'Belum dibayar', '6 jam'] as $text) {
             $this->assertStringContainsString($text, $html);
         }
 

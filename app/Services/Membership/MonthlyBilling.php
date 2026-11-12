@@ -351,7 +351,7 @@ class MonthlyBilling
                     'source' => match (true) {
                         $b->recurring_schedule_id !== null => 'Jadwal Tetap',
                         $b->order?->order_type === 'ONLINE_BOOKING' => 'Booking Online PIC',
-                        default => 'Walk-in Kasir',
+                        default => 'Walk-in Resepsionis',
                     },
                 ];
             });
