@@ -36,6 +36,8 @@ class LedgerWriter
         'GYM' => 'GYM',
         'MERCH' => 'MERCH',
         'SALON' => 'SALON',
+        // Modul 34: pembayaran Tagihan Bulanan perusahaan (rekap jam main sebulan).
+        'MONTHLY_BILL' => 'SEWA_LAPANGAN',
     ];
 
     /** Status pembayaran yang uangnya benar-benar masuk. */
@@ -374,6 +376,8 @@ class LedgerWriter
         $atCounter = ($payment && $this->isCounterPayment($order, $payment)) || $order->cashier_id !== null;
 
         return match (true) {
+            // Transfer perusahaan langsung ke rekening Club 61 (dicatat di Kelola Sponsor, tanpa shift kasir).
+            $payment && strtoupper((string) $payment->payment_gateway) === \App\Services\Sponsor\CorporateTransfer::GATEWAY => 'CORPORATE_TRANSFER',
             $types->contains('MEMBERSHIP') => $atCounter ? 'POS_MEMBERSHIP' : 'ONLINE_MEMBERSHIP',
             $types->contains('FNB') => 'POS_FNB',
             $order->order_type === 'WALK_IN' => 'POS_WALKIN_PADEL',
@@ -430,6 +434,11 @@ class LedgerWriter
 
         $cashierId = $atCounter ? ($log['settled_by'] ?? $log['cashier_id'] ?? $order->cashier_id) : null;
         $cashierName = $atCounter ? ($log['settled_by_name'] ?? $log['cashier_name'] ?? ($cashierId ? User::whereKey($cashierId)->value('name') : null)) : null;
+        // Transfer perusahaan: "kasir" = staf yang mencatat transfernya di Kelola Sponsor.
+        if (! $atCounter && is_array($log['corporate_transfer'] ?? null)) {
+            $cashierId = $log['corporate_transfer']['recorded_by'] ?? null;
+            $cashierName = $log['corporate_transfer']['recorded_by_name'] ?? null;
+        }
 
         return $this->orderSnapshot($order) + [
             'cashier_id' => is_string($cashierId) ? $cashierId : null,

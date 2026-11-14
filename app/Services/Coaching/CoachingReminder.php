@@ -24,7 +24,8 @@ class CoachingReminder
     public static function message(Coach $coach, PadelBooking $booking): string
     {
         $coaching = $booking->coachingBooking;
-        $coachNames = $coaching?->coaches->pluck('name')->implode(' & ') ?: $coach->name;
+        // Coach utama disebut lebih dulu (setelah Ganti Coach, coach pengganti tercatat paling akhir).
+        $coachNames = $coaching?->sortedCoaches()->pluck('name')->implode(' & ') ?: $coach->name;
         $customer = $booking->user;
         $lines = [
             "Halo Coach {$coach->name}, pengingat jadwal coaching di Club 61:",

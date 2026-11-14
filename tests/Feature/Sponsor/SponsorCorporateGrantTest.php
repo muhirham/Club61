@@ -50,6 +50,8 @@ class SponsorCorporateGrantTest extends TestCase
             'company_name' => 'PT Demo Sponsor',
             'pic_user_id' => $pic->id,
             'plan_id' => $this->corporatePlan->id,
+            // Bawaan tombol = Transfer ke Rekening Perusahaan (Modul 34); test ini memakai jalur tanpa pembayaran.
+            'payment' => \App\Filament\Resources\Sponsor\Pages\ListSponsorOrganizations::PAY_NONE,
             'reason' => 'Kontrak sponsor dibayar via transfer korporat.',
         ];
     }

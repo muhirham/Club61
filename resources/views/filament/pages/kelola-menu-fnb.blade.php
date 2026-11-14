@@ -294,6 +294,9 @@
                                 <td><span class="c61-pill {{ $station->is_active ? 'c61-pill-ok' : 'c61-pill-gray' }}">{{ $station->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                                 <td>
                                     <div class="c61-actions">
+                                        @if($station->hasPrinter())
+                                            <button type="button" wire:click="testPrintStation('{{ $station->id }}')" wire:loading.attr="disabled" wire:target="testPrintStation('{{ $station->id }}')" class="fnb-act" data-station-test-print>Tes Cetak</button>
+                                        @endif
                                         <button type="button" wire:click="openEditStationModal('{{ $station->id }}')" class="fnb-act">Edit</button>
                                         <button type="button" x-on:click="$dispatch('club61-confirm', { title: @js('Hapus stasiun '.$station->name.'?'), message: @js($station->menus_count > 0 ? $station->menus_count.' menu di stasiun ini akan dipindah ke '.\App\Models\Fnb\FnbStation::CASHIER_LABEL.'. Riwayat slip lama tetap tersimpan.' : 'Stasiun akan dihapus dari daftar.'), confirmLabel: 'Ya, Hapus', tone: 'danger', onConfirm: () => $wire.deleteStation(@js($station->id)) })" class="fnb-act fnb-act-danger">Hapus</button>
                                     </div>

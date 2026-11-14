@@ -729,6 +729,36 @@ class KelolaMenuFnb extends Page
         });
     }
 
+    /**
+     * Tombol "Tes Cetak": slip tes ke printer stasiun lewat jalur yang sama dengan slip pesanan (aplikasi / Print Agent /
+     * mode tes, pos.partials.receipt-print-script). Memakai IP & port yang sudah tersimpan; tidak mencatat slip apa pun.
+     */
+    public function testPrintStation(string $stationId): void
+    {
+        $this->authorizeManage();
+
+        $station = FnbStation::find($stationId);
+        if (! $station || ! $station->hasPrinter()) {
+            Notification::make()->title('IP printer stasiun belum diisi')->warning()->send();
+
+            return;
+        }
+
+        $margin = (int) config('station_print.left_margin');
+        $this->dispatch('club61-station-test-print', job: [
+            'station_name' => $station->name,
+            'host' => $station->printer_host,
+            'port' => (int) ($station->printer_port ?: 9100),
+            'html' => view('pos.receipts.fnb-station-test-slip', [
+                'stationName' => $station->name,
+                'printer' => $station->printer_host.':'.($station->printer_port ?: 9100),
+                'margin' => $margin > 0 ? $margin.' titik' : 'Tidak digeser',
+                'printedAt' => now('Asia/Jakarta')->format('d/m/Y H:i'),
+                'printedBy' => auth()->user()->name,
+            ])->render(),
+        ]);
+    }
+
     public function getStationsProperty(): Collection
     {
         return FnbStation::withCount('menus')->orderBy('sort_order')->orderBy('name')->get();

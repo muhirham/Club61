@@ -195,6 +195,19 @@ class MembershipOnlinePaymentService
                 }
 
                 $this->close($membership, 'ABANDONED_ONLINE_ORDER');
+                // Lunas di sela-sela (close tidak membatalkan) → tidak dicatat sebagai batal.
+                if ($membership->fresh()?->status !== 'CANCELLED') {
+                    return;
+                }
+                $order = $membership->order;
+                ActivityLogger::record(
+                    module: 'MEMBERSHIP',
+                    event: 'membership.online_order_expired',
+                    description: "Pesanan membership {$order->order_number} dibatalkan otomatis karena tidak dibayar dalam ".self::STALE_HOURS.' jam',
+                    subject: $order,
+                    meta: ['order_number' => $order->order_number, 'paket' => $membership->plan?->name, 'pelanggan' => $order->user?->name],
+                    asSystem: true,
+                );
                 $count++;
             });
 

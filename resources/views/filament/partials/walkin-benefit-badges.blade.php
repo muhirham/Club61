@@ -13,7 +13,9 @@
             <span>{{ $activeMembershipInfo['plan_name'] }}</span>
             <span>•</span>
             <span>
-                @if ($activeMembershipInfo['quota_type'] === 'HOURS')
+                @if ($activeMembershipInfo['quota_type'] === \App\Services\Membership\MonthlyBilling::METHOD)
+                    Sewa lapangan masuk tagihan bulanan
+                @elseif ($activeMembershipInfo['quota_type'] === 'HOURS')
                     Sisa: {{ $fmtJam($activeMembershipInfo['remaining_quota']) }} Jam
                 @elseif ($activeMembershipInfo['discount_percent'] > 0)
                     Diskon {{ $activeMembershipInfo['discount_percent'] }}%

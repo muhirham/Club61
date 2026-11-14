@@ -9,6 +9,7 @@ use App\Models\Membership\MembershipFacility;
 use App\Models\Membership\MembershipPlan;
 use App\Services\Membership\MembershipBalanceService;
 use App\Services\Membership\MembershipFacilityService;
+use App\Services\Membership\MonthlyBilling;
 use App\Services\Membership\PadelAccessRule;
 use BackedEnum;
 use Filament\Actions\Action;
@@ -31,6 +32,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -122,7 +124,13 @@ class MembershipPlanResource extends Resource
                                     'ORGANIZATIONAL' => 'Organizational (Perusahaan / Sponsor)',
                                 ])
                                 ->default('INDIVIDUAL')
-                                ->required(),
+                                ->required()
+                                // Modul 34: Tagihan Bulanan dibayar perusahaan & dicatat di Kelola Sponsor → hanya paket Organisasi.
+                                ->rule(fn (Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                    if ($value !== 'ORGANIZATIONAL' && collect((array) $get('benefits'))->contains(fn ($b) => ! empty($b['monthly_billing_enabled']))) {
+                                        $fail('Tagihan Bulanan hanya untuk paket Organizational (Perusahaan / Sponsor).');
+                                    }
+                                }),
 
                             TextInput::make('duration_days')
                                 ->label('Masa Aktif (Hari)')
@@ -148,6 +156,12 @@ class MembershipPlanResource extends Resource
                                 ->default(MembershipPlan::SALES_ALL)
                                 ->selectablePlaceholder(false)
                                 ->required()
+                                // Modul 34: kartu Tagihan Bulanan = booking tanpa bayar di muka → hanya diberikan staf, tidak dijual online.
+                                ->rule(fn (Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                    if ($value !== MembershipPlan::SALES_POS_ONLY && collect((array) $get('benefits'))->contains(fn ($b) => ! empty($b['monthly_billing_enabled']))) {
+                                        $fail('Paket dengan Tagihan Bulanan hanya dapat dijual melalui Front Desk / Admin. Pilih "Khusus Front Desk / Admin".');
+                                    }
+                                })
                                 ->helperText('Pilih "Khusus Front Desk / Admin" untuk paket kontrak (mis. corporate): paket tidak ditampilkan dan tidak dapat dibeli melalui web maupun aplikasi. Membership yang sudah terjual tidak terpengaruh.'),
                         ]),
 
@@ -176,6 +190,9 @@ class MembershipPlanResource extends Resource
                     ->schema([
                         Repeater::make('benefits')
                             ->relationship('benefits')
+                            // Tagihan Bulanan (Modul 34) disimpan di extra_benefits.monthly_billing hanya bila dicentang.
+                            ->mutateRelationshipDataBeforeCreateUsing(fn (array $data) => self::normalizeMonthlyBilling($data))
+                            ->mutateRelationshipDataBeforeSaveUsing(fn (array $data) => self::normalizeMonthlyBilling($data))
                             ->itemLabel(fn (array $state): ?string => isset($state['facility'])
                                 ? 'Benefit: '.app(MembershipFacilityService::class)->name($state['facility'])
                                 : 'Benefit Fasilitas')
@@ -196,6 +213,11 @@ class MembershipPlanResource extends Resource
                                     ->options(fn (Get $get) => self::quotaTypes($get))
                                     ->in(fn (Get $get) => array_keys(self::quotaTypes($get)))
                                     ->required()
+                                    ->rule(fn (Get $get) => function (string $attribute, $value, \Closure $fail) use ($get) {
+                                        if (self::isMonthly($get) && $value !== 'NONE') {
+                                            $fail('Paket Tagihan Bulanan tidak memakai kuota jam. Pilih tipe kuota "Tanpa Kuota".');
+                                        }
+                                    })
                                     ->live(),
 
                                 TextInput::make('quota_value')
@@ -216,9 +238,9 @@ class MembershipPlanResource extends Resource
                                     ->maxValue(100)
                                     ->default(0)
                                     ->suffix('%')
-                                    ->visible(fn (Get $get) => ! self::isInfo($get))
+                                    ->visible(fn (Get $get) => ! self::isInfo($get) && ! self::isMonthly($get))
                                     ->dehydratedWhenHidden()
-                                    ->dehydrateStateUsing(fn ($state, Get $get) => self::isInfo($get) ? 0 : (float) ($state ?: 0)),
+                                    ->dehydrateStateUsing(fn ($state, Get $get) => self::isInfo($get) || self::isMonthly($get) ? 0 : (float) ($state ?: 0)),
 
                                 TextInput::make('booking_priority_days')
                                     ->label('Prioritas Booking (Hari Lebih Awal)')
@@ -299,6 +321,25 @@ class MembershipPlanResource extends Resource
                                 Hidden::make('peak_only')
                                     ->dehydrateStateUsing(fn ($state, Get $get) => self::isPadel($get) && $get('access_mode') === 'PEAK'),
 
+                                // Modul 34 — Tagihan Bulanan: booking PIC langsung terkonfirmasi Rp0 dan direkap per bulan; harga per
+                                // jam ditentukan & ditagihkan Finance di luar sistem.
+                                Toggle::make('monthly_billing_enabled')
+                                    ->label('Tagihan Bulanan')
+                                    ->helperText('Khusus paket Organisasi. Booking PIC langsung terkonfirmasi tanpa pembayaran dan direkap per bulan; harga per jam ditentukan dan ditagihkan oleh Finance. Paket ini tidak memakai kuota jam maupun diskon, dan jam tidak dapat dibagikan ke karyawan.')
+                                    ->live()
+                                    ->dehydrated(false)
+                                    ->afterStateHydrated(fn (Toggle $component, Get $get) => $component->state(MonthlyBilling::settings((array) $get('extra_benefits')) !== null))
+                                    ->afterStateUpdated(function ($state, Set $set) {
+                                        if ($state) {
+                                            $set('quota_type', 'NONE');
+                                        }
+                                    })
+                                    ->visible(fn (Get $get) => self::isPadel($get))
+                                    ->columnSpanFull(),
+
+                                Hidden::make('extra_benefits.'.MonthlyBilling::KEY.'.enabled')
+                                    ->dehydrateStateUsing(fn ($state, Get $get) => self::isMonthly($get) ? true : null),
+
                                 TextInput::make('extra_benefits.note')
                                     ->label('Catatan untuk Customer (opsional)')
                                     ->placeholder('Contoh: Termasuk handuk & loker')
@@ -328,6 +369,33 @@ class MembershipPlanResource extends Resource
     private static function isPadel(Get $get): bool
     {
         return self::mode($get) === MembershipFacility::MODE_PADEL_BOOKING;
+    }
+
+    private static function isMonthly(Get $get): bool
+    {
+        return self::isPadel($get) && (bool) $get('monthly_billing_enabled');
+    }
+
+    /**
+     * Simpan penanda Tagihan Bulanan hanya untuk fasilitas Padel yang dicentang. Tidak dicentang / fasilitas lain → kunci
+     * monthly_billing dihapus (catatan customer tetap).
+     */
+    private static function normalizeMonthlyBilling(array $data): array
+    {
+        $extra = (array) ($data['extra_benefits'] ?? []);
+        $isPadel = app(MembershipFacilityService::class)->mode($data['facility'] ?? null) === MembershipFacility::MODE_PADEL_BOOKING;
+        $settings = $isPadel ? MonthlyBilling::settings($extra) : null;
+        unset($extra[MonthlyBilling::KEY]);
+
+        if ($settings) {
+            $extra[MonthlyBilling::KEY] = ['enabled' => true];
+            $data['quota_type'] = 'NONE';
+            $data['quota_value'] = null;
+            $data['discount_percent'] = 0;
+        }
+        $data['extra_benefits'] = $extra;
+
+        return $data;
     }
 
     private const ACCESS_MODES = [
@@ -403,7 +471,10 @@ class MembershipPlanResource extends Resource
     /** @return array<string, string> */
     private static function quotaTypes(Get $get): array
     {
-        return app(MembershipFacilityService::class)->quotaTypesFor(self::mode($get));
+        $types = app(MembershipFacilityService::class)->quotaTypesFor(self::mode($get));
+
+        // Tagihan Bulanan tidak memakai kuota jam → hanya "Tanpa Kuota" yang dapat dipilih selama dicentang.
+        return self::isMonthly($get) && isset($types['NONE']) ? ['NONE' => 'Tanpa Kuota (Tagihan Bulanan)'] : $types;
     }
 
     public static function table(Table $table): Table
@@ -491,15 +562,19 @@ class MembershipPlanResource extends Resource
             ->authorize(fn () => (bool) auth()->user()?->can('apply_membership_plan_rules'))
             ->requiresConfirmation()
             ->modalHeading(fn (MembershipPlan $record) => 'Terapkan aturan '.$record->name.' ke membership aktif?')
-            ->modalDescription(fn (MembershipPlan $record) => 'Aturan akses paket saat ini (jam akses, hari berlaku, dan jam peak) akan diterapkan pada '
+            ->modalDescription(fn (MembershipPlan $record) => 'Aturan akses paket saat ini (jam akses, hari berlaku, dan jam peak) serta pengaturan Tagihan Bulanan akan diterapkan pada '
                 .app(MembershipBalanceService::class)->membershipsFollowingPlan($record).' membership yang aktif atau menunggu pembayaran. '
                 .'Kuota, diskon, masa aktif, serta booking yang sudah dibuat tidak berubah.')
             ->modalSubmitActionLabel('Ya, terapkan')
             ->action(function (MembershipPlan $record) {
                 $result = app(MembershipBalanceService::class)->applyPlanAccessRules($record, auth()->user());
+                $skipped = $result['monthly_skipped'] ?? [];
                 Notification::make()->title('Aturan paket diterapkan')
-                    ->body("{$result['memberships']} membership kini mengikuti aturan terbaru paket {$record->name}.")
-                    ->success()->send();
+                    ->body("{$result['memberships']} membership kini mengikuti aturan terbaru paket {$record->name}."
+                        .($skipped !== [] ? ' Tagihan Bulanan tidak diubah pada '.count($skipped).' kartu: '.implode('; ', array_slice($skipped, 0, 5)).'.' : ''))
+                    ->{$skipped !== [] ? 'warning' : 'success'}()
+                    ->persistent($skipped !== [])
+                    ->send();
             });
     }
 

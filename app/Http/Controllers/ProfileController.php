@@ -85,5 +85,5 @@ class ProfileController extends Controller
     }
 
     // Hapus akun mandiri ditiadakan (Modul 33): riwayat booking, invoice, membership & voucher tetap melekat ke akun.
-    // Penonaktifan / penghapusan akun hanya lewat admin (Data Pelanggan).
+    // Penonaktifan / penghapusan akun hanya lewat admin (Akun Login).
 }

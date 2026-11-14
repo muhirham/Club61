@@ -29,7 +29,7 @@
         <table style="width:100%; border-collapse:collapse;">
             <tr><td style="{{ $cell }} width:34%; opacity:0.7;">Pelaku</td>
                 <td style="{{ $cell }} font-weight:700;">
-                    {{ $log->causer_name ?? (LogAktivitas::ACTOR_TYPES[$log->actor_type] ?? $log->actor_type) }}
+                    {{ LogAktivitas::actorName($log) }}
                     @if($log->causer_role) <span style="font-weight:400; opacity:0.7;">({{ $log->causer_role }})</span> @endif
                 </td></tr>
             <tr><td style="{{ $cell }} opacity:0.7;">Jenis pelaku</td><td style="{{ $cell }}">{{ LogAktivitas::ACTOR_TYPES[$log->actor_type] ?? $log->actor_type }}</td></tr>

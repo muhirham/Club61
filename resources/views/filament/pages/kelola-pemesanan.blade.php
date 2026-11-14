@@ -191,7 +191,10 @@
                                     {{ $b->end_time->format('H:i') }} WIB</div>
                             </td>
                             <td>
-                                @if ($b->status === 'PAID')
+                                @if ($this->isMonthlyTab($b))
+                                    <span class="c61-pill c61-pill-cream" style="white-space: normal; height: auto; padding: 0.2rem 0.6rem;"
+                                        title="Terkonfirmasi. Biaya sewa ditagihkan oleh Club 61 melalui Tagihan Bulanan perusahaan">Tagihan Bulanan · {{ $this->monthlyTabName($b) }}</span>
+                                @elseif ($b->status === 'PAID')
                                     <span class="c61-pill c61-pill-ok">Confirmed / Lunas</span>
                                 @elseif($b->status === 'PENDING_PAYMENT' && $b->coachingBooking?->isTab())
                                     <span class="c61-pill c61-pill-cream" style="white-space: normal; height: auto; padding: 0.2rem 0.6rem;"
@@ -255,7 +258,7 @@
                             </td>
                             <td>
                                 <div class="c61-actions">
-                                    @if ($this->canSettle && $b->order_id && ! $b->coachingBooking?->isTab() && ($b->status === 'PENDING_PAYMENT' || ($b->status === 'LOCKED' && $pendingAmount > 0)))
+                                    @if ($this->canSettle && $b->order_id && ! $b->coachingBooking?->isTab() &&  ($b->status === 'PENDING_PAYMENT' || ($b->status === 'LOCKED' && $pendingAmount > 0)))
                                         <button type="button" wire:click="checkMidtransPayment('{{ $b->id }}')"
                                             wire:loading.attr="disabled" title="Cek Status Pembayaran ke Gateway"
                                             class="c61-icon-btn is-info">
@@ -391,7 +394,7 @@
 
                                     @if ($this->canCancelTabFor($b))
                                         <button type="button" wire:click="openCancelTabModal('{{ $b->id }}')" wire:loading.attr="disabled"
-                                            title="Batalkan Sesi Tagihan Berkala" class="c61-icon-btn is-danger">
+                                            title="Batalkan Sesi Tagihan" class="c61-icon-btn is-danger">
                                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                             </svg>
@@ -588,6 +591,11 @@
                             </div>
                         </div>
                     <!-- Perhitungan Selisih Tarif (rumus sama persis dengan yang ditagih: PadelBookingService::quoteReschedule) -->
+                    @elseif (!empty($availableSlots) && $rescheduleStartTime && !empty($rescheduleQuote) && ! empty($selectedBookingData['is_monthly_tab']))
+                        {{-- Modul 34: booking Tagihan Bulanan selalu Rp0 — tanpa selisih, jam main ikut rekap jadwal baru. --}}
+                        <div style="border-radius: 12px; padding: 1rem; margin-bottom: 1rem; border: 1px solid #BFDBFE; background: #EFF6FF; font-size: 0.75rem; color: #1E3A8A; line-height: 1.5;">
+                            Booking ini tercatat pada <b>Tagihan Bulanan</b> perusahaan, sehingga tidak ada selisih harga yang ditagih atau hangus. Jam main pada rekap mengikuti jadwal baru.
+                        </div>
                     @elseif (!empty($availableSlots) && $rescheduleStartTime && !empty($rescheduleQuote))
                         @php
                             $q = $rescheduleQuote;
@@ -763,15 +771,20 @@
             <div class="c61-modal is-danger" style="max-width: 480px;">
                 <div class="c61-modal-head">
                     <div>
-                        <div class="c61-modal-eyebrow">Tagihan Coaching &bull; Belum Dibayar</div>
-                        <div class="c61-modal-title">Batalkan Sesi Tagihan Berkala</div>
+                        <div class="c61-modal-eyebrow">{{ $this->cancelTabIsMonthly ? 'Tagihan Bulanan Perusahaan' : 'Tagihan Coaching • Belum Dibayar' }}</div>
+                        <div class="c61-modal-title">{{ $this->cancelTabIsMonthly ? 'Batalkan Booking Tagihan Bulanan' : 'Batalkan Sesi Tagihan Berkala' }}</div>
                     </div>
                     <button type="button" wire:click="$set('showCancelTabModal', false)" class="c61-modal-close">&times;</button>
                 </div>
                 <div class="c61-modal-body">
                     <div class="c61-note c61-note-orange">
-                        Seluruh jam dalam transaksi ini dihapus dari tagihan academy dan slot kembali tersedia. Tidak ada refund karena sesi belum dibayar.
-                        Pembatalan hanya dapat dilakukan sebelum batas waktu reschedule; setelah itu atau apabila tidak hadir, sesi tetap ditagihkan.
+                        @if ($this->cancelTabIsMonthly)
+                            Seluruh jam dalam transaksi ini dikeluarkan dari rekap Tagihan Bulanan dan slot kembali tersedia. Tidak ada refund karena biaya sewa ditagihkan per bulan.
+                            Pembatalan hanya dapat dilakukan sebelum batas waktu reschedule; setelah itu atau apabila tidak hadir, jam main tetap tercatat pada rekap.
+                        @else
+                            Seluruh jam dalam transaksi ini dihapus dari tagihan academy dan slot kembali tersedia. Tidak ada refund karena sesi belum dibayar.
+                            Pembatalan hanya dapat dilakukan sebelum batas waktu reschedule; setelah itu atau apabila tidak hadir, sesi tetap ditagihkan.
+                        @endif
                     </div>
                     <div class="c61-field">
                         <label class="c61-label">Alasan (wajib):</label>

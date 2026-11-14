@@ -235,6 +235,11 @@ class MembershipOnlinePaymentTest extends TestCase
 
         $this->assertSame('CANCELLED', $fresh->fresh()->status);
         $this->assertSame('CANCELLED', Order::first()->payment_status);
+
+        // Batal otomatis tetap tercatat di Log Aktivitas (pelaku Sistem), walau tidak tampil di Data Member.
+        $log = \App\Models\Audit\ActivityLog::where('event', 'membership.online_order_expired')->sole();
+        $this->assertSame(['SYSTEM', Order::first()->order_number], [$log->actor_type, $log->meta['order_number']]);
+        $this->assertStringContainsString('tidak dibayar dalam 24 jam', $log->description);
     }
 
     public function test_simulator_resume_marks_the_order_paid_like_checkout(): void

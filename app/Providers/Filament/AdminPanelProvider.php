@@ -156,6 +156,7 @@ class AdminPanelProvider extends PanelProvider
                 \App\Filament\Pages\Signature::class,
                 \App\Filament\Pages\JadwalCoaching::class,
                 \App\Filament\Pages\TagihanCoaching::class,
+                \App\Filament\Pages\TagihanBulanan::class,
                 \App\Filament\Pages\StokFnb::class,
                 \App\Filament\Pages\BukuKasFnb::class,
                 \App\Filament\Pages\LaporanFnb::class,

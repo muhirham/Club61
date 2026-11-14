@@ -299,6 +299,8 @@ class SponsorOrganizationController extends Controller
                 $validated['file']->getRealPath(),
                 $request->user(),
                 allowHours: $organization->picAllows(SponsorOrganization::PIC_RELEASE_SINGLE),
+                // Impor ulang periode yang sama dengan jam berbeda = mengubah voucher yang sudah terbit.
+                allowEditVouchers: $organization->picAllows(SponsorOrganization::PIC_EDIT_VOUCHERS),
             );
         } catch (DomainException $e) {
             return response()->json(['success' => false, 'message' => $e->getMessage()], 422);

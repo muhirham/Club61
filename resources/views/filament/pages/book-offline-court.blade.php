@@ -381,7 +381,7 @@
                     @elseif (! $settleBill && $this->grandTotal <= 0)
                         @php
                             $coveredBy = collect([
-                                $this->membershipDiscountAmount > 0 ? 'kuota member' : null,
+                                $this->membershipDiscountAmount > 0 ? ((($activeMembershipInfo['quota_type'] ?? null) === \App\Services\Membership\MonthlyBilling::METHOD) ? $activeMembershipInfo['plan_name'] : 'kuota member') : null,
                                 $this->sponsorDiscountAmount > 0 ? 'jam corporate' : null,
                                 $appliedVoucherCode && $this->voucherDiscount > 0 ? 'voucher '.$appliedVoucherCode : null,
                             ])->filter()->implode(' + ');
@@ -797,7 +797,7 @@
                     @if ($this->membershipDiscountAmount > 0)
                         <div
                             style="display:flex; justify-content:space-between; font-size:0.6875rem; color:#047857; font-weight:800; margin-bottom:0.2rem;">
-                            <span>Diskon Membership ({{ $activeMembershipInfo['plan_name'] ?? 'Member' }}):</span>
+                            <span>{{ ($activeMembershipInfo['quota_type'] ?? null) === \App\Services\Membership\MonthlyBilling::METHOD ? $activeMembershipInfo['plan_name'] : 'Diskon Membership ('.($activeMembershipInfo['plan_name'] ?? 'Member').')' }}:</span>
                             <span>- Rp {{ number_format($this->membershipDiscountAmount, 0, ',', '.') }}</span>
                         </div>
                     @endif
@@ -957,7 +957,9 @@
             if ($confirmToTab) {
                 $confirmMethod = 'Dicatat pada tagihan '.$this->coachingTabAcademy->name.' ('.$this->coachingTabAcademy->billingLabel().')';
             } elseif (! $settleBill && $this->grandTotal <= 0) {
-                $confirmMethod = 'Gratis — ditanggung benefit (tanpa pembayaran)';
+                $confirmMethod = ($activeMembershipInfo['quota_type'] ?? null) === \App\Services\Membership\MonthlyBilling::METHOD && $this->membershipDiscountAmount > 0
+                    ? $activeMembershipInfo['plan_name'].' (tanpa pembayaran)'
+                    : 'Gratis — ditanggung benefit (tanpa pembayaran)';
             }
             $confirmAddons = collect($equipments)->filter(fn ($eq) => ($rentalQuantities[$eq->id] ?? 0) > 0);
         @endphp

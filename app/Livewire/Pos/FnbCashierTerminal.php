@@ -544,6 +544,21 @@ class FnbCashierTerminal extends Component
         $this->refreshStationStatus($ticket->order);
     }
 
+    /**
+     * Mode tes slip stasiun dari browser (STATION_PRINT_DRIVER=mock): byte ESC/POS slip disimpan ke storage/logs/print-mock/
+     * dan teksnya dikembalikan untuk ditampilkan. Tidak ada yang dikirim ke printer.
+     */
+    public function saveMockStationPrint(string $ticketId, string $data): string
+    {
+        $this->authorizeViewFnbHistory();
+        abort_unless(config('station_print.driver') === 'mock', 403, 'Mode tes slip stasiun tidak aktif.');
+
+        $bytes = base64_decode($data, true);
+        abort_if($bytes === false || $bytes === '' || strlen($bytes) > \App\Services\Fnb\MockStationPrinter::MAX_BYTES, 422, 'Isi slip tidak valid.');
+
+        return app(\App\Services\Fnb\MockStationPrinter::class)->store(\App\Models\Pos\KitchenTicket::findOrFail($ticketId), $bytes);
+    }
+
     protected function refreshStationStatus(\App\Models\Pos\Order $order): void
     {
         if (($this->completedOrderData['order_id'] ?? null) === $order->id) {

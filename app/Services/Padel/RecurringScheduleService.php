@@ -27,7 +27,8 @@ class RecurringScheduleService
     public function __construct(private PadelBookingService $bookings) {}
 
     /**
-     * Membership aktif yang punya kuota jam PADEL — pilihan "pemilik kuota" di form (corporate & individu).
+     * Membership aktif yang punya kuota jam PADEL atau Tagihan Bulanan (Modul 34) — pilihan "pemilik kuota" di form
+     * (corporate & individu).
      *
      * @return array<string, string> [user_membership_id => label]
      */
@@ -37,15 +38,19 @@ class RecurringScheduleService
             ->where(fn ($q) => $q->where(fn ($q) => $q->where('status', 'ACTIVE')
                 ->where(fn ($q) => $q->whereNull('end_date')->orWhere('end_date', '>=', now()->toDateString())))
                 ->when($includeId, fn ($q) => $q->orWhere('id', $includeId)))
-            ->whereHas('balances', fn ($q) => $q->where('facility', 'PADEL')->where('quota_type', 'HOURS'))
+            ->whereHas('balances', fn ($q) => $q->where('facility', 'PADEL')->where(fn ($q) => $q->where('quota_type', 'HOURS')
+                ->orWhereNotNull(\App\Services\Membership\MonthlyBilling::MARKER)))
             ->get()
             ->mapWithKeys(function (UserMembership $m) {
                 $balance = $m->balanceFor('PADEL');
                 $owner = $m->sponsorOrganization
                     ? 'Corporate · '.$m->sponsorOrganization->name
                     : 'Member · '.($m->user?->name ?? '-');
+                $source = $balance?->quota_type !== 'HOURS' && \App\Services\Membership\MonthlyBilling::forBalance($balance)
+                    ? 'Tagihan Bulanan'
+                    : 'sisa '.self::hours((float) $balance?->remaining_quota).' jam';
 
-                return [$m->id => $owner.' — '.($m->plan?->name ?? 'Paket').' (sisa '.self::hours((float) $balance?->remaining_quota).' jam)'];
+                return [$m->id => $owner.' — '.($m->plan?->name ?? 'Paket').' ('.$source.')'];
             })
             ->sort()
             ->all();
@@ -70,7 +75,7 @@ class RecurringScheduleService
             $fail('Pemilik kuota tidak bisa diganti setelah booking dibuat. Buat jadwal baru.');
         }
         if (! array_key_exists($membershipId, $this->membershipOptions($record?->user_membership_id))) {
-            $fail('Pilih membership aktif yang punya kuota jam Padel.');
+            $fail('Pilih membership aktif yang punya kuota jam Padel atau Tagihan Bulanan.');
         }
 
         $day = (int) ($data['day_of_week'] ?? 0);
@@ -301,7 +306,8 @@ class RecurringScheduleService
             ->where('recurring_schedule_id', $schedule->id)
             ->where('status', PadelRecurringOccurrence::STATUS_BOOKED)
             ->get()
-            ->filter(fn (PadelRecurringOccurrence $o) => $o->booking && $o->booking->status === 'PAID' && $o->booking->start_time->gt(now()))
+            ->filter(fn (PadelRecurringOccurrence $o) => $o->booking && $o->booking->start_time->gt(now())
+                && $o->booking->status === 'PAID')
             ->sortBy(fn (PadelRecurringOccurrence $o) => $o->booking->start_time->timestamp);
 
         foreach ($occurrences->groupBy(fn (PadelRecurringOccurrence $o) => $o->booking->court_id) as $oldCourtId => $items) {
@@ -319,8 +325,8 @@ class RecurringScheduleService
 
                         continue;
                     }
-                    $this->bookings->requestCancelAndRefund($booking->id, 'JADWAL_TETAP_DIUBAH', 'Lapangan dihapus dari jadwal tetap', $actor);
-                    $occurrence->update(['status' => PadelRecurringOccurrence::STATUS_SKIPPED, 'note' => 'Lapangan dihapus dari jadwal — booking dibatalkan, jam kuota kembali']);
+                    $this->cancelBooking($booking, 'JADWAL_TETAP_DIUBAH', 'Lapangan dihapus dari jadwal tetap', $actor);
+                    $occurrence->update(['status' => PadelRecurringOccurrence::STATUS_SKIPPED, 'note' => 'Lapangan dihapus dari jadwal — booking dibatalkan, jam kuota / tagihan kembali']);
                     $summary['cancelled']++;
 
                     continue;
@@ -462,9 +468,10 @@ class RecurringScheduleService
                 if ($booking && $booking->booking_date->toDateString() !== $day->toDateString()) {
                     $booking = null;
                 }
-                if ($booking && in_array($booking->status, ['PAID', 'LOCKED'], true)) {
-                    // Jalur pembatalan Kelola Pemesanan: booking Rp0 langsung CANCELLED + kuota jam kembali.
-                    $this->bookings->requestCancelAndRefund($booking->id, 'JADWAL_TETAP_DILEWATI', $reason, $actor);
+                if ($booking && $this->isCancellable($booking)) {
+                    // Jalur pembatalan Kelola Pemesanan: booking Rp0 langsung CANCELLED + kuota jam kembali; booking
+                    // Tagihan Bulanan keluar dari tagihan.
+                    $this->cancelBooking($booking, 'JADWAL_TETAP_DILEWATI', $reason, $actor);
                     $cancelled++;
                 }
             }
@@ -528,7 +535,7 @@ class RecurringScheduleService
 
             DB::transaction(function () use ($schedule, $actor, &$result) {
                 foreach ($this->upcomingBookings($schedule) as $booking) {
-                    $this->bookings->requestCancelAndRefund($booking->id, 'JADWAL_TETAP_DIHAPUS', 'Jadwal tetap "'.$schedule->name.'" dihapus', $actor);
+                    $this->cancelBooking($booking, 'JADWAL_TETAP_DIHAPUS', 'Jadwal tetap "'.$schedule->name.'" dihapus', $actor);
                     $result['cancelled']++;
                 }
 
@@ -580,9 +587,26 @@ class RecurringScheduleService
     private function upcomingBookings(PadelRecurringSchedule $schedule): Collection
     {
         return PadelBooking::where('recurring_schedule_id', $schedule->id)
-            ->whereIn('status', ['PAID', 'LOCKED'])
+            ->whereIn('status', ['PAID', 'LOCKED', 'PENDING_PAYMENT'])
             ->where('start_time', '>', now())
-            ->get();
+            ->get()
+            ->filter(fn (PadelBooking $b) => $this->isCancellable($b))
+            ->values();
+    }
+
+    /** Lunas dari kuota / dicatat pada Tagihan Bulanan (PAID) atau masih ditahan (LOCKED). */
+    private function isCancellable(PadelBooking $booking): bool
+    {
+        return in_array($booking->status, ['PAID', 'LOCKED'], true);
+    }
+
+    /**
+     * Batalkan satu booking jadwal lewat jalur pembatalan Kelola Pemesanan: kuota jam kembali; booking Tagihan Bulanan
+     * (Rp0) keluar dari rekap tanpa batas waktu reschedule (keputusan Club 61, bukan pembatalan oleh member).
+     */
+    private function cancelBooking(PadelBooking $booking, string $code, string $reason, User $actor): void
+    {
+        $this->bookings->requestCancelAndRefund($booking->id, $code, $reason, $actor);
     }
 
     /** Booking jadwal ini yang jam mainnya sudah mulai / lewat (dianggap sudah dimainkan; tidak datang = EXPIRED, jam tetap terpakai). */

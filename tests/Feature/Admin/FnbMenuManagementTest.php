@@ -39,10 +39,10 @@ class FnbMenuManagementTest extends TestCase
 
     public function test_kitchen_role_can_view_but_not_manage_fnb_menu(): void
     {
-        // kitchen digranting 'view_fnb_menu' di DatabaseSeeder tapi bukan 'manage_fnb_menu' —
+        // kitchen boleh membuka halaman Kelola Menu F&B (View:KelolaMenuFnb) tapi tidak punya 'manage_fnb_menu' —
         // pastikan bisa buka halamannya tapi aksi tulis (create/update/delete) tetap ditolak.
         $kitchen = User::factory()->kitchen()->create();
-        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
         $this->actingAs($kitchen);
 
         $this->assertTrue(KelolaMenuFnb::canAccess());
@@ -529,7 +529,7 @@ class FnbMenuManagementTest extends TestCase
     {
         // Dapur boleh melihat halaman menu, tapi tidak boleh mengubah stasiun / IP printer.
         $kitchen = User::factory()->kitchen()->create();
-        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
         $this->actingAs($kitchen);
 
         Livewire::test(KelolaMenuFnb::class)
@@ -538,5 +538,52 @@ class FnbMenuManagementTest extends TestCase
             ->assertForbidden();
 
         $this->assertSame(0, FnbStation::count());
+    }
+
+    /** Tes Cetak: slip tes ke IP & port tersimpan, lewat jalur cetak stasiun yang sama; tidak membuat slip pesanan. */
+    public function test_admin_test_prints_a_station_printer_without_recording_anything(): void
+    {
+        config(['station_print.left_margin' => 156]);
+        $this->actingAs(User::factory()->admin()->create(['name' => 'Super Admin']));
+        $kitchen = FnbStation::create(['name' => 'Kitchen', 'printer_host' => '10.10.2.137', 'printer_port' => 9100]);
+        $noPrinter = FnbStation::create(['name' => 'Bar']);
+
+        $job = null;
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('requestTabChange', 'stations')
+            ->assertSeeHtml("wire:click=\"testPrintStation('{$kitchen->id}')\"")
+            ->assertDontSeeHtml("testPrintStation('{$noPrinter->id}')")
+            ->call('testPrintStation', $kitchen->id)
+            ->assertDispatched('club61-station-test-print', function ($event, $params) use (&$job) {
+                $job = $params['job'];
+
+                return true;
+            });
+
+        $this->assertSame(['Kitchen', '10.10.2.137', 9100], [$job['station_name'], $job['host'], $job['port']]);
+        $this->assertStringContainsString('data-print-slip', $job['html']);
+        $this->assertStringContainsString('TES PRINTER', $job['html']);
+        $this->assertStringContainsString('10.10.2.137:9100', $job['html']);
+        $this->assertStringContainsString('156 titik', $job['html']);
+        $this->assertStringContainsString('Super Admin', $job['html']);
+        $this->assertStringContainsString('|'.str_repeat('-', 30).'|', $job['html'], 'garis selebar 32 kolom');
+        $this->assertSame(0, \App\Models\Pos\KitchenTicket::count());
+
+        // Stasiun tanpa IP printer → tidak ada yang dikirim.
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('testPrintStation', $noPrinter->id)
+            ->assertNotDispatched('club61-station-test-print');
+    }
+
+    public function test_staff_without_manage_permission_cannot_test_print(): void
+    {
+        $station = FnbStation::create(['name' => 'Kitchen', 'printer_host' => '10.10.2.137']);
+        $kitchen = User::factory()->kitchen()->create();
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
+        $this->actingAs($kitchen);
+
+        Livewire::test(KelolaMenuFnb::class)
+            ->call('testPrintStation', $station->id)
+            ->assertForbidden();
     }
 }

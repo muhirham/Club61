@@ -134,18 +134,19 @@ class Analytics extends Page
     }
 
     /**
-     * Uang masuk bersih per kanal: POS Frontdesk Padel, POS F&B, kasir lain (impor / lainnya), dan online.
+     * Uang masuk bersih per kanal: POS Frontdesk Padel, POS F&B, kasir lain (impor / lainnya), transfer perusahaan, dan online.
      *
      * @param  list<array<string, mixed>>  $bySource
-     * @return array<'padel'|'fnb'|'other'|'online', array{money_net: float, transactions: int}>
+     * @return array<'padel'|'fnb'|'other'|'corporate'|'online', array{money_net: float, transactions: int}>
      */
     private function channels(array $bySource): array
     {
         $empty = ['money_net' => 0.0, 'transactions' => 0];
-        $channels = ['padel' => $empty, 'fnb' => $empty, 'other' => $empty, 'online' => $empty];
+        $channels = ['padel' => $empty, 'fnb' => $empty, 'other' => $empty, 'corporate' => $empty, 'online' => $empty];
         foreach ($bySource as $row) {
             $key = match (true) {
                 in_array($row['key'], self::ONLINE_SOURCES, true) => 'online',
+                $row['key'] === 'CORPORATE_TRANSFER' => 'corporate',
                 in_array($row['key'], self::COUNTER_SOURCES['padel'], true) => 'padel',
                 in_array($row['key'], self::COUNTER_SOURCES['fnb'], true) => 'fnb',
                 default => 'other',

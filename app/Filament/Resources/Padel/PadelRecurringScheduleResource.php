@@ -89,11 +89,11 @@ class PadelRecurringScheduleResource extends Resource
                 Grid::make(['default' => 1, 'sm' => 2])->schema([
                     TextInput::make('name')->label('Nama jadwal')->required()->maxLength(100)
                         ->placeholder('Contoh: IOH — Kamis malam'),
-                    Select::make('user_membership_id')->label('Kuota jam dari membership')
+                    Select::make('user_membership_id')->label('Kuota jam / Tagihan Bulanan dari membership')
                         ->options(fn (?PadelRecurringSchedule $record) => app(RecurringScheduleService::class)->membershipOptions($record?->user_membership_id))
                         ->searchable()->required()->native(false)->live()
                         ->disabled(fn (?PadelRecurringSchedule $record) => $record?->occurrences()->exists() ?? false)
-                        ->helperText('Corporate atau member individu yang punya kuota jam Padel. Booking dibuat atas nama pemilik membership.'),
+                        ->helperText('Corporate atau member individu yang punya kuota jam Padel atau Tagihan Bulanan. Booking dibuat atas nama pemilik membership (PIC untuk corporate Tagihan Bulanan); booking Tagihan Bulanan langsung terkonfirmasi dan masuk rekap jam main yang ditagihkan Finance.'),
                     Select::make('day_of_week')->label('Hari')->options(PadelRecurringSchedule::DAYS)->required()->native(false),
                     Select::make('court_ids')->label('Lapangan')->multiple()->required()->native(false)
                         ->options(fn () => PadelCourt::where('is_active', true)->ordered()->pluck('name', 'id')->all()),
@@ -192,9 +192,15 @@ class PadelRecurringScheduleResource extends Resource
                     ->state(function (PadelRecurringSchedule $r) {
                         $left = app(RecurringScheduleService::class)->weeksLeft($r);
 
-                        return $left === null ? 'Tidak ada kuota jam' : self::num($left['remaining']).' jam';
+                        return match (true) {
+                            $left !== null => self::num($left['remaining']).' jam',
+                            $r->monthlyBillingBalance() !== null => 'Tagihan Bulanan',
+                            default => 'Tidak ada kuota jam',
+                        };
                     })
-                    ->description(fn (PadelRecurringSchedule $r) => self::forecastLabel($r))
+                    ->description(fn (PadelRecurringSchedule $r) => ! $r->padelBalance() && $r->monthlyBillingBalance()
+                        ? 'Rekap jam main ditagihkan Finance per bulan'
+                        : self::forecastLabel($r))
                     ->wrap(),
                 TextColumn::make('starts_on')->label('Periode')->date('d M Y')
                     ->description(function (PadelRecurringSchedule $r) {

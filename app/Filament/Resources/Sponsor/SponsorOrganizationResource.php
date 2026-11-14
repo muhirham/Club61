@@ -15,10 +15,13 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\CheckboxList;
+use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -199,6 +202,7 @@ class SponsorOrganizationResource extends Resource
                     ->color('gray')
                     ->visible(fn (): bool => \App\Filament\Pages\SponsorDashboard::canAccess())
                     ->url(fn (SponsorOrganization $record): string => \App\Filament\Pages\SponsorDashboard::getUrl(['organization' => $record->id])),
+                self::recordTransferAction(),
                 // Tombol tabel Filament mengotorisasi lewat Gate policy model — dan policy
                 // SponsorOrganization itu khusus PIC portal customer (sponsor_admin_user_id ===
                 // user login), jadi staf non-super_admin selalu ditolak. Paksa pakai izin staf.
@@ -214,6 +218,98 @@ class SponsorOrganizationResource extends Resource
                 ]),
             ]);
     }
+
+    /**
+     * Catat transfer perusahaan langsung ke rekening Club 61 (tanpa shift kasir). Satu tombol untuk dua jenis:
+     *  - Pembayaran Paket: paket membership yang sudah aktif (kategori Membership; kartu, kuota & jadwal tidak diubah);
+     *  - Tagihan Bulanan (Modul 34): per periode, nominal sesuai invoice Finance (kategori Sewa Lapangan).
+     * Dipakai di tabel Kelola Sponsor dan halaman Edit Sponsor.
+     */
+    public static function recordTransferAction(): Action
+    {
+        $card = fn (?SponsorOrganization $record) => $record ? \App\Services\Membership\MonthlyBilling::balanceOf($record->userMembership) : null;
+        $kindOf = fn (Get $get) => $get('kind') ?: self::TRANSFER_PACKAGE;
+
+        return Action::make('recordTransfer')
+            ->label('Catat Transfer')
+            ->icon('heroicon-o-banknotes')
+            ->color('success')
+            ->visible(fn (SponsorOrganization $record): bool => (bool) auth()->user()?->can(\App\Services\Sponsor\CorporateTransfer::PERMISSION)
+                && $record->user_membership_id !== null)
+            ->modalHeading(fn (SponsorOrganization $record) => 'Catat Transfer — '.$record->name)
+            ->modalDescription('Pembayaran yang ditransfer perusahaan langsung ke rekening Club 61. Data kartu, kuota, karyawan, dan jadwal tidak berubah.')
+            ->modalSubmitActionLabel('Catat Pembayaran')
+            ->schema(fn (SponsorOrganization $record) => [
+                Radio::make('kind')
+                    ->label('Jenis Pembayaran')
+                    ->options([
+                        self::TRANSFER_MONTHLY => 'Tagihan Bulanan',
+                        self::TRANSFER_PACKAGE => 'Pembayaran Paket Membership',
+                    ])
+                    ->default(self::TRANSFER_MONTHLY)
+                    ->live()
+                    ->required()
+                    ->visible(fn () => $card($record) !== null),
+                Select::make('month')
+                    ->label('Periode Tagihan')
+                    ->options(fn () => ($balance = $card($record))
+                        ? collect(\App\Services\Membership\MonthlyBillingPayment::periodOptions($balance))
+                            ->except(\App\Services\Membership\MonthlyBilling::paidPeriods($balance->id))->all()
+                        : [])
+                    ->live()
+                    ->native(false)
+                    ->required()
+                    ->visible(fn (Get $get) => $card($record) !== null && $kindOf($get) === self::TRANSFER_MONTHLY),
+                Text::make(function (Get $get) use ($card, $record) {
+                    $balance = $card($record);
+                    $month = (string) $get('month');
+                    if (! $balance || ! preg_match('/^\d{4}-\d{2}$/', $month)) {
+                        return 'Pilih periode untuk melihat ringkasan jam main.';
+                    }
+                    $t = \App\Services\Membership\MonthlyBilling::recap($balance, $month)['totals'];
+                    $h = fn ($v) => \App\Services\Membership\MonthlyBilling::hoursLabel((float) $v);
+
+                    return "Jam main periode ini: {$h($t['hours'])} jam ({$t['bookings']} booking) — reguler {$h($t['regular_hours'])} jam, peak {$h($t['peak_hours'])} jam.";
+                })->visible(fn (Get $get) => $card($record) !== null && $kindOf($get) === self::TRANSFER_MONTHLY),
+                Text::make(fn () => 'Paket: '.($record->userMembership?->plan?->name ?? '-').' ('.($record->userMembership?->membership_code ?? '-').').')
+                    ->visible(fn (Get $get) => $kindOf($get) === self::TRANSFER_PACKAGE),
+                TextInput::make('amount')
+                    ->label('Nominal Diterima')
+                    ->helperText(fn (Get $get) => $kindOf($get) === self::TRANSFER_MONTHLY
+                        ? 'Sesuai invoice yang diterbitkan Finance.'
+                        : 'Sesuai kontrak / invoice paket.')
+                    ->numeric()
+                    ->minValue(1)
+                    ->prefix('Rp')
+                    ->required(),
+                ...\App\Services\Sponsor\CorporateTransfer::formFields(),
+            ])
+            ->action(function (SponsorOrganization $record, array $data) use ($card): void {
+                abort_unless(auth()->user()?->can(\App\Services\Sponsor\CorporateTransfer::PERMISSION), 403);
+                $monthly = $card($record) !== null && ($data['kind'] ?? self::TRANSFER_PACKAGE) === self::TRANSFER_MONTHLY;
+
+                try {
+                    $monthly
+                        ? app(\App\Services\Membership\MonthlyBillingPayment::class)
+                            ->record($card($record), (string) ($data['month'] ?? ''), (float) ($data['amount'] ?? 0), $data, auth()->user())
+                        : \App\Services\Sponsor\CorporateTransfer::recordPackagePayment($record, (float) ($data['amount'] ?? 0), $data, auth()->user());
+                } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+                    \App\Services\Sponsor\CorporateTransfer::discardProof($data['proof_path'] ?? null);
+                    \Filament\Notifications\Notification::make()->title('Pembayaran Tidak Tercatat')->body($e->getMessage())->danger()->send();
+
+                    return;
+                }
+
+                \Filament\Notifications\Notification::make()->title('Pembayaran Transfer Tercatat')
+                    ->body($record->name.($monthly ? ' — Tagihan Bulanan '.\App\Services\Membership\MonthlyBilling::monthLabel(\Carbon\Carbon::parse($data['month'].'-01')) : ' — Pembayaran Paket')
+                        .' sebesar Rp '.number_format((float) $data['amount'], 0, ',', '.').'.')
+                    ->success()->send();
+            });
+    }
+
+    public const TRANSFER_MONTHLY = 'MONTHLY';
+
+    public const TRANSFER_PACKAGE = 'PACKAGE';
 
     public static function getPages(): array
     {

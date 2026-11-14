@@ -242,7 +242,7 @@ class AuthenticationTest extends TestCase
         $matrixSlugs = \App\Services\Permission\Club61PermissionMatrix::getAllPermissionSlugs();
         $this->assertGreaterThanOrEqual(60, count($matrixSlugs));
         $this->assertContains('View:BookingSystem', $matrixSlugs);
-        $this->assertContains('view_padel_bookings', $matrixSlugs);
+        $this->assertContains('View:KelolaPemesanan', $matrixSlugs);
         $this->assertContains('access_pos_terminal', $matrixSlugs);
         $this->assertContains('view_kitchen_kds', $matrixSlugs);
     }

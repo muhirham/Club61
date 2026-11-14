@@ -17,6 +17,8 @@ return [
     'active_members' => 'Karyawan Aktif',
     'contract_quota' => 'Kuota Kontrak',
     'no_hour_quota' => 'Tanpa kuota jam',
+    'monthly_billing_title' => 'Paket Tagihan Bulanan.',
+    'monthly_billing_notice' => 'Booking PIC langsung terkonfirmasi dan jam main direkap setiap bulan untuk ditagihkan oleh Club 61. Jam tidak dapat dibagikan ke karyawan; booking dilakukan oleh PIC.',
     'quota_remaining' => 'Sisa Kuota',
     'hours_released' => 'Jam Diberikan',
     'hours_used' => 'Jam Terpakai',

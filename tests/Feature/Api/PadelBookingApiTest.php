@@ -76,6 +76,21 @@ class PadelBookingApiTest extends TestCase
     /**
      * 1. Test Endpoint Publik: Courts, Schedule, Equipments
      */
+    public function test_schedule_rejects_unknown_timezone_instead_of_server_error(): void
+    {
+        $tomorrow = now()->addDay()->format('Y-m-d');
+
+        $this->getJson("/api/v1/padel/schedule?date={$tomorrow}&timezone=abc")
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('timezone');
+
+        foreach (['Asia/Jakarta', 'Asia/Makassar', '+07:00', '7'] as $timezone) {
+            $this->getJson('/api/v1/padel/schedule?'.http_build_query(['date' => $tomorrow, 'timezone' => $timezone]))
+                ->assertOk()
+                ->assertJsonPath('success', true);
+        }
+    }
+
     public function test_public_can_access_courts_schedule_and_equipments(): void
     {
         $this->getJson('/api/v1/padel/courts')

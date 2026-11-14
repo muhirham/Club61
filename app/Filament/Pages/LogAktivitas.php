@@ -72,7 +72,7 @@ class LogAktivitas extends Page implements HasTable
         'LOGIN_PAGE' => 'Halaman Login',
         'CUSTOMER_WEB' => 'Web Customer',
         'MOBILE_API' => 'Aplikasi Mobile',
-        'WEBHOOK' => 'Webhook Midtrans',
+        'WEBHOOK' => 'Webhook Payment Gateway',
         'SCHEDULER' => 'Scheduler',
         'CONSOLE' => 'Console Server',
         'SYSTEM' => 'Sistem',
@@ -129,11 +129,7 @@ class LogAktivitas extends Page implements HasTable
                     ->label('Pengguna')
                     ->searchable()
                     ->weight('bold')
-                    ->getStateUsing(fn (ActivityLog $log) => $log->causer_name ?? match ($log->actor_type) {
-                        'SYSTEM' => 'Sistem',
-                        'WEBHOOK' => 'Midtrans (Webhook)',
-                        default => 'Tamu (belum login)',
-                    })
+                    ->getStateUsing(fn (ActivityLog $log) => self::actorName($log))
                     ->description(fn (ActivityLog $log) => $log->causer_role ?? (self::ACTOR_TYPES[$log->actor_type] ?? $log->actor_type)),
                 TextColumn::make('module')
                     ->label('Modul')
@@ -336,6 +332,28 @@ class LogAktivitas extends Page implements HasTable
             ->when($filters['event'] ?? null, fn (Builder $q, $values) => $q->whereIn('event', $values));
 
         return self::applySearch($query, (string) ($filters['search'] ?? ''));
+    }
+
+    /** Nama pelaku untuk tabel & detail. Tanpa akun: Sistem, gateway pengirim webhook, atau tamu yang belum login. */
+    public static function actorName(ActivityLog $log): string
+    {
+        if ($log->causer_name) {
+            return $log->causer_name;
+        }
+        if ($log->actor_type !== 'WEBHOOK') {
+            return $log->actor_type === 'SYSTEM' ? 'Sistem' : 'Tamu (belum login)';
+        }
+
+        // Gateway dari detail transaksi (payment.paid), atau dari alamat notifikasinya.
+        $gateway = strtoupper((string) ($log->meta['gateway'] ?? ''));
+        $url = strtolower((string) $log->url);
+        $gateway = $gateway ?: match (true) {
+            str_contains($url, 'doku') => 'DOKU',
+            str_contains($url, 'midtrans') => 'MIDTRANS',
+            default => '',
+        };
+
+        return ($gateway !== '' ? \App\Services\Payment\OnlineGatewayRouter::label($gateway) : 'Payment Gateway').' (Webhook)';
     }
 
     /** @return array<int, string> satu baris CSV, sudah dinetralkan dari formula injection */

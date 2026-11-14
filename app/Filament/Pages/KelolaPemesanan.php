@@ -216,10 +216,13 @@ class KelolaPemesanan extends Page
         return ! $refunds->contains(fn ($r) => $r->padel_booking_id === $booking->id && $r->status === 'PENDING');
     }
 
-    /** Tombol "Ajukan Pembatalan & Refund": booking aktif yang jam mainnya belum mulai, atau pengajuan lama customer. */
+    /**
+     * Tombol "Ajukan Pembatalan & Refund": booking aktif yang jam mainnya belum mulai, atau pengajuan lama customer.
+     * Booking Tagihan Bulanan dibatalkan lewat tombol Batalkan Sesi Tagihan (ada batas waktu, tanpa refund).
+     */
     public function canRequestRefundFor(PadelBooking $booking): bool
     {
-        return $this->canRefund && (
+        return $this->canRefund && ! $this->isMonthlyTab($booking) && (
             (in_array($booking->status, ['PAID', 'LOCKED'], true) && $booking->start_time->gt(now()))
             || self::isLegacyRefundRequest($booking)
         );
@@ -231,35 +234,73 @@ class KelolaPemesanan extends Page
         return $booking->status === 'PENDING_PAYMENT' && (bool) $booking->coachingBooking?->isTab();
     }
 
-    /** Sesi tagihan coaching yang belum lunas & belum dimulai (batas waktunya dicek lagi di server). */
+    /** Booking aktif yang dicatat pada Tagihan Bulanan perusahaan (Modul 34) — Rp0, ditagihkan Finance per bulan. */
+    public function isMonthlyTab(PadelBooking $booking): bool
+    {
+        return $booking->status === 'PAID' && \App\Services\Membership\MonthlyBilling::isTabBooking($booking);
+    }
+
+    /** Nama penanggung Tagihan Bulanan untuk label status (nama perusahaan / pemilik kartu). */
+    public function monthlyTabName(PadelBooking $booking): string
+    {
+        $membership = $booking->membershipBalance?->membership;
+
+        return $membership ? \App\Services\Membership\MonthlyBilling::billedName($membership) : '-';
+    }
+
+    /** Izin pembatalan sesi tagihan: coaching = book_coaching, Tagihan Bulanan = request_refund_padel (Batalkan & Ajukan). */
+    private function cancelTabPermission(?PadelBooking $booking): string
+    {
+        return $booking && $this->isMonthlyTab($booking) ? 'request_refund_padel' : 'book_coaching';
+    }
+
+    /** Sesi tagihan coaching yang belum lunas / booking Tagihan Bulanan yang belum dimulai (batas waktunya dicek lagi di server). */
     public function canCancelTabFor(PadelBooking $booking): bool
     {
-        return (bool) auth()->user()?->can('book_coaching')
-            && $booking->status === 'PENDING_PAYMENT'
-            && $booking->coachingBooking?->isTab()
+        $isTab = $this->isMonthlyTab($booking) || $this->isUnpaidCoachingTab($booking);
+
+        return $isTab
+            && (bool) auth()->user()?->can($this->cancelTabPermission($booking))
             && $booking->start_time->gt(now());
     }
 
     public function openCancelTabModal(string $bookingId): void
     {
-        if ($this->deniedWithout('book_coaching')) {
+        $booking = PadelBooking::find($bookingId);
+        if ($this->deniedWithout($this->cancelTabPermission($booking))) {
             return;
         }
-        $this->cancelTabBookingId = PadelBooking::whereKey($bookingId)->value('id');
+        $this->cancelTabBookingId = $booking?->id;
         $this->cancelTabReason = '';
         $this->showCancelTabModal = $this->cancelTabBookingId !== null;
     }
 
+    public function getCancelTabIsMonthlyProperty(): bool
+    {
+        $booking = $this->cancelTabBookingId ? PadelBooking::find($this->cancelTabBookingId) : null;
+
+        return $booking !== null && \App\Services\Membership\MonthlyBilling::isTabBooking($booking);
+    }
+
     public function executeCancelTab(\App\Services\Coaching\CoachingBillingService $billing): void
     {
-        if ($this->deniedWithout('book_coaching')) {
+        $booking = $this->cancelTabBookingId ? PadelBooking::find($this->cancelTabBookingId) : null;
+        if ($this->deniedWithout($this->cancelTabPermission($booking))) {
             return;
         }
 
         try {
-            $billing->cancelTab(PadelBooking::findOrFail($this->cancelTabBookingId), $this->cancelTabReason, auth()->user());
+            if (! $booking) {
+                throw new \Symfony\Component\HttpKernel\Exception\HttpException(404, 'Booking tidak ditemukan.');
+            }
+            $monthly = \App\Services\Membership\MonthlyBilling::isTabBooking($booking);
+            $monthly
+                ? app(\App\Services\Membership\MonthlyBilling::class)->cancel($booking, $this->cancelTabReason, auth()->user())
+                : $billing->cancelTab($booking, $this->cancelTabReason, auth()->user());
             Cache::forget('kelola_pemesanan_tab_counts');
-            Notification::make()->title('Sesi Dibatalkan')->body('Sesi dihapus dari tagihan academy dan slot kembali tersedia.')->success()->send();
+            Notification::make()->title('Sesi Dibatalkan')
+                ->body($monthly ? 'Booking dihapus dari Tagihan Bulanan dan slot kembali tersedia.' : 'Sesi dihapus dari tagihan academy dan slot kembali tersedia.')
+                ->success()->send();
             $this->showCancelTabModal = false;
         } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
             Notification::make()->title('Tidak Bisa Dibatalkan')->body($e->getMessage())->danger()->send();
@@ -307,6 +348,8 @@ class KelolaPemesanan extends Page
 
         $booking = PadelBooking::with(['court', 'user', 'order', 'coachingBooking'])->findOrFail($bookingId);
         // Modul 31: sesi tagihan berkala coaching belum dibayar juga boleh dipindah (tagihannya ikut tarif jadwal baru).
+        // Modul 34: booking Tagihan Bulanan (lunas Rp0) dipindah seperti booking lunas biasa, tanpa selisih harga.
+        $isMonthlyTab = $this->isMonthlyTab($booking);
         $isTab = $this->isUnpaidCoachingTab($booking);
 
         if ($booking->status !== 'PAID' && ! $isTab) {
@@ -364,6 +407,7 @@ class KelolaPemesanan extends Page
             'duration_hours' => $this->rescheduleDurationHours,
             'reschedule_count' => (int) $booking->reschedule_count,
             'is_tab' => $isTab,
+            'is_monthly_tab' => $isMonthlyTab,
             'tab_total' => $isTab ? (float) $booking->order?->grand_total : null,
         ];
 
@@ -570,6 +614,16 @@ class KelolaPemesanan extends Page
 
         $booking = PadelBooking::with(['user', 'order'])->findOrFail($bookingId);
 
+        if ($this->isMonthlyTab($booking)) {
+            Notification::make()
+                ->title('Booking Tagihan Bulanan')
+                ->body('Booking ini dicatat pada Tagihan Bulanan perusahaan. Gunakan tombol Batalkan Sesi Tagihan.')
+                ->warning()
+                ->send();
+
+            return;
+        }
+
         if (! self::isLegacyRefundRequest($booking) && $booking->start_time->lte(now())) {
             Notification::make()
                 ->title('Tidak Bisa Dibatalkan')
@@ -743,7 +797,7 @@ class KelolaPemesanan extends Page
         // REAKTIF FAIL-SAFE: Otomatis sinkronkan tiket kedaluwarsa & selesai setiap halaman dibuka
         app(PadelBookingService::class)->syncExpiredAndCompletedBookings();
 
-        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'equipments.order:id,payment_status', 'equipments.loan:id,booking_equipment_id,returned_at', 'recurringSchedule', 'coachingBooking.academy'])
+        $query = PadelBooking::with(['user', 'court', 'order.payments', 'order.refunds', 'equipments.equipment', 'equipments.order:id,payment_status', 'equipments.loan:id,booking_equipment_id,returned_at', 'recurringSchedule', 'coachingBooking.academy', 'membershipBalance.membership.user:id,name', 'membershipBalance.membership.sponsorOrganization:id,name,user_membership_id'])
             ->latest('start_time');
 
         // Pencarian (kode tiket / nama / HP …) mencakup semua periode — customer bisa datang membawa tiket lama.

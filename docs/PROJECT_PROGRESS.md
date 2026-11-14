@@ -165,7 +165,9 @@ Dokumen pelacak progres (Single Source of Truth). Status di bawah ini hasil audi
 - [x] API: plans, checkout, my-membership, my-purchases, history, `checkin-gym`.
 - [x] Fulfillment handler membership terdaftar (aktivasi otomatis setelah webhook lunas).
 - [x] Diskon / kuota membership terpakai di booking padel & wellness.
-- [x] Scheduler `membership:sync-expired` harian.
+- [x] Scheduler `membership:sync-expired` harian. Sejak 12 Nov 2026 kartu yang kuotanya habis terpotong booking yang belum dimainkan (mis. Jadwal Tetap) tetap ACTIVE sampai booking terakhir lewat.
+- [x] **Batalkan Membership** (12 Nov 2026, tanpa migrasi, PRD Modul 05 FR-08a): tombol di detail kartu Data Member, izin `cancel_membership` (pintu belakang). Kartu individu ACTIVE → CANCELLED permanen, sisa kuota hangus (Audit Log Mutasi Kuota + Log Aktivitas), uang tetap tercatat (tanpa refund / voucher). Ditolak selama masih ada booking mendatang yang memakai kuota, Jadwal Tetap yang belum dihentikan, atau perpanjangan yang menunggu bayar. Saluran Beli menampilkan gateway yang menerima pembayaran.
+- [x] Data Member (dulu "Data Pelanggan") hanya menampilkan kartu yang pernah aktif (lunas); pembelian yang tidak dibayar cukup di Log Aktivitas (batal otomatis 24 jam kini tercatat). Log Aktivitas: notifikasi DOKU tercatat sebagai **Webhook Payment Gateway** dengan pelaku "DOKU (Webhook)" / "Midtrans (Webhook)" (dulu "Tamu (belum login)" · Web Customer; catatan lama tidak diubah). Daftar Data Member: pagination 25 / 50 / 100 per halaman, filter rentang **Mulai Aktif**, kotak "Paket Membership Aktif" dari data asli (dulu teks tetap "4 Tier · Bronze, Silver, Gold, Corporate"); tanpa index baru.
 - [x] API katalog paket gym `GET /api/v1/gym/packages` (filter plan dengan benefit GYM).
 - [~] **Pembayaran membership online di portal customer** (`customer/membership.blade.php`):
   - [x] Order, pajak & biaya, Midtrans Snap, webhook, aktivasi otomatis sudah asli.
@@ -510,6 +512,7 @@ PRD: [`PRD_MODUL_24_COACHING_OPSI_B_SEWA_LAPANGAN_ACADEMY.md`](PRD_MODUL_24_COAC
   - **API** `GET /api/v1/coaching/coaches` (publik, read-only, sama dengan halaman web).
   - **Link bio** `/links` (publik): tombol diatur di Marketing & Event → Link Bio Instagram (izin `manage_link_bio`, preset admin). Default: Book Court, Lokasi, Admin Coaching, Pricelist (gambar, nonaktif sampai diunggah), Admin Club 61; media sosial dari Konten Website. Tombol tanpa tujuan tidak tampil; link bebas wajib http/https.
   - **Analytics**: Rekap Coaching per Academy (sesi, jam, nilai sewa) & per Coach (sesi utama / tambahan, jam).
+- [x] **Ganti Coach** (11 Nov 2026, tanpa migrasi, PRD §6): tombol per sesi di Jadwal Coaching (izin `book_coaching`); pengganti coach aktif satu academy, tidak bentrok jadwal; harga & pembayaran tidak berubah; pengingat WA, Monitoring & Analytics ikut coach pengganti; tercatat di Log Aktivitas. Jadwal Coaching memakai toolbar Hari Ini / Besok / Semua Mendatang + tanggal (panel filter dihapus), kolom jam & lapangan digabung untuk tablet.
 
 ---
 ## MODUL 28: HASIL MEETING TRAINING (28 OKT 2026)

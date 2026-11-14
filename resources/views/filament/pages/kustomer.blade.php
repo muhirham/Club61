@@ -30,6 +30,7 @@
             $padelBal = $m->balances->firstWhere('facility', 'PADEL');
             $gymBal = $m->balances->firstWhere('facility', 'GYM');
             $saunaBal = $m->balances->firstWhere('facility', 'SAUNA');
+            $cancelInfo = \App\Services\Membership\MembershipCancellationService::cancellationInfo($m);
         @endphp
 
         <!-- ========================================================
@@ -47,7 +48,7 @@
                         {{ $m->owner_type === 'ORGANIZATIONAL' ? 'Akun Sponsor Corporate Pool' : 'Keanggotaan Individual' }}
                     </span>
                     <span class="c61-pill {{ $m->status === 'ACTIVE' ? 'c61-pill-ok' : 'c61-pill-danger' }}">
-                        STATUS: {{ $m->status }}
+                        STATUS: {{ $cancelInfo ? 'DIBATALKAN ADMIN' : $m->status }}
                     </span>
                 </div>
 
@@ -66,7 +67,23 @@
                     </span>
                 </div>
             </div>
+
+            @if($this->canCancelMembership && $m->status === 'ACTIVE' && $m->owner_type !== 'ORGANIZATIONAL')
+                <div class="c61-hero-actions">
+                    <button type="button" wire:click="openCancelMembership" wire:loading.attr="disabled" class="c61-btn c61-btn-outline-cream c61-btn-sm">
+                        Batalkan Membership
+                    </button>
+                </div>
+            @endif
         </div>
+
+        @if($cancelInfo)
+            <div class="c61-note c61-note-danger">
+                Kartu ini dibatalkan oleh <strong>{{ $cancelInfo['by'] ?? '-' }}</strong>
+                pada {{ $cancelInfo['at']->timezone(\App\Services\Finance\LedgerReport::TIMEZONE)->format('d M Y H:i') }} WIB.
+                Alasan: {{ $cancelInfo['reason'] }}. Sisa kuota dihanguskan; uang pembelian tetap tercatat di Buku Transaksi.
+            </div>
+        @endif
 
         <!-- Profil + 3 saldo fasilitas -->
         <div class="c61-kpis">
@@ -493,7 +510,7 @@
                         <div class="kus-info">
                             <div>Harga Paket Snapshot: <strong>Rp {{ number_format($m->purchase_price_snapshot, 0, ',', '.') }}</strong></div>
                             <div>Masa Aktif: <strong>{{ $m->start_date ? $m->start_date->format('d M Y') : '-' }} s/d {{ $m->end_date ? $m->end_date->format('d M Y') : '-' }}</strong></div>
-                            <div>Status Saat Ini: <strong style="color: #047857;">{{ $m->status }}</strong></div>
+                            <div>Status Saat Ini: <strong style="color: {{ $m->status === 'ACTIVE' ? '#047857' : '#B42318' }};">{{ $cancelInfo ? 'DIBATALKAN ADMIN' : $m->status }}</strong></div>
                             <div>QR Pass Barcode: <span class="c61-mono" style="font-size: 0.75rem; color: var(--c-brown);">{{ substr($m->qr_pass_hash ?? '-', 0, 24) }}...</span></div>
                         </div>
                     </div>
@@ -550,16 +567,64 @@
             </div>
         @endif
 
+        @if($showCancelMembership)
+            @php
+                $blockers = $this->cancelBlockers;
+                $facilityLabels = ['PADEL' => 'Padel', 'GYM' => 'Gym', 'SAUNA' => 'Wellness'];
+                $quotaLeft = $m->balances->filter(fn ($b) => (float) $b->remaining_quota > 0)
+                    ->map(fn ($b) => ($facilityLabels[$b->facility] ?? $b->facility).' '.(float) $b->remaining_quota.($b->quota_type === 'HOURS' ? ' jam' : ' sesi'));
+            @endphp
+            <div class="c61-modal-backdrop" style="z-index: 99999;">
+                <div class="c61-modal is-danger" style="max-width: 520px;">
+                    <div class="c61-modal-head">
+                        <div>
+                            <div class="c61-modal-eyebrow">{{ $m->membership_code }} &middot; {{ $m->user->name ?? '-' }}</div>
+                            <div class="c61-modal-title">Batalkan Membership</div>
+                        </div>
+                        <button type="button" wire:click="$set('showCancelMembership', false)" class="c61-modal-close">&times;</button>
+                    </div>
+                    <div class="c61-modal-body">
+                        @if($blockers)
+                            <div class="c61-note c61-note-warn">
+                                <strong>Kartu belum dapat dibatalkan:</strong>
+                                <ul style="margin: 0.35rem 0 0; padding-left: 1.1rem;">
+                                    @foreach($blockers as $blocker)
+                                        <li>{{ $blocker }}</li>
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @else
+                            <div class="c61-note c61-note-orange">
+                                Kartu tidak dapat digunakan lagi dan pembatalan bersifat permanen.
+                                Sisa kuota dihanguskan{{ $quotaLeft->isNotEmpty() ? ' ('.$quotaLeft->implode(', ').')' : '' }}.
+                                Uang pembelian Rp {{ number_format((float) $m->purchase_price_snapshot, 0, ',', '.') }} tidak dikembalikan dan tetap tercatat di Buku Transaksi.
+                            </div>
+                            <div class="c61-field">
+                                <label class="c61-label">Alasan (wajib):</label>
+                                <textarea wire:model="cancelReason" rows="2" maxlength="200" placeholder="Contoh: harga paket salah input" class="c61-textarea"></textarea>
+                            </div>
+                        @endif
+                    </div>
+                    <div class="c61-modal-foot">
+                        <button type="button" wire:click="$set('showCancelMembership', false)" class="c61-btn c61-btn-ghost">Tutup</button>
+                        @unless($blockers)
+                            <button type="button" wire:click="confirmCancelMembership" wire:loading.attr="disabled" wire:target="confirmCancelMembership" class="c61-btn c61-btn-danger">Batalkan Membership</button>
+                        @endunless
+                    </div>
+                </div>
+            </div>
+        @endif
+
     @else
         <!-- ========================================================
              DAFTAR MEMBER UTAMA & METRIK LIVE MONITORING
              ======================================================== -->
         <div class="c61-hero">
             <div>
-                <div class="c61-eyebrow"><span class="dot"></span>Modul 05 &bull; Customer Directory &amp; Live Monitoring</div>
-                <div class="c61-hero-title">Data Customer &amp; Live Monitoring Membership</div>
+                <div class="c61-eyebrow"><span class="dot"></span>Customer &amp; Membership</div>
+                <div class="c61-hero-title">Data Member &amp; Pemakaian Kuota</div>
                 <div class="c61-hero-sub">
-                    Pantau seluruh pelanggan terdaftar, kepemilikan kartu keanggotaan aktif, dan stream mutasi kuota fasilitas secara real-time.
+                    Daftar pemegang kartu membership yang telah lunas, sisa kuota fasilitas, dan riwayat pemakaian kuota terbaru.
                 </div>
             </div>
 
@@ -590,11 +655,11 @@
             </div>
             <div class="c61-kpi">
                 <div class="c61-kpi-top">
-                    <div class="c61-kpi-label">Pilihan Paket Membership</div>
+                    <div class="c61-kpi-label">Paket Membership Aktif</div>
                     <span class="c61-kpi-icon"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg></span>
                 </div>
-                <div class="c61-kpi-value">4 <small>Tier</small></div>
-                <div class="c61-kpi-foot"><span>Bronze, Silver, Gold, Corporate</span></div>
+                <div class="c61-kpi-value">{{ $this->metrics['active_plans'] }} <small>Paket</small></div>
+                <div class="c61-kpi-foot"><span>{{ $this->metrics['active_plan_names'] ?: 'Belum ada paket aktif' }}</span></div>
             </div>
             <div class="c61-kpi">
                 <div class="c61-kpi-top">
@@ -609,7 +674,7 @@
         <div>
             <div class="c61-seg">
                 <button type="button" wire:click="selectTab('members')" class="c61-seg-btn {{ $activeTab === 'members' ? 'is-active' : '' }}">
-                    Daftar Member &amp; Keanggotaan <span class="count">{{ $this->members->count() }}</span>
+                    Daftar Member &amp; Keanggotaan <span class="count">{{ $this->members->total() }}</span>
                 </button>
                 <button type="button" wire:click="selectTab('live_monitoring')" class="c61-seg-btn {{ $activeTab === 'live_monitoring' ? 'is-active' : '' }}">
                     <span class="kus-dot"></span>
@@ -626,18 +691,28 @@
                         <div class="c61-search" style="max-width: 420px; flex: 1;">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
                             <input type="text" wire:model.live.debounce.300ms="search"
-                                   placeholder="Cari nama pelanggan, email, nomor WhatsApp, kode kartu..." class="c61-input" />
+                                   placeholder="Cari nama member, email, nomor WhatsApp, kode kartu..." class="c61-input" />
                         </div>
 
                         <select wire:model.live="statusFilter" class="c61-select" style="width: auto;">
                             <option value="ALL">Semua Status</option>
                             <option value="ACTIVE">Hanya Status ACTIVE</option>
-                            <option value="PENDING_PAYMENT">Hanya PENDING PAYMENT</option>
                             <option value="EXPIRED">Hanya EXPIRED</option>
+                            <option value="CANCELLED">Hanya DIBATALKAN</option>
                         </select>
+
+                        <div class="c61-row" style="gap: 0.35rem; flex-wrap: nowrap;">
+                            <span class="c61-label" style="margin: 0; white-space: nowrap;">Mulai Aktif</span>
+                            <input type="date" wire:model.live="activeFrom" class="c61-input" aria-label="Mulai aktif dari" style="width: auto; height: 36px;">
+                            <span style="color: var(--c-muted);">&ndash;</span>
+                            <input type="date" wire:model.live="activeUntil" class="c61-input" aria-label="Mulai aktif sampai" style="width: auto; height: 36px;">
+                            @if($activeFrom !== '' || $activeUntil !== '')
+                                <button type="button" wire:click="clearActiveRange" class="c61-btn c61-btn-ghost c61-btn-sm">Hapus</button>
+                            @endif
+                        </div>
                     </div>
 
-                    <span class="c61-pill c61-pill-cream">Menampilkan {{ $this->members->count() }} Data Member</span>
+                    <span class="c61-pill c61-pill-cream">Menampilkan {{ $this->members->total() }} Data Member</span>
                 </div>
 
                 <div class="c61-table-wrap">
@@ -688,8 +763,10 @@
                                             <span class="c61-pill c61-pill-cream">POS Frontdesk</span>
                                             <div class="sub">Kasir: {{ $mbr->soldByAdmin->name ?? 'Frontdesk' }}</div>
                                         @else
-                                            <span class="c61-pill c61-pill-info">Online Midtrans</span>
-                                            <div class="sub">Web Customer</div>
+                                            {{-- Gateway dari pembayaran yang lunas (dulu tertulis "Online Midtrans" untuk semua pembelian online). --}}
+                                            @php $paidVia = $mbr->order?->payments->firstWhere('status', 'SUCCESS')?->payment_gateway; @endphp
+                                            <span class="c61-pill c61-pill-info">Online{{ $paidVia ? ' · '.\App\Services\Payment\OnlineGatewayRouter::label($paidVia) : '' }}</span>
+                                            <div class="sub">Web / Aplikasi</div>
                                         @endif
                                     </td>
 
@@ -750,6 +827,9 @@
                                             <span class="c61-pill c61-pill-warn">PENDING BAYAR</span>
                                         @elseif($mbr->status === 'EXPIRED')
                                             <span class="c61-pill c61-pill-danger">EXPIRED</span>
+                                        @elseif($mbr->status === 'CANCELLED' && $mbr->start_date)
+                                            {{-- Pernah aktif lalu dibatalkan admin; pembelian online yang ditinggal tanpa bayar tidak pernah punya tanggal mulai. --}}
+                                            <span class="c61-pill c61-pill-danger">DIBATALKAN</span>
                                         @else
                                             <span class="c61-pill c61-pill-gray">{{ $mbr->status }}</span>
                                         @endif
@@ -763,12 +843,31 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="8" class="c61-empty">Tidak ada data member yang sesuai dengan pencarian atau filter status.</td>
+                                    <td colspan="8" class="c61-empty">Tidak ada data member yang sesuai dengan pencarian atau filter.</td>
                                 </tr>
                             @endforelse
                         </tbody>
                     </table>
                 </div>
+                @php $memberPage = $this->members; @endphp
+                @if($memberPage->total() > 0)
+                    <div class="c61-card-foot">
+                        <span class="c61-hint" style="margin: 0;">
+                            {{ $memberPage->firstItem() }}&ndash;{{ $memberPage->lastItem() }} dari {{ $memberPage->total() }} member &middot; Halaman {{ $memberPage->currentPage() }} dari {{ $memberPage->lastPage() }}
+                        </span>
+                        <div class="c61-row" style="gap: 0.5rem;">
+                            <select wire:model.live="perPage" class="c61-select" aria-label="Baris per halaman" style="width: auto; height: 32px; padding-top: 0; padding-bottom: 0;">
+                                @foreach(\App\Filament\Pages\Kustomer::PER_PAGE_OPTIONS as $size)
+                                    <option value="{{ $size }}">{{ $size }} / halaman</option>
+                                @endforeach
+                            </select>
+                            <div class="c61-pages">
+                                <button type="button" wire:click="previousPage" @disabled($memberPage->onFirstPage()) class="c61-page" aria-label="Halaman sebelumnya">&larr;</button>
+                                <button type="button" wire:click="nextPage" @disabled(! $memberPage->hasMorePages()) class="c61-page" aria-label="Halaman berikutnya">&rarr;</button>
+                            </div>
+                        </div>
+                    </div>
+                @endif
             </div>
         @else
             <!-- TAB 2: LIVE MONITORING LOG KUOTA -->

@@ -148,6 +148,7 @@ class BookOfflineCourt extends Page
     // Opsi Software Auto Check-In
     public bool $isAutoCheckIn = false;
 
+
     /**
      * Tipe booking: REGULAR atau COACHING (Modul 24 Opsi B, izin book_coaching). Coaching = harga slot tarif setoran
      * coaching (CoachingPricingService), tanpa membership / voucher. Semua isian divalidasi ulang di server saat checkout.
@@ -679,6 +680,19 @@ class BookOfflineCourt extends Page
                 'remaining_quota' => $padelBalance ? (float) $padelBalance->remaining_quota : 0.00,
                 'discount_percent' => $padelBalance ? (float) $padelBalance->discount_percent : 0.00,
                 'balance_id' => $padelBalance?->id,
+            ];
+        }
+
+        // Modul 34: PIC perusahaan Tagihan Bulanan → sewa lapangan masuk tagihan bulanan (dicek ulang di server).
+        if ($monthly = \App\Services\Membership\MonthlyBilling::cardForBooker($user)) {
+            $this->activeMembershipInfo = [
+                'membership_code' => $monthly->membership?->membership_code,
+                'plan_name' => 'Tagihan Bulanan '.\App\Services\Membership\MonthlyBilling::billedName($monthly->membership),
+                'facility' => 'PADEL',
+                'quota_type' => \App\Services\Membership\MonthlyBilling::METHOD,
+                'remaining_quota' => 0.00,
+                'discount_percent' => 0.00,
+                'balance_id' => $monthly->id,
             ];
         }
 
@@ -1771,6 +1785,7 @@ class BookOfflineCourt extends Page
         if ($this->isCoaching && ! $this->assertCoachingReady()) {
             return;
         }
+
 
         // 2.1 Validasi Ketat Metode Pembayaran
         $method = strtoupper($this->paymentMethod);

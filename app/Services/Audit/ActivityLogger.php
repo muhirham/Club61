@@ -466,7 +466,9 @@ class ActivityLogger
             str_starts_with($path, 'pos/check-in') => 'POS_CHECKIN',
             str_starts_with($path, 'pos') => 'POS_FNB',
             str_starts_with($path, 'kitchen') => 'KDS',
-            str_starts_with($path, 'api/') && str_contains($path, 'webhook') => 'WEBHOOK',
+            // Notifikasi DOKU (/payments/doku/notification & /payments/doku-snap/...) tidak memuat kata "webhook" — dulu
+            // tercatat sebagai Web Customer dengan pelaku "Tamu (belum login)".
+            str_starts_with($path, 'api/') && (str_contains($path, 'webhook') || str_starts_with($path, 'api/v1/payments/doku')) => 'WEBHOOK',
             str_starts_with($path, 'api/') => $request->bearerToken() ? 'MOBILE_API' : 'CUSTOMER_WEB',
             $path === '' && app()->runningInConsole() => 'SYSTEM',
             default => 'CUSTOMER_WEB',

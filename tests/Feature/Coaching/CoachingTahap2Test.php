@@ -127,18 +127,34 @@ class CoachingTahap2Test extends TestCase
         $this->assertSame($this->date, JadwalCoaching::filterDate('2026-02-31'));
     }
 
-    public function test_clearing_the_schedule_date_shows_all_sessions(): void
+    public function test_schedule_toolbar_switches_between_days_and_upcoming_sessions(): void
     {
         $result = $this->coachingCheckout('15', ['head_coach_id' => $this->maimun->id]);
         $booking = PadelBooking::where('order_id', $result['order']->id)->sole();
-        $this->travelTo(Carbon::parse($this->date, 'Asia/Jakarta')->addDays(3)->setTime(9, 0));
+        $this->travelTo(Carbon::parse($this->date, 'Asia/Jakarta')->subDays(2)->setTime(9, 0));
 
-        // Hari lain: sesi tidak tampil; tanggal dikosongkan (× pada label filter) → label hilang & semua sesi tampil.
-        Livewire::test(JadwalCoaching::class)
+        // Dibuka → hari ini (sesi lusa tidak tampil); Besok juga belum; Semua Mendatang & pilih tanggal → tampil.
+        $page = Livewire::test(JadwalCoaching::class)
+            ->assertSet('range', 'day')
             ->assertCanNotSeeTableRecords([$booking])
-            ->filterTable('tanggal', ['date' => null])
+            ->assertSee('0 sesi')
+            ->call('showDay', 1)
+            ->assertCanNotSeeTableRecords([$booking])
+            ->call('showUpcoming')
+            ->assertSet('range', 'upcoming')
             ->assertCanSeeTableRecords([$booking])
-            ->assertDontSee('Tanggal: ');
+            ->assertSee('1 sesi')
+            ->set('date', $this->date)
+            ->assertSet('range', 'day')
+            ->assertCanSeeTableRecords([$booking])
+            ->assertSee('Court A');
+
+        // Tanggal yang dikirim browser tidak valid → kembali ke hari ini.
+        $page->set('date', 'bukan-tanggal')->assertSet('date', Carbon::parse($this->date)->subDays(2)->toDateString());
+
+        // Sesi yang sudah lewat tidak termasuk Semua Mendatang.
+        $this->travelTo(Carbon::parse($this->date, 'Asia/Jakarta')->addDays(3)->setTime(9, 0));
+        Livewire::test(JadwalCoaching::class)->call('showUpcoming')->assertCanNotSeeTableRecords([$booking]);
     }
 
     // ── Profil coach (web & API)───────────────────────────────────────────────────────────────────────────────

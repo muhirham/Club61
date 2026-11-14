@@ -3,25 +3,28 @@
 namespace App\Filament\Pages;
 
 use App\Models\Padel\PadelBooking;
+use App\Services\Coaching\CoachingBookingService;
 use App\Services\Finance\LedgerReport;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
-use Filament\Tables\Enums\FiltersLayout;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use UnitEnum;
 
 /**
  * Jadwal Coaching (Modul 24 Opsi B): sesi coaching per tanggal untuk resepsionis — siapkan lapangan / keranjang bola dan
- * kirim pengingat WhatsApp ke coach (pesan siap kirim, resepsionis yang menekan tombolnya).
+ * kirim pengingat WhatsApp ke coach (pesan siap kirim, resepsionis yang menekan tombolnya), serta Ganti Coach bila coach
+ * berhalangan / diganti di lapangan.
  */
 class JadwalCoaching extends Page implements HasTable
 {
@@ -51,7 +54,7 @@ class JadwalCoaching extends Page implements HasTable
     ];
 
     /**
-     * Tanggal filter sebagai "Y-m-d". Nilai default DatePicker ikut membawa jam ("2026-10-23 14:50:25") dan di MySQL
+     * Tanggal sebagai "Y-m-d". Dulu nilai default DatePicker ikut membawa jam ("2026-10-23 14:50:25") dan di MySQL
      * DATE(booking_date) = '… 14:50:25' tidak pernah cocok — dulu tabel kosong saat halaman baru dibuka. Nilai yang
      * bukan tanggal valid (kiriman browser) → hari ini.
      */
@@ -64,22 +67,67 @@ class JadwalCoaching extends Page implements HasTable
         return now(LedgerReport::TIMEZONE)->toDateString();
     }
 
+    /** Toolbar tanggal: 'day' = satu tanggal main ($date), 'upcoming' = hari ini & seterusnya. */
+    public string $range = 'day';
+
+    /** Tanggal main (Y-m-d) saat $range = 'day'. Dibuka ulang → selalu hari ini. */
+    public string $date = '';
+
+    public function mount(): void
+    {
+        $this->date = self::filterDate(null);
+    }
+
+    public function updatedDate(): void
+    {
+        $this->date = self::filterDate($this->date);
+        $this->range = 'day';
+        $this->resetPage();
+    }
+
+    public function showDay(int $offset): void
+    {
+        $this->date = now(LedgerReport::TIMEZONE)->addDays($offset)->toDateString();
+        $this->range = 'day';
+        $this->resetPage();
+    }
+
+    public function showUpcoming(): void
+    {
+        $this->range = 'upcoming';
+        $this->resetPage();
+    }
+
+    /** Sesi sesuai toolbar tanggal (dipakai tabel & jumlah sesi). */
+    public function scheduleQuery(): Builder
+    {
+        return PadelBooking::query()
+            ->whereNotNull('coaching_booking_id')
+            ->whereIn('status', array_keys(self::STATUS_LABELS))
+            ->when($this->range === 'upcoming',
+                fn (Builder $q) => $q->whereDate('booking_date', '>=', self::filterDate(null)),
+                fn (Builder $q) => $q->whereDate('booking_date', self::filterDate($this->date)));
+    }
+
+    public function sessionCount(): int
+    {
+        return $this->scheduleQuery()->count();
+    }
+
     public function table(Table $table): Table
     {
         return $table
-            ->query(PadelBooking::query()
-                ->whereNotNull('coaching_booking_id')
-                ->whereIn('status', array_keys(self::STATUS_LABELS))
+            ->query(fn () => $this->scheduleQuery()
                 ->with(['court:id,name', 'user:id,name,phone', 'coachingBooking.coaches.academy:id,name']))
             ->defaultSort('start_time')
             ->paginated([25, 50, 100])
-            ->emptyStateHeading('Belum ada sesi coaching di tanggal ini')
+            ->emptyStateHeading(fn () => $this->range === 'upcoming' ? 'Belum ada sesi coaching mendatang' : 'Belum ada sesi coaching di tanggal ini')
             ->columns([
-                TextColumn::make('start_time')->label('Jam')->weight('bold')
+                // Lapangan digabung ke kolom jam supaya tombol aksi muat di layar tablet tanpa geser ke samping.
+                TextColumn::make('start_time')->label('Jam & Lapangan')->weight('bold')
                     ->formatStateUsing(fn (PadelBooking $b) => $b->start_time->format('H:i').' – '.$b->end_time->format('H:i'))
-                    ->description(fn (PadelBooking $b) => $b->start_time->translatedFormat('D, d M')),
-                TextColumn::make('court.name')->label('Lapangan'),
-                TextColumn::make('user.name')->label('Atas nama')->searchable()
+                    ->description(fn (PadelBooking $b) => ($b->court?->name ?? '-').' · '.$b->start_time->locale('id')->translatedFormat('D, d M')),
+                TextColumn::make('user.name')->label('Atas nama')
                     ->description(fn (PadelBooking $b) => $b->user?->phone),
                 TextColumn::make('status')->label('Status')->badge()
                     // Sesi tagihan berkala academy (Modul 31) belum dibayar tetapi sudah terkonfirmasi.
@@ -92,8 +140,7 @@ class JadwalCoaching extends Page implements HasTable
                         default => 'warning',
                     }),
                 TextColumn::make('coaches')->label('Coach')
-                    ->state(fn (PadelBooking $b) => $b->coachingBooking?->coaches
-                        ->sortBy(fn ($c) => $c->pivot->role === 'HEAD' ? 0 : 1)
+                    ->state(fn (PadelBooking $b) => $b->coachingBooking?->sortedCoaches()
                         ->map(fn ($c) => $c->name.($c->pivot->role === 'HEAD' ? '' : ' (+)'))
                         ->all() ?? [])
                     ->listWithLineBreaks()
@@ -104,17 +151,6 @@ class JadwalCoaching extends Page implements HasTable
                         $b->coachingBooking?->notes,
                     ]))) ?: '-'),
             ])
-            ->filters([
-                // Tanggal dikosongkan (× pada label filter) → semua sesi tampil; dulu kosong selalu kembali ke hari ini.
-                Filter::make('tanggal')
-                    ->schema([DatePicker::make('date')->label('Tanggal')->default(now(LedgerReport::TIMEZONE)->toDateString())->native(false)->displayFormat('d M Y')])
-                    ->query(fn (Builder $query, array $data) => blank($data['date'] ?? null)
-                        ? $query : $query->whereDate('booking_date', self::filterDate($data['date'])))
-                    ->indicateUsing(fn (array $data) => blank($data['date'] ?? null)
-                        ? null : 'Tanggal: '.Carbon::parse(self::filterDate($data['date']))->translatedFormat('d M Y')),
-            ])
-            // Di atas tabel, bukan dropdown: kalender di dalam dropdown terpotong di layar tablet.
-            ->filtersLayout(FiltersLayout::AboveContent)
             ->recordActions([
                 Action::make('remind')
                     ->label('Ingatkan Coach')
@@ -125,6 +161,44 @@ class JadwalCoaching extends Page implements HasTable
                     ->modalSubmitAction(false)
                     ->modalCancelActionLabel('Tutup')
                     ->modalContent(fn (PadelBooking $record) => view('filament.pages.partials.coaching-reminder-links', ['booking' => $record])),
+                // Coach berhalangan / diganti di lapangan: jadwal, pengingat WhatsApp & rekap per coach ikut coach pengganti.
+                Action::make('changeCoach')
+                    ->label('Ganti Coach')
+                    ->icon('heroicon-o-arrow-path')
+                    ->color('gray')
+                    ->visible(fn (PadelBooking $b) => $b->coachingBooking !== null
+                        && in_array($b->status, CoachingBookingService::CHANGEABLE_STATUSES, true))
+                    ->authorize(fn () => auth()->user()?->can('book_coaching') ?? false)
+                    ->modalHeading('Ganti coach sesi coaching')
+                    ->modalDescription('Coach pengganti harus berasal dari academy yang sama dan tidak memiliki sesi lain pada jam ini. Perubahan berlaku untuk seluruh jam pada sesi ini; harga dan pembayaran tidak berubah.')
+                    ->modalSubmitActionLabel('Simpan Perubahan')
+                    ->fillForm(fn (PadelBooking $record) => [
+                        'coaches' => self::sessionCoaches($record)->mapWithKeys(fn ($c) => [(string) $c->id => (string) $c->id])->all(),
+                    ])
+                    ->schema(fn (PadelBooking $record) => [
+                        ...self::sessionCoaches($record)->map(fn ($c) => Select::make('coaches.'.$c->id)
+                            ->label(($c->pivot->role === 'HEAD' ? 'Coach utama' : 'Coach tambahan').' — saat ini: '.$c->name)
+                            ->options(CoachingBookingService::replacementOptions($c)->mapWithKeys(fn ($o) => [(string) $o->id => $o->optionLabel()])->all())
+                            ->required()
+                            ->native(false)
+                            ->searchable())->all(),
+                        Textarea::make('reason')->label('Alasan (opsional)')->placeholder('Contoh: coach berhalangan hadir')->rows(2)->maxLength(500),
+                    ])
+                    ->action(function (PadelBooking $record, array $data) {
+                        try {
+                            app(CoachingBookingService::class)->changeCoaches($record->coachingBooking, (array) ($data['coaches'] ?? []), $data['reason'] ?? null, auth()->user());
+                            Notification::make()->title('Coach berhasil diganti.')
+                                ->body('Silakan kirim pengingat ke coach pengganti melalui tombol Ingatkan Coach.')->success()->send();
+                        } catch (HttpException $e) {
+                            Notification::make()->title($e->getMessage())->danger()->send();
+                        }
+                    }),
             ]);
+    }
+
+    /** Coach sesi ini, coach utama lebih dulu. */
+    private static function sessionCoaches(PadelBooking $booking): Collection
+    {
+        return $booking->coachingBooking?->sortedCoaches() ?? collect();
     }
 }

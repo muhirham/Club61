@@ -1,0 +1,4 @@
+# Hasil build & file di PC kasir (token rahasia, log) — jangan di-commit.
+dist/
+agent.json
+agent.log

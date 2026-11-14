@@ -177,6 +177,15 @@
                         <div class="an-line-val">{{ $rp($channels['other']['money_net']) }}<small>{{ $num($channels['other']['transactions']) }} transaksi</small></div>
                     </div>
                 @endif
+                @if ($channels['corporate']['transactions'] > 0 || abs($channels['corporate']['money_net']) >= 0.005)
+                    <div class="an-line">
+                        <div>
+                            <div class="an-line-title">Transfer Corporate</div>
+                            <div class="an-line-sub">Transfer perusahaan langsung ke rekening Club 61 (membership corporate &amp; Tagihan Bulanan)</div>
+                        </div>
+                        <div class="an-line-val">{{ $rp($channels['corporate']['money_net']) }}<small>{{ $num($channels['corporate']['transactions']) }} transaksi</small></div>
+                    </div>
+                @endif
                 <div class="an-line">
                     <div>
                         <div class="an-line-title">Payment Gateway Online</div>

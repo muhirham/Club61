@@ -17,6 +17,8 @@ return [
     'active_members' => 'Active Members',
     'contract_quota' => 'Contract Quota',
     'no_hour_quota' => 'No hour quota',
+    'monthly_billing_title' => 'Monthly Billing plan.',
+    'monthly_billing_notice' => 'PIC bookings are confirmed right away and play hours are summarised each month for Club 61 to invoice. Hours cannot be shared with employees; bookings are made by the PIC.',
     'quota_remaining' => 'Quota Remaining',
     'hours_released' => 'Hours Released',
     'hours_used' => 'Hours Used',

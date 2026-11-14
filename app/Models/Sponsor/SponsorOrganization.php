@@ -51,10 +51,26 @@ class SponsorOrganization extends Model
         ];
     }
 
-    /** Aksi PIC yang diizinkan. Kosong / NULL di kolom = semua boleh (perusahaan lama & default). */
+    /** Aksi pembagian jam yang tidak berlaku untuk paket Tagihan Bulanan (Modul 34). */
+    public const PIC_HOUR_ACTIONS = [self::PIC_RELEASE_SINGLE, self::PIC_RELEASE_BULK, self::PIC_EDIT_VOUCHERS];
+
+    /**
+     * Aksi PIC yang diizinkan. Kosong / NULL di kolom = semua boleh (perusahaan lama & default). Paket Tagihan Bulanan
+     * tidak punya jam untuk dibagi: memberi / mengubah jam karyawan selalu ditolak (tombol disembunyikan, API menolak).
+     */
     public function picAllows(string $action): bool
     {
+        if (in_array($action, self::PIC_HOUR_ACTIONS, true) && $this->usesMonthlyBilling()) {
+            return false;
+        }
+
         return ! in_array($action, (array) ($this->pic_restricted_actions ?? []), true);
+    }
+
+    /** Paket perusahaan ini memakai Tagihan Bulanan (Modul 34): PIC booking dengan tagihan, jam tidak dibagikan. */
+    public function usesMonthlyBilling(): bool
+    {
+        return \App\Services\Membership\MonthlyBilling::balanceOf($this->userMembership) !== null;
     }
 
     /** @return array<int, string> */

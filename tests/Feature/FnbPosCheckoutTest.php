@@ -241,8 +241,13 @@ class FnbPosCheckoutTest extends TestCase
         $this->assertSame(9100, $jobs[0]['port']);
         $this->assertStringContainsString('PESANAN KITCHEN', $jobs[0]['html']);
         $this->assertStringContainsString('1x '.$this->toast->name, $jobs[0]['html']);
-        $this->assertStringContainsString('- Tanpa bawang', $jobs[0]['html']);
-        $this->assertStringContainsString('MEJA', $jobs[0]['html']);
+        $this->assertStringContainsString('* Tanpa bawang', $jobs[0]['html']);
+        $this->assertStringContainsString('MEJA 7', $jobs[0]['html']);
+        // Gaya slip dapur: antrian sebaris dengan meja, nama menu panjang turun menjorok, catatan di bawahnya, jumlah item.
+        $this->assertStringContainsString('ANTRIAN ', $jobs[0]['html']);
+        $this->assertStringContainsString('data-print-hang="3">1x '.$this->toast->name, $jobs[0]['html']);
+        $this->assertStringContainsString('data-print-indent="3" data-print-hang="2">* Tanpa bawang', $jobs[0]['html']);
+        $this->assertMatchesRegularExpression('/<span>Jumlah item:<\/span><span>1<\/span>/', $jobs[0]['html']);
         $this->assertStringNotContainsString($this->latte->name, $jobs[0]['html']);
         $this->assertStringNotContainsString('Rp ', $jobs[0]['html']);
 
@@ -292,6 +297,106 @@ class FnbPosCheckoutTest extends TestCase
         $this->assertNotNull($ticket->fresh()->printed_at);
         $this->assertNull($ticket->fresh()->last_print_error);
         $this->assertSame(1, KitchenTicket::count(), 'kirim ulang tidak membuat slip ganda');
+    }
+
+    /** Kasir di browser PC (bukan aplikasi): STATION_PRINT_DRIVER=mock → slip disimpan & ditampilkan, tidak ke printer. */
+    public function test_browser_mock_driver_stores_the_slip_bytes_and_returns_readable_text(): void
+    {
+        config(['station_print.driver' => 'mock']);
+        $this->openFnbShift();
+        $this->actingAs($this->cashier);
+
+        $component = Livewire::test(FnbCashierTerminal::class)
+            ->call('addToCart', $this->toast->id)
+            ->call('proceedToPayment')
+            ->call('setPaymentMethod', 'QRIS')
+            ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789015')
+            ->call('submitFnbCheckout');
+        $ticket = KitchenTicket::sole();
+
+        // Byte ESC/POS sama bentuknya dengan club61LayoutToEscPos (geser kiri 156 + lebar 384 titik, judul rata tengah,
+        // item, potong kertas). Perintah geser tidak boleh muncul sebagai teks.
+        $bytes = "\x1B\x40\x1B\x74\x00\x1D\x4C\x9C\x00\x1D\x57\x80\x01\x1B\x61\x01\x1B\x45\x01\x1D\x21\x01PESANAN KITCHEN\n\x1B\x61\x00\x1B\x45\x00\x1D\x21\x001x Smashed Avocado Toast\n\x1B\x64\x03\x1D\x56\x42\x00";
+        $text = $component->call('saveMockStationPrint', $ticket->id, base64_encode($bytes))->effects['returns'][0] ?? null;
+
+        $this->assertIsString($text);
+        $this->assertStringStartsWith('        PESANAN KITCHEN', $text, 'judul rata tengah (32 kolom), tanpa sisa perintah geser');
+        $this->assertStringContainsString("\n1x Smashed Avocado Toast\n", $text);
+        $this->assertStringContainsString('(potong)', $text);
+
+        $files = glob(storage_path('logs/print-mock/*-'.$ticket->id.'.*'));
+        $this->assertCount(2, $files, '.bin mentah + .txt');
+        $bin = collect($files)->first(fn ($f) => str_ends_with($f, '.bin'));
+        $this->assertSame($bytes, file_get_contents($bin), 'byte disimpan apa adanya');
+        array_map('unlink', $files);
+    }
+
+    public function test_mock_endpoint_is_refused_outside_mock_mode_and_rejects_garbage(): void
+    {
+        $this->openFnbShift();
+        $this->actingAs($this->cashier);
+        $component = Livewire::test(FnbCashierTerminal::class)
+            ->call('addToCart', $this->toast->id)
+            ->call('proceedToPayment')
+            ->call('setPaymentMethod', 'QRIS')
+            ->set('qrisMode', 'MANUAL')->set('qrisRrn', '123456789016')
+            ->call('submitFnbCheckout');
+        $ticket = KitchenTicket::sole();
+
+        // Komponen baru tiap panggilan: setelah 403/422 snapshot Livewire tidak dipakai ulang.
+        config(['station_print.driver' => 'tablet']);
+        Livewire::test(FnbCashierTerminal::class)->call('saveMockStationPrint', $ticket->id, base64_encode('x'))->assertForbidden();
+
+        config(['station_print.driver' => 'mock']);
+        Livewire::test(FnbCashierTerminal::class)->call('saveMockStationPrint', $ticket->id, '%%%bukan-base64%%%')->assertStatus(422);
+        $this->assertSame([], glob(storage_path('logs/print-mock/*-'.$ticket->id.'.*')));
+    }
+
+    /** Token agent hanya dikirim ke halaman kalau driver agent dipakai; bawaan (tablet) tidak membocorkan apa pun. */
+    public function test_print_script_exposes_agent_settings_only_in_agent_mode(): void
+    {
+        // left_margin dipatok 0: .env local developer boleh berisi STATION_PRINT_LEFT_MARGIN.
+        config(['station_print.driver' => 'tablet', 'station_print.agent_token' => 'token-rahasia-agent-123456789', 'station_print.left_margin' => 0]);
+        // @js menulis JSON.parse('...') berisi string JS ter-escape → dibaca balik jadi array.
+        $printConfig = function (string $html): array {
+            $this->assertSame(1, preg_match("/club61StationPrintConfig = JSON\\.parse\\('(.*?)'\\);/", $html, $m));
+
+            return json_decode(json_decode('"'.$m[1].'"'), true);
+        };
+
+        $html = view('pos.partials.receipt-print-script')->render();
+        $this->assertSame(['driver' => 'tablet'], $printConfig($html));
+        $this->assertStringNotContainsString('token-rahasia-agent-123456789', $html);
+
+        config(['station_print.driver' => 'agent', 'station_print.agent_url' => 'http://127.0.0.1:9120']);
+        // Pengaman: kalau skrip ini termuat di halaman panel yang bisa dibuka tamu, alamat & token agent tidak ikut.
+        $this->assertGuest();
+        $html = view('pos.partials.receipt-print-script')->render();
+        $this->assertSame(['driver' => 'agent'], $printConfig($html));
+        $this->assertStringNotContainsString('token-rahasia-agent-123456789', $html);
+        // Panel tanpa halaman login sendiri: tamu dilempar ke /login, yang tidak memuat skrip cetak sama sekali.
+        $this->get('/admin')->assertRedirect('/login');
+        $this->get('/login')->assertOk()->assertDontSee('token-rahasia-agent-123456789', false)->assertDontSee('club61StationPrintConfig', false);
+
+        $this->actingAs($this->cashier);
+        $html = view('pos.partials.receipt-print-script')->render();
+        $this->assertSame(
+            ['driver' => 'agent', 'agentUrl' => 'http://127.0.0.1:9120', 'agentToken' => 'token-rahasia-agent-123456789'],
+            $printConfig($html)
+        );
+        // Jalur aplikasi Android tetap ada & tidak berubah.
+        $this->assertStringContainsString("action: 'lan_print'", $html);
+
+        // Geser kertas 58mm di printer 80mm: dikirim ke halaman (aplikasi & browser) kalau diisi; dibatasi 0–192 titik.
+        config(['station_print.driver' => 'tablet', 'station_print.left_margin' => 156]);
+        $this->assertSame(['driver' => 'tablet', 'leftMargin' => 156], $printConfig(view('pos.partials.receipt-print-script')->render()));
+        foreach (['500' => 192, '-20' => 0, 'abc' => 0, '156' => 156] as $env => $expected) {
+            putenv("STATION_PRINT_LEFT_MARGIN={$env}");
+            $_ENV['STATION_PRINT_LEFT_MARGIN'] = $_SERVER['STATION_PRINT_LEFT_MARGIN'] = $env;
+            $this->assertSame($expected, (require config_path('station_print.php'))['left_margin'], "env {$env}");
+        }
+        putenv('STATION_PRINT_LEFT_MARGIN');
+        unset($_ENV['STATION_PRINT_LEFT_MARGIN'], $_SERVER['STATION_PRINT_LEFT_MARGIN']);
     }
 
     public function test_midtrans_paid_fnb_order_gets_station_ticket_from_payment_fulfillment(): void

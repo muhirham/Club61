@@ -240,8 +240,19 @@ Desain v1 mengasumsikan 3 tier tetap (Silver/Gold/Platinum) yang masing-masing m
 ### FR-08: Auto-Expiry Scheduler (Generalisasi)
 - `php artisan membership:sync-expired` berjalan harian, mengevaluasi tiap `user_memberships` berstatus `ACTIVE`:
   - Set `EXPIRED` jika `end_date < today()`.
-  - **ATAU** jika **seluruh** balance bertipe `HOURS`/`VISITS` miliknya sudah `remaining_quota <= 0` (balance `NONE` diabaikan dari kondisi ini karena tidak pernah "habis").
+  - **ATAU** jika **seluruh** balance bertipe `HOURS`/`VISITS` miliknya sudah `remaining_quota <= 0` (balance `NONE` diabaikan dari kondisi ini karena tidak pernah "habis") **dan** tidak ada lagi booking padel / wellness mendatang yang memakai kuota kartu itu (sejak 12 Nov 2026: kuota yang sudah terpotong Jadwal Tetap untuk booking yang belum dimainkan tidak membuat kartu EXPIRED lebih awal).
 - Kartu yang `EXPIRED` otomatis kembali ke tarif reguler tanpa diskon/kuota di seluruh fasilitas.
+
+### FR-08a: Batalkan Membership (12 Nov 2026, tanpa migrasi)
+Untuk kartu yang terjual karena kesalahan (mis. harga paket salah input). Tombol **Batalkan Membership** di detail kartu Data Member, izin `cancel_membership` (pintu belakang: bawaan super admin saja, dapat diberikan lewat matrix Roles).
+- Hanya kartu **individu** berstatus **ACTIVE**. Kartu corporate / sponsor dan Tagihan Bulanan dikelola lewat Kelola Sponsor.
+- **Ditolak** selama kartu masih dipakai — admin menyelesaikannya dulu: booking padel / wellness mendatang yang memakai kuota (termasuk yang masih ditahan / menunggu bayar), Jadwal Tetap yang belum dihentikan (aktif / dijeda), dan pembelian perpanjangan yang menunggu bayar (perpanjangan yang lunas mengaktifkan kembali kartu induknya).
+- Alasan wajib. Hasil: status `CANCELLED` permanen; sisa kuota tiap fasilitas dihanguskan lewat `MANUAL_ADJUSTMENT` di Audit Log Mutasi Kuota (`related_type = MEMBERSHIP_CANCELLED`, catatan "Kartu dibatalkan: alasan", petugas) — sumber keterangan "dibatalkan oleh … pada … alasan" di detail kartu; Log Aktivitas `membership.cancelled` (Peringatan). Kuota awal tidak diubah.
+- **Uang tidak disentuh**: tanpa refund & tanpa voucher saldo; penjualan kartu tetap tercatat di Buku Transaksi & Analytics.
+- Kartu batal tidak bisa dipakai di checkout web / aplikasi, kasir, check-in, maupun wellness (semua mensyaratkan `ACTIVE`), tidak diubah sinkronisasi harian, Terapkan Kuota / Aturan, maupun notifikasi pembayaran yang terlambat. Pembelian berikutnya oleh customer yang sama menjadi kartu baru (bayar penuh).
+- Data Member: status **DIBATALKAN** dan filter "Hanya DIBATALKAN".
+- Sejak 12 Nov 2026 daftar Data Member (dulu "Data Pelanggan") hanya berisi kartu yang pernah aktif (punya tanggal mulai = lunas). Pembelian yang menunggu bayar, batal sebelum bayar, dan catatan perpanjangan yang sudah digabung ke kartu induk tidak tampil (filter "PENDING PAYMENT" dihapus); angka "member baru bulan ini" menghitung kartu yang mulai aktif bulan ini. Riwayatnya tetap di Log Aktivitas: batal oleh customer (`membership.online_order_cancelled`) dan batal otomatis setelah 24 jam (`membership.online_order_expired`, pelaku Sistem). Kolom Saluran Beli menampilkan gateway pembayaran yang lunas ("Online · DOKU" / "Online · Midtrans"), bukan lagi selalu "Online Midtrans".
+- Daftar Data Member memakai pagination (25 / 50 / 100 per halaman) dan filter rentang **Mulai Aktif** (tanggal mulai kartu), bisa digabung dengan status & pencarian; kotak "Paket Membership Aktif" menghitung paket yang aktif dijual dari Paket Membership. Tanpa index baru: pencarian nama / email / HP berpola "mengandung kata" (tidak terbantu index) dan cukup cepat dengan pagination; index `start_date` baru dipertimbangkan bila kartu sudah puluhan ribu.
 
 ### FR-09: Kartu Member Digital di Customer Portal
 - `/dashboard` menampilkan kartu dinamis: nama paket aktif, kode member, QR pass, tanggal berakhir, dan **rincian sisa kuota per fasilitas** (bukan cuma satu angka) — misal "Padel: 12.5 jam tersisa · Gym: Unlimited · Sauna: 3 sesi tersisa".
