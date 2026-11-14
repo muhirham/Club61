@@ -137,6 +137,7 @@ return [
         'member_reactivated' => 'Member access reactivated.',
         'pic_action_not_allowed' => 'This action is not allowed for your account. Contact Club 61 to change access rights.',
         'csv_hours_not_allowed' => 'The hours column could not be processed: your account is not allowed to release hours. Clear the hours column and import again.',
+        'csv_edit_not_allowed' => 'This month\'s voucher has already been issued (:hours hours). Your account is not allowed to change voucher hours, so enter the same hours or leave the hours column empty.',
         'csv_required' => 'Please upload a CSV file (max 2MB, .csv format).',
         'import_done' => 'Import finished: :imported new member(s), :reactivated reactivated, :skipped duplicate(s) skipped, :issued new voucher(s) issued, :updated voucher(s) for this period updated, :failed row(s) failed.',
         'not_pic' => 'You are not registered as the person in charge of any company account.',

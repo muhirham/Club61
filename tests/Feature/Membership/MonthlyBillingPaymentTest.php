@@ -127,6 +127,33 @@ class MonthlyBillingPaymentTest extends TestCase
         }
     }
 
+    public function test_same_reference_saved_by_another_staff_at_the_same_moment_is_not_recorded_twice(): void
+    {
+        $this->bookings();
+        $service = app(MonthlyBillingPayment::class);
+        $transfer = $this->transfer('TRF-BARENG');
+
+        // Staf lain sedang menyimpan nomor referensi yang sama (kunci dipegang) → pencatatan ini menunggu lalu ditolak,
+        // bukan ikut lolos cek nomor referensi.
+        $other = \Illuminate\Support\Facades\Cache::lock(CorporateTransfer::referenceLockKey(['sender_bank' => 'bca', 'reference' => 'TRF-BARENG']), 30);
+        $this->assertTrue($other->get());
+        $wait = CorporateTransfer::$referenceLockWaitSeconds;
+        CorporateTransfer::$referenceLockWaitSeconds = 0;
+        try {
+            $this->expectRejected(fn () => $service->record($this->balance, '2026-11', 4500000, $transfer, $this->superAdmin), 'sedang dicatat oleh staf lain');
+        } finally {
+            CorporateTransfer::$referenceLockWaitSeconds = $wait;
+            $other->release();
+        }
+        $this->assertSame(0, Payment::where('payment_gateway', CorporateTransfer::GATEWAY)->count());
+
+        // Setelah staf lain selesai: pencatatan berjalan normal, dan nomor yang sama tetap tidak bisa dipakai lagi.
+        $service->record($this->balance, '2026-11', 4500000, $this->transfer('TRF-BARENG'), $this->superAdmin);
+        $this->travelTo(Carbon::parse('2026-12-02 10:00'));
+        $this->expectRejected(fn () => $service->record($this->balance, '2026-12', 100000, $this->transfer('trf-bareng'), $this->superAdmin), 'sudah pernah dicatat');
+        $this->assertSame(1, Payment::where('payment_gateway', CorporateTransfer::GATEWAY)->count());
+    }
+
     public function test_recap_counts_played_no_show_and_scheduled_hours_split_by_peak(): void
     {
         [$first, $second] = $this->bookings()->all();

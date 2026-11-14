@@ -69,9 +69,8 @@ class MonthlyBillingPayment
                 throw new HttpException(422, 'Nominal pembayaran harus lebih dari Rp 0.');
             }
             $details = CorporateTransfer::details($data, $by);
-            CorporateTransfer::assertReferenceUnused($details);
 
-            return DB::transaction(function () use ($balance, $month, $amount, $details, $by) {
+            return CorporateTransfer::withUnusedReference($details, fn () => DB::transaction(function () use ($balance, $month, $amount, $details, $by) {
                 UserMembershipBalance::whereKey($balance->id)->lockForUpdate()->first();
                 if (MonthlyBilling::paymentFor($balance->id, $month)) {
                     throw new HttpException(422, 'Pembayaran Tagihan Bulanan periode '.MonthlyBilling::monthLabel(Carbon::parse($month.'-01')).' sudah dicatat.');
@@ -121,7 +120,7 @@ class MonthlyBillingPayment
                 );
 
                 return $payment;
-            });
+            }));
         } catch (\Throwable $e) {
             CorporateTransfer::discardProof($data['proof_path'] ?? null);
 

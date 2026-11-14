@@ -10,25 +10,32 @@ use App\Models\Membership\UserMembershipBalance;
 use App\Models\Padel\PadelBooking;
 use App\Models\Sponsor\SponsorOrganization;
 use App\Models\Sponsor\SponsorOrganizationMember;
+use App\Services\Membership\MembershipCancellationService;
 use BackedEnum;
 use BezhanSalleh\FilamentShield\Traits\HasPageShield;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Illuminate\Support\Carbon;
 use Livewire\Attributes\Url;
+use Livewire\WithPagination;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 use UnitEnum;
 
 class Kustomer extends Page
 {
     use HasPageShield;
+    use WithPagination;
+
+    public const PER_PAGE_OPTIONS = [25, 50, 100];
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-users';
 
-    protected static ?string $navigationLabel = 'Data Pelanggan';
+    // Isinya pemegang kartu membership (bukan semua pelanggan). Slug izin tetap View:Kustomer (nama class).
+    protected static ?string $navigationLabel = 'Data Member';
 
     protected static string|UnitEnum|null $navigationGroup = 'Customer & Membership';
 
-    protected static ?string $title = 'Data Kustomer & Live Monitoring Membership';
+    protected static ?string $title = 'Data Member';
 
     protected static ?int $navigationSort = 1;
 
@@ -38,16 +45,56 @@ class Kustomer extends Page
 
     public string $search = '';
 
-    public string $statusFilter = 'ALL'; // 'ALL' | 'ACTIVE' | 'PENDING_PAYMENT' | 'EXPIRED'
+    public string $statusFilter = 'ALL'; // 'ALL' | 'ACTIVE' | 'EXPIRED' | 'CANCELLED'
+
+    /** Rentang tanggal mulai aktif kartu (Y-m-d, kosong = tanpa batas). */
+    public string $activeFrom = '';
+
+    public string $activeUntil = '';
+
+    public int $perPage = 25;
 
     #[Url(as: 'member')]
     public ?string $selectedMembershipId = null;
 
     public string $detailTab = 'habit_schedule'; // 'habit_schedule' | 'corporate_roster' | 'card_info' | 'audit_logs'
 
+    /** Popup Batalkan Membership (detail kartu) terbuka. */
+    public bool $showCancelMembership = false;
+
+    public string $cancelReason = '';
+
     public function selectTab(string $tab): void
     {
         $this->activeTab = in_array($tab, ['members', 'live_monitoring']) ? $tab : 'members';
+    }
+
+    /** Filter daftar berubah → kembali ke halaman 1; nilai yang bukan pilihan sah (kiriman browser) dikembalikan. */
+    public function updated(string $property): void
+    {
+        if (! in_array($property, ['search', 'statusFilter', 'activeFrom', 'activeUntil', 'perPage'], true)) {
+            return;
+        }
+        if (! in_array($this->statusFilter, ['ALL', 'ACTIVE', 'EXPIRED', 'CANCELLED'], true)) {
+            $this->statusFilter = 'ALL';
+        }
+        $this->activeFrom = self::validDate($this->activeFrom);
+        $this->activeUntil = self::validDate($this->activeUntil);
+        if (! in_array($this->perPage, self::PER_PAGE_OPTIONS, true)) {
+            $this->perPage = self::PER_PAGE_OPTIONS[0];
+        }
+        $this->resetPage();
+    }
+
+    public function clearActiveRange(): void
+    {
+        $this->activeFrom = $this->activeUntil = '';
+        $this->resetPage();
+    }
+
+    private static function validDate(string $value): string
+    {
+        return preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) && strtotime($value) !== false ? $value : '';
     }
 
     public function selectDetailTab(string $tab): void
@@ -58,6 +105,7 @@ class Kustomer extends Page
     public function openDetail(string $id): void
     {
         $this->selectedMembershipId = $id;
+        $this->showCancelMembership = false;
         $m = $this->selectedMembership;
         if ($m && $m->owner_type === 'ORGANIZATIONAL') {
             $this->detailTab = 'corporate_roster';
@@ -69,30 +117,81 @@ class Kustomer extends Page
     public function closeDetail(): void
     {
         $this->selectedMembershipId = null;
+        $this->showCancelMembership = false;
+    }
+
+    public function getCanCancelMembershipProperty(): bool
+    {
+        return (bool) auth()->user()?->can(MembershipCancellationService::PERMISSION);
+    }
+
+    /** @return list<string> alasan kartu terpilih belum dapat dibatalkan (hanya dihitung saat popup terbuka). */
+    public function getCancelBlockersProperty(): array
+    {
+        $m = $this->selectedMembership;
+
+        return $this->showCancelMembership && $m ? app(MembershipCancellationService::class)->blockers($m) : [];
+    }
+
+    public function openCancelMembership(): void
+    {
+        abort_unless(static::canAccess() && $this->canCancelMembership, 403);
+        $this->cancelReason = '';
+        $this->showCancelMembership = $this->selectedMembership !== null;
+    }
+
+    public function confirmCancelMembership(): void
+    {
+        abort_unless(static::canAccess(), 403);
+        $m = $this->selectedMembership;
+
+        try {
+            if (! $m) {
+                throw new HttpException(404, 'Kartu member tidak ditemukan.');
+            }
+            app(MembershipCancellationService::class)->cancel($m, $this->cancelReason, auth()->user());
+            // Kartu & daftar member tersimpan sementara selama request ini — dibaca ulang supaya status batal langsung tampil.
+            unset($this->selectedMembership, $this->members);
+            Notification::make()->title('Membership Dibatalkan')
+                ->body("Kartu {$m->membership_code} tidak dapat digunakan lagi. Uang pembelian tetap tercatat di Buku Transaksi.")
+                ->success()->send();
+            $this->showCancelMembership = false;
+        } catch (HttpException $e) {
+            Notification::make()->title('Membership Tidak Dapat Dibatalkan')->body($e->getMessage())->danger()->send();
+        }
     }
 
     public function getMetricsProperty(): array
     {
         $totalActive = UserMembership::where('status', 'ACTIVE')->count();
-        $newThisMonth = UserMembership::whereMonth('created_at', now()->month)
-            ->whereYear('created_at', now()->year)
+        // Kartu yang mulai aktif bulan ini (lunas). Dulu dihitung dari tanggal dibuat, jadi pembelian yang batal ikut terhitung.
+        $newThisMonth = UserMembership::whereBetween('start_date', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()])
             ->count();
         $totalPadelHours = UserMembershipBalance::where('facility', 'PADEL')
             ->whereHas('membership', fn ($q) => $q->where('status', 'ACTIVE'))
             ->sum('remaining_quota');
         $todayUsageCount = MembershipUsageLog::whereDate('created_at', now()->toDateString())->count();
+        // Paket yang dijual saat ini (dulu teks tetap "4 Tier · Bronze, Silver, Gold, Corporate").
+        $plans = MembershipPlan::where('is_active', true)->orderBy('price')->pluck('name');
 
         return [
             'total_active' => $totalActive,
             'new_this_month' => $newThisMonth,
             'total_padel_hours' => (float) $totalPadelHours,
             'today_usage_count' => $todayUsageCount,
+            'active_plans' => $plans->count(),
+            'active_plan_names' => $plans->take(4)->implode(', ').($plans->count() > 4 ? ' +'.($plans->count() - 4).' lainnya' : ''),
         ];
     }
 
     public function getMembersProperty()
     {
-        return UserMembership::with(['user', 'plan', 'balances', 'soldByAdmin', 'order'])
+        return UserMembership::with(['user', 'plan', 'balances', 'soldByAdmin', 'order.payments'])
+            // Hanya kartu yang pernah aktif (lunas). Pembelian menunggu bayar / batal sebelum bayar dan catatan perpanjangan
+            // yang sudah digabung ke kartu induk tidak punya tanggal mulai — riwayatnya ada di Log Aktivitas & Buku Transaksi.
+            ->whereNotNull('start_date')
+            ->when($this->activeFrom !== '', fn ($q) => $q->whereDate('start_date', '>=', $this->activeFrom))
+            ->when($this->activeUntil !== '', fn ($q) => $q->whereDate('start_date', '<=', $this->activeUntil))
             ->when($this->statusFilter !== 'ALL', function ($q) {
                 $q->where('status', $this->statusFilter);
             })
@@ -112,7 +211,7 @@ class Kustomer extends Page
                 });
             })
             ->latest('created_at')
-            ->get();
+            ->paginate($this->perPage);
     }
 
     public function getLiveLogsProperty()

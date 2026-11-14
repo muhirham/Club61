@@ -53,7 +53,7 @@ class CustomerPhoneService
                     throw new DomainException('Nomor HP hanya bisa ditambahkan ke akun customer.');
                 }
                 if (filled($fresh->phone)) {
-                    throw new DomainException('Akun ini sudah punya nomor HP ('.$fresh->phone.'). Perubahan nomor dilakukan customer di Edit Profil atau admin di Data Pelanggan.');
+                    throw new DomainException('Akun ini sudah punya nomor HP ('.$fresh->phone.'). Perubahan nomor dilakukan customer di Edit Profil atau admin di Akun Login.');
                 }
                 if ($owner = $this->ownerOf($normalized, $fresh->id)) {
                     throw new DomainException('Nomor '.$normalized.' sudah dipakai akun "'.$owner->name.'". Pilih akun itu, atau cek ulang nomornya.');

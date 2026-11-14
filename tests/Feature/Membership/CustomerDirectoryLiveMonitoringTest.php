@@ -311,4 +311,72 @@ class CustomerDirectoryLiveMonitoringTest extends TestCase
             ->assertSee('BCA Virtual Account', false)
             ->assertDontSee('MIDTRANS_SNAP', false);
     }
+
+    /** Daftar hanya berisi kartu yang pernah aktif (lunas); pembelian yang tidak dibayar cukup di Log Aktivitas. */
+    public function test_member_list_only_shows_cards_that_were_paid(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $plan = MembershipPlan::create(['code' => 'MBR-LIST', 'name' => 'Paket Uji', 'ownership_type' => 'INDIVIDUAL', 'duration_days' => 30, 'price' => 500000, 'is_active' => true]);
+        MembershipPlanBenefit::create(['plan_id' => $plan->id, 'facility' => 'PADEL', 'quota_type' => 'HOURS', 'quota_value' => 10]);
+        $service = app(\App\Services\Membership\MembershipBalanceService::class);
+
+        $paid = $service->activateMembership($service->purchasePlan(User::factory()->create(), $plan));
+        $pending = $service->purchasePlan(User::factory()->create(), $plan);
+        $abandoned = $service->purchasePlan(User::factory()->create(), $plan);
+        $abandoned->update(['status' => 'CANCELLED']);
+        $renewal = $service->renewMembership($paid, $plan);
+        $service->fulfillRenewal($renewal);
+        $this->assertSame('MERGED', $renewal->fresh()->status);
+
+        Livewire::actingAs($admin)->test(Kustomer::class)
+            ->assertSee($paid->membership_code)
+            ->assertDontSee($pending->membership_code)
+            ->assertDontSee($abandoned->membership_code)
+            ->assertDontSee($renewal->membership_code)
+            ->assertSee('Menampilkan 1 Data Member')
+            ->assertSee('+1 member baru')
+            ->assertDontSee('Hanya PENDING PAYMENT');
+    }
+
+    public function test_member_list_is_paginated_and_filtered_by_activation_date(): void
+    {
+        $admin = User::factory()->create();
+        $admin->assignRole('admin');
+        $plan = MembershipPlan::create(['code' => 'MBR-PAGE', 'name' => 'Paket Halaman', 'ownership_type' => 'INDIVIDUAL', 'duration_days' => 90, 'price' => 500000, 'is_active' => true]);
+        MembershipPlanBenefit::create(['plan_id' => $plan->id, 'facility' => 'PADEL', 'quota_type' => 'HOURS', 'quota_value' => 10]);
+        MembershipPlan::create(['code' => 'MBR-OFF', 'name' => 'Paket Lama', 'ownership_type' => 'INDIVIDUAL', 'duration_days' => 30, 'price' => 100000, 'is_active' => false]);
+        $service = app(\App\Services\Membership\MembershipBalanceService::class);
+        foreach (range(1, 27) as $i) {
+            $start = $i <= 2 ? \Carbon\Carbon::parse('2026-10-05') : now();
+            $service->activateMembership($service->purchasePlan(User::factory()->create(), $plan), $start);
+        }
+
+        $page = Livewire::actingAs($admin)->test(Kustomer::class)
+            ->assertSee('1&ndash;25 dari 27 member', false)
+            ->assertSee('Menampilkan 27 Data Member')
+            // Kotak paket memakai data asli (dulu teks tetap "4 Tier · Bronze, Silver, Gold, Corporate").
+            ->assertSee('Paket Membership Aktif')
+            ->assertSee('Paket Halaman')
+            ->assertDontSee('Paket Lama')
+            ->assertDontSee('Bronze, Silver, Gold, Corporate')
+            ->call('nextPage')
+            ->assertSee('26&ndash;27 dari 27 member', false)
+            ->set('perPage', 50)
+            ->assertSee('1&ndash;27 dari 27 member', false);
+
+        // Rentang tanggal mulai aktif + kembali ke halaman 1.
+        $page->set('perPage', 25)->call('nextPage')
+            ->set('activeFrom', '2026-10-01')
+            ->set('activeUntil', '2026-10-31')
+            ->assertSee('Menampilkan 2 Data Member')
+            ->assertSee('1&ndash;2 dari 2 member', false)
+            ->call('clearActiveRange')
+            ->assertSee('Menampilkan 27 Data Member');
+
+        // Nilai kiriman browser yang tidak sah dikembalikan.
+        $page->set('activeFrom', 'bukan-tanggal')->assertSet('activeFrom', '')
+            ->set('perPage', 999)->assertSet('perPage', 25)
+            ->set('statusFilter', 'PENDING_PAYMENT')->assertSet('statusFilter', 'ALL');
+    }
 }

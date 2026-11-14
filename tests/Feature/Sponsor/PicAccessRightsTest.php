@@ -158,6 +158,40 @@ class PicAccessRightsTest extends TestCase
             ->assertDontSee('data-pic-give-hours', false)->assertSee('data-pic-bulk', false);
     }
 
+    public function test_csv_reimport_cannot_change_issued_voucher_hours_without_edit_voucher_right(): void
+    {
+        $this->actingAs($this->pic);
+        $this->restrict([SponsorOrganization::PIC_EDIT_VOUCHERS]);
+        $import = fn (int $hours) => $this->post('/api/v1/sponsor/organization/members/import-csv', [
+            'file' => UploadedFile::fake()->createWithContent('roster.csv', "name,phone,hours\nBudi Karyawan,081234500001,{$hours}\n"),
+        ])->assertOk()->json('data');
+
+        // Impor pertama bulan ini = memberi jam (izin "beri jam" masih aktif).
+        $this->assertSame(1, $import(3)['vouchers_issued']);
+        $voucher = SponsorMemberVoucher::sole();
+
+        // Impor ulang dengan jam berbeda = mengubah voucher → ditolak, kuota & voucher utuh.
+        $data = $import(10);
+        $this->assertSame(0, $data['vouchers_updated']);
+        $this->assertStringContainsString('tidak diizinkan mengubah jam voucher', $data['failed_rows'][0]['reason']);
+        $this->assertEquals(3, (float) $voucher->fresh()->hours_granted);
+        $this->assertEquals(97, (float) $this->balance->fresh()->remaining_quota);
+
+        // Impor ulang dengan jam yang sama tidak mengubah apa pun dan tidak dianggap gagal.
+        $data = $import(3);
+        $this->assertSame([], $data['failed_rows']);
+        $this->assertSame(0, $data['vouchers_issued']);
+        $this->assertSame(1, SponsorMemberVoucher::count());
+        $this->assertEquals(3, (float) $voucher->fresh()->hours_granted);
+        $this->assertEquals(97, (float) $this->balance->fresh()->remaining_quota);
+
+        // Dengan izin ubah voucher, impor ulang tetap mengoreksi jam seperti sebelumnya.
+        $this->restrict([]);
+        $this->assertSame(1, $import(5)['vouchers_updated']);
+        $this->assertEquals(5, (float) $voucher->fresh()->hours_granted);
+        $this->assertEquals(95, (float) $this->balance->fresh()->remaining_quota);
+    }
+
     public function test_staff_set_access_rights_from_the_kelola_sponsor_edit_form(): void
     {
         Club61PermissionMatrix::syncAllPermissions('web');

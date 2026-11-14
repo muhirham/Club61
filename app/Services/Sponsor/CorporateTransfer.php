@@ -10,7 +10,9 @@ use App\Services\Payment\PaymentOrchestratorService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
@@ -129,6 +131,37 @@ class CorporateTransfer
         }
     }
 
+    /**
+     * Cek nomor referensi + simpan dalam satu kunci per bank & nomor referensi. Tanpa kunci, dua staf yang menyimpan
+     * nomor yang sama di detik yang sama sama-sama lolos cek (satu transfer tercatat dua kali sebagai pemasukan).
+     * $save harus menyelesaikan transaksi DB-nya sendiri, supaya kunci baru dilepas setelah data tersimpan.
+     *
+     * @template T
+     *
+     * @param  callable(): T  $save
+     * @return T
+     */
+    public static function withUnusedReference(array $details, callable $save): mixed
+    {
+        try {
+            return Cache::lock(self::referenceLockKey($details), 30)->block(self::$referenceLockWaitSeconds, function () use ($details, $save) {
+                self::assertReferenceUnused($details);
+
+                return $save();
+            });
+        } catch (LockTimeoutException) {
+            throw new HttpException(409, 'Nomor referensi transfer '.$details['reference'].' sedang dicatat oleh staf lain. Muat ulang halaman lalu periksa apakah sudah tercatat.');
+        }
+    }
+
+    /** Lama menunggu staf lain yang sedang mencatat nomor referensi yang sama (detik). */
+    public static int $referenceLockWaitSeconds = 10;
+
+    public static function referenceLockKey(array $details): string
+    {
+        return 'corporate-transfer-ref:'.sha1(mb_strtolower($details['sender_bank']).'|'.$details['reference']);
+    }
+
     /** Lunasi order dengan transfer perusahaan (tanpa shift kasir). */
     public static function markPaid(Order $order, float $amount, array $details, array $extraPayload = []): Payment
     {
@@ -165,9 +198,8 @@ class CorporateTransfer
                 throw new HttpException(422, 'Nominal pembayaran harus lebih dari Rp 0.');
             }
             $details = self::details($data, $by);
-            self::assertReferenceUnused($details);
 
-            return \Illuminate\Support\Facades\DB::transaction(function () use ($organization, $membership, $amount, $details, $by) {
+            return self::withUnusedReference($details, fn () => \Illuminate\Support\Facades\DB::transaction(function () use ($organization, $membership, $amount, $details, $by) {
                 $planName = $membership->plan?->name ?? 'Membership';
                 $order = Order::create([
                     'order_number' => 'ORD-CT-PKG-'.strtoupper(Str::random(8)),
@@ -208,7 +240,7 @@ class CorporateTransfer
                 );
 
                 return $payment;
-            });
+            }));
         } catch (\Throwable $e) {
             self::discardProof($data['proof_path'] ?? null);
 

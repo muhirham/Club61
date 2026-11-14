@@ -34,6 +34,8 @@ class Club61PermissionMatrix
         'apply_membership_plan_rules',
         // Mengubah kuota & tanggal berakhir kartu member yang sudah terjual sekaligus (selisih kuota paket).
         'apply_membership_plan_quota',
+        // Membatalkan kartu member individu secara permanen; sisa kuota hangus, uang tetap tercatat (Data Member).
+        'cancel_membership',
         'View:RoleResource',
         'view_roles',
         'create_roles',
@@ -71,11 +73,9 @@ class Club61PermissionMatrix
             'admin' => array_values(array_diff(self::getAllPermissionSlugs(), self::BACKDOOR_PERMISSIONS)),
             'cashier' => [
                 'access_pos_terminal',
-                'pos_cash_payment',
                 'pos_qris_payment',
                 'settle_unpaid_booking',
                 'apply_pos_voucher',
-                'view_padel_bookings',
                 'checkin_padel_ticket',
                 'print_padel_invoice',
                 'View:BookOfflineCourt',
@@ -98,7 +98,6 @@ class Club61PermissionMatrix
                 'apply_pos_voucher',
                 'settle_unpaid_booking',
                 'View:KelolaPemesanan',
-                'view_padel_bookings',
                 'checkin_padel_ticket',
                 'print_padel_invoice',
                 'request_refund_padel',
@@ -109,7 +108,6 @@ class Club61PermissionMatrix
             'kitchen' => [
                 'view_kitchen_kds',
                 'update_kitchen_order_status',
-                'view_fnb_menu',
             ],
             'customer' => [
                 'cancel_padel_booking',
@@ -145,7 +143,6 @@ class Club61PermissionMatrix
                         'label' => 'Kelola Pemesanan & Tiket',
                         'actions' => [
                             'View:KelolaPemesanan' => 'Akses Halaman Kelola Pemesanan',
-                            'view_padel_bookings' => 'Lihat Daftar Pemesanan Lapangan',
                             'checkin_padel_ticket' => 'Check-in Tiket Pemesan Lapangan',
                             'reschedule_padel_booking' => 'Reschedule Jadwal Pemesanan',
                             'request_refund_padel' => 'Ajukan Pembatalan & Refund (masuk Antrian Refund)',
@@ -178,7 +175,6 @@ class Club61PermissionMatrix
                         'label' => 'Terminal Kasir Frontdesk',
                         'actions' => [
                             'access_pos_terminal' => 'Akses Layar Kasir Frontdesk (/pos)',
-                            'pos_cash_payment' => 'Proses Pembayaran Tunai (Cash)',
                             'pos_qris_payment' => 'Generate & Konfirmasi QRIS Dinamis',
                             'settle_unpaid_booking' => 'Pelunasan Pesanan Pending di Kasir',
                             'apply_pos_voucher' => 'Terapkan Voucher Diskon & Promosi',
@@ -237,10 +233,7 @@ class Club61PermissionMatrix
                         'label' => 'Menu & Resep Dapur',
                         'actions' => [
                             'View:KelolaMenuFnb' => 'Akses Halaman Kelola Menu F&B',
-                            'view_fnb_menu' => 'Lihat Daftar Menu Makanan & Minuman',
                             'manage_fnb_menu' => 'Kelola Menu, Varian & Harga Jual',
-                            'manage_recipe_bom' => 'Kelola Formula Resep & Bill of Materials',
-                            'manage_raw_materials' => 'Kelola Stok Bahan Baku & Inventaris Dapur',
                             // Modul 29: HPP = dasar perhitungan laba F&B.
                             'manage_fnb_hpp' => 'Kelola HPP, Lacak Stok & Stok Minimum Menu',
                         ],
@@ -333,7 +326,6 @@ class Club61PermissionMatrix
                         'label' => 'Produk & Stok Apparel',
                         'actions' => [
                             'View:KatalogMerchandise' => 'Akses Halaman Katalog Merchandise & Kartu Stok',
-                            'view_merch_products' => 'Lihat Katalog Produk Merchandise',
                             'manage_merch_products' => 'Kelola Produk, Varian & Harga Retail',
                             'manage_merch_stock' => 'Kelola Mutasi Stok Masuk / Keluar',
                             'sell_merchandise' => 'Jual Merchandise di Kasir Pro Shop',
@@ -394,7 +386,6 @@ class Club61PermissionMatrix
                         'label' => 'Laporan Omset & Revenue',
                         'actions' => [
                             'View:Analytics' => 'Akses Halaman Analytics Keuangan',
-                            'view_financial_reports' => 'Lihat Rincian Laporan Omset Venue',
                             'export_reports' => 'Export Laporan Keuangan (Excel / PDF)',
                         ],
                     ],
@@ -479,6 +470,7 @@ class Club61PermissionMatrix
                             'manage_membership_plans' => 'Kelola Paket, Harga & Benefit Membership',
                             'apply_membership_plan_rules' => 'Terapkan Aturan Akses Paket (Hari / Jam / Peak) ke Membership yang Sudah Aktif',
                             'apply_membership_plan_quota' => 'Terapkan Kuota & Masa Aktif Paket ke Kartu Member yang Sudah Terjual',
+                            'cancel_membership' => 'Batalkan Kartu Member Individu (Permanen, Sisa Kuota Hangus, Tanpa Refund)',
                             'manage_membership_facilities' => 'Kelola Master Fasilitas Membership (tambah fasilitas, nama & deskripsi benefit)',
                         ],
                     ],

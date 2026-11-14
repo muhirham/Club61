@@ -26,7 +26,15 @@ class PadelBookingController extends Controller
     {
         $validated = $request->validate([
             'date' => ['nullable', 'date_format:Y-m-d'],
-            'timezone' => ['nullable', 'string'],
+            // Diterima persis yang bisa dipakai jadwal (Carbon: nama zona, alias lama, offset +07:00 / 7); selain itu 422,
+            // bukan error 500. Sengaja memakai Carbon yang sama dengan getScheduleMatrix supaya klien lama tidak tertolak.
+            'timezone' => ['nullable', 'string', 'max:64', function (string $attribute, mixed $value, \Closure $fail) {
+                try {
+                    \Carbon\Carbon::now($value);
+                } catch (\Throwable) {
+                    $fail('Zona waktu tidak dikenali.');
+                }
+            }],
         ]);
 
         $date = $validated['date'] ?? now()->format('Y-m-d');

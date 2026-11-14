@@ -138,6 +138,7 @@ return [
         'member_reactivated' => 'Akses anggota berhasil diaktifkan kembali.',
         'pic_action_not_allowed' => 'Aksi ini tidak diizinkan untuk akun Anda. Hubungi Club 61 untuk mengubah hak akses.',
         'csv_hours_not_allowed' => 'Kolom jam tidak bisa diproses: akun Anda tidak diizinkan memberikan jam. Kosongkan kolom jam lalu impor ulang.',
+        'csv_edit_not_allowed' => 'Voucher bulan ini sudah terbit (:hours jam). Akun Anda tidak diizinkan mengubah jam voucher, jadi isi jam yang sama atau kosongkan kolom jam.',
         'csv_required' => 'File CSV wajib diunggah (maks 2MB, format .csv).',
         'import_done' => 'Import selesai: :imported anggota baru, :reactivated diaktifkan kembali, :skipped duplikat dilewati, :issued voucher baru diterbitkan, :updated voucher periode ini dikoreksi, :failed baris gagal.',
         'not_pic' => 'Anda tidak terdaftar sebagai PIC akun corporate manapun.',

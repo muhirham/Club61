@@ -39,10 +39,10 @@ class FnbMenuManagementTest extends TestCase
 
     public function test_kitchen_role_can_view_but_not_manage_fnb_menu(): void
     {
-        // kitchen digranting 'view_fnb_menu' di DatabaseSeeder tapi bukan 'manage_fnb_menu' —
+        // kitchen boleh membuka halaman Kelola Menu F&B (View:KelolaMenuFnb) tapi tidak punya 'manage_fnb_menu' —
         // pastikan bisa buka halamannya tapi aksi tulis (create/update/delete) tetap ditolak.
         $kitchen = User::factory()->kitchen()->create();
-        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
         $this->actingAs($kitchen);
 
         $this->assertTrue(KelolaMenuFnb::canAccess());
@@ -529,7 +529,7 @@ class FnbMenuManagementTest extends TestCase
     {
         // Dapur boleh melihat halaman menu, tapi tidak boleh mengubah stasiun / IP printer.
         $kitchen = User::factory()->kitchen()->create();
-        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
         $this->actingAs($kitchen);
 
         Livewire::test(KelolaMenuFnb::class)
@@ -579,7 +579,7 @@ class FnbMenuManagementTest extends TestCase
     {
         $station = FnbStation::create(['name' => 'Kitchen', 'printer_host' => '10.10.2.137']);
         $kitchen = User::factory()->kitchen()->create();
-        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb', 'view_fnb_menu']);
+        \App\Models\Role::findByName('kitchen', 'web')->syncPermissions(['View:KelolaMenuFnb']);
         $this->actingAs($kitchen);
 
         Livewire::test(KelolaMenuFnb::class)

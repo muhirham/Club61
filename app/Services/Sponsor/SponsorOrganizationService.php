@@ -119,7 +119,6 @@ class SponsorOrganizationService
                 throw new DomainException('Anda tidak memiliki izin untuk mencatat pembayaran transfer perusahaan.');
             }
             $details = CorporateTransfer::details($transferData, $grantedBy);
-            CorporateTransfer::assertReferenceUnused($details);
 
             $calc = app(\App\Services\Finance\TaxAndFeeService::class)->calculate(
                 subtotal: (float) $plan->price,
@@ -131,7 +130,7 @@ class SponsorOrganizationService
                 throw new DomainException('Harga paket Rp0. Gunakan pilihan Tanpa Pembayaran.');
             }
 
-            return DB::transaction(function () use ($pic, $plan, $companyName, $grantedBy, $details, $calc) {
+            return CorporateTransfer::withUnusedReference($details, fn () => DB::transaction(function () use ($pic, $plan, $companyName, $grantedBy, $details, $calc) {
                 // Kunci akun PIC: dua pemberian bersamaan tidak boleh menerbitkan dua kartu dari satu transfer.
                 User::whereKey($pic->id)->lockForUpdate()->first();
 
@@ -193,7 +192,7 @@ class SponsorOrganizationService
                 );
 
                 return $organization;
-            });
+            }));
         } catch (\Throwable $e) {
             CorporateTransfer::discardProof($transferData['proof_path'] ?? null);
 
@@ -286,7 +285,7 @@ class SponsorOrganizationService
      *
      * @return array{voucher: SponsorMemberVoucher, action: 'created'|'updated'}
      */
-    public function releaseVoucherForPeriod(SponsorOrganizationMember $member, float $hours, string $period, ?User $issuedBy = null): array
+    public function releaseVoucherForPeriod(SponsorOrganizationMember $member, float $hours, string $period, ?User $issuedBy = null, bool $allowUpdate = true): array
     {
         $existing = SponsorMemberVoucher::where('sponsor_organization_member_id', $member->id)
             ->where('source', 'CSV_IMPORT')
@@ -295,6 +294,16 @@ class SponsorOrganizationService
             ->first();
 
         if ($existing) {
+            // Impor ulang dengan jam yang sama = tidak ada perubahan (selalu boleh, tetap dihitung "diperbarui" seperti
+            // dulu). Jam berbeda = mengubah voucher yang sudah terbit → butuh Hak Akses PIC "Mengubah & menghapus
+            // voucher" (sama dengan tombol edit voucher).
+            if ((float) $existing->hours_granted === $hours) {
+                return ['voucher' => $existing, 'action' => 'updated'];
+            }
+            if (! $allowUpdate) {
+                throw new DomainException(SiteLocale::text('corporate.csv_edit_not_allowed', ['hours' => (float) $existing->hours_granted]));
+            }
+
             return ['voucher' => $this->updateVoucherHours($existing, $hours), 'action' => 'updated'];
         }
 
@@ -462,7 +471,7 @@ class SponsorOrganizationService
      *
      * @return array{imported: int, reactivated: int, skipped_duplicate: int, vouchers_issued: int, vouchers_updated: int, failed_rows: array<int, array{row: int, reason: string}>}
      */
-    public function importMembersFromCsv(SponsorOrganization $organization, string $filePath, ?User $issuedBy = null, bool $allowHours = true): array
+    public function importMembersFromCsv(SponsorOrganization $organization, string $filePath, ?User $issuedBy = null, bool $allowHours = true, bool $allowEditVouchers = true): array
     {
         $handle = fopen($filePath, 'r');
 
@@ -541,7 +550,7 @@ class SponsorOrganizationService
                 }
 
                 try {
-                    DB::transaction(function () use ($organization, $name, $phone, $hours, $period, $issuedBy, &$result) {
+                    DB::transaction(function () use ($organization, $name, $phone, $hours, $period, $issuedBy, $allowEditVouchers, &$result) {
                         $user = $this->findOrCreateUserByPhone($name, $phone);
 
                         $existing = SponsorOrganizationMember::where('sponsor_organization_id', $organization->id)
@@ -566,7 +575,7 @@ class SponsorOrganizationService
                         }
 
                         if ($hours !== null) {
-                            $release = $this->releaseVoucherForPeriod($member, $hours, $period, $issuedBy);
+                            $release = $this->releaseVoucherForPeriod($member, $hours, $period, $issuedBy, $allowEditVouchers);
                             $release['action'] === 'created' ? $result['vouchers_issued']++ : $result['vouchers_updated']++;
                         }
                     });

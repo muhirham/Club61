@@ -213,7 +213,7 @@ class ActivityLogTest extends TestCase
     {
         $owner = User::factory()->superAdmin()->create();
         $role = Role::create(['name' => 'supervisor', 'guard_name' => 'web', 'home_route' => '/admin']);
-        $role->syncPermissions(['view_padel_bookings', 'checkin_padel_ticket']);
+        $role->syncPermissions(['View:KelolaPemesanan', 'checkin_padel_ticket']);
         $this->actingAs($owner);
 
         $component = Livewire::test(EditRole::class, ['record' => $role->getRouteKey()]);
@@ -223,7 +223,7 @@ class ActivityLogTest extends TestCase
                 $data[$key] = [];
             }
         }
-        $data['permissions_padel_bookings'] = ['view_padel_bookings', 'cancel_refund_padel'];
+        $data['permissions_padel_bookings'] = ['View:KelolaPemesanan', 'cancel_refund_padel'];
         $component->set('data', $data)->call('save')->assertHasNoErrors();
 
         $log = ActivityLog::where('event', 'role.permissions_changed')->sole();
@@ -571,6 +571,24 @@ class ActivityLogTest extends TestCase
         $this->assertSame(['FINANCE'], $query['module']);
         $this->assertSame('refund', $query['search']);
         $this->assertSame(now('Asia/Jakarta')->toDateString(), $query['dari']);
+    }
+
+    /** Dulu notifikasi DOKU tercatat sebagai Web Customer dengan pelaku "Tamu (belum login)" (alamatnya tanpa kata webhook). */
+    public function test_doku_notifications_are_logged_as_payment_gateway_webhooks(): void
+    {
+        foreach (['/api/v1/payments/doku-snap/v1.0/qr/qr-mpm-notify', '/api/v1/payments/doku/notification'] as $path) {
+            $this->app->instance('request', \Illuminate\Http\Request::create($path, 'POST', server: ['HTTP_USER_AGENT' => 'Apache-HttpClient/5.2.3']));
+            $log = ActivityLogger::record('FINANCE', 'payment.paid', 'Transaksi lunas', meta: ['gateway' => 'DOKU']);
+
+            $this->assertSame(['WEBHOOK', 'WEBHOOK'], [$log->channel, $log->actor_type], $path);
+            $this->assertSame('DOKU (Webhook)', LogAktivitas::actorName($log));
+            $this->assertSame('Webhook Payment Gateway', LogAktivitas::CHANNELS[$log->channel]);
+        }
+
+        // Tanpa nama gateway di detail: dikenali dari alamat notifikasinya. Tamu & sistem tetap seperti biasa.
+        $this->assertSame('Midtrans (Webhook)', LogAktivitas::actorName(new ActivityLog(['actor_type' => 'WEBHOOK', 'url' => '/api/v1/padel/webhook/midtrans'])));
+        $this->assertSame('Tamu (belum login)', LogAktivitas::actorName(new ActivityLog(['actor_type' => 'GUEST'])));
+        $this->assertSame('Sistem', LogAktivitas::actorName(new ActivityLog(['actor_type' => 'SYSTEM'])));
     }
 
     public function test_spoofed_livewire_header_on_api_route_cannot_fake_the_channel(): void
