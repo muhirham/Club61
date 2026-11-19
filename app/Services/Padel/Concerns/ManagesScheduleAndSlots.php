@@ -121,7 +121,7 @@ trait ManagesScheduleAndSlots
                     $status = ! $isRescheduleBalance && in_array($collidingBooking->status, ['LOCKED', 'PENDING_PAYMENT', 'PENDING']) ? 'LOCKED' : 'BOOKED';
                 } elseif ($isCacheLocked) {
                     $status = 'LOCKED';
-                } elseif ($windowNotice !== null || \App\Support\BookingWindow::closedHoursReason($dateStr, $startHourStr, $endHourStr) !== null) {
+                } elseif ($windowNotice !== null || \App\Support\BookingWindow::closedHoursReason($dateStr, $startHourStr, $endHourStr, $court->id) !== null) {
                     $status = 'CLOSED';
                 } else {
                     $status = 'AVAILABLE';
@@ -245,7 +245,7 @@ trait ManagesScheduleAndSlots
         // Jam tutup (BOOKING_CLOSED_DATES "Y-m-d HH:MM-HH:MM"). Semua booking baru lewat sini: customer online, POS
         // Walk-In termasuk coaching, dan Jadwal Tetap. Tanggal tutup sehari penuh dicek di masing-masing jalur.
         foreach ($slots as $slot) {
-            \App\Support\BookingWindow::assertHoursOpen($bookingDate, $slot['start_time'], $slot['end_time']);
+            \App\Support\BookingWindow::assertHoursOpen($bookingDate, $slot['start_time'], $slot['end_time'], $slot['court_id'] ?? null);
         }
 
         // 1. SORTING ARRAY SECARA KRONOLOGIS (Anti-Deadlock pada Concurrent Transactions)

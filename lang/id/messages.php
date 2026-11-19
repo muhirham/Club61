@@ -37,6 +37,8 @@ return [
         'date_not_open' => 'Booking untuk tanggal main setelah :date belum dibuka. Silakan pilih tanggal main sampai :date.',
         'hours_closed' => 'Club 61 tutup pada :date pukul :hours:reason. Silakan pilih jam lain.',
         'hours_closed_notice' => 'Club 61 tutup pada :date pukul :hours:reason. Jam lain tetap bisa dibooking.',
+        'court_hours_closed' => ':court tutup pada :date pukul :hours. Silakan pilih jam atau lapangan lain.',
+        'court_hours_closed_notice' => ':court tutup pada :date pukul :hours. Jam dan lapangan lain tetap bisa dibooking.',
     ],
 
     'checkout' => [

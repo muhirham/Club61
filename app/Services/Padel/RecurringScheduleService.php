@@ -188,11 +188,16 @@ class RecurringScheduleService
 
                     // Tanggal tutup / jam tutup yang bentrok (BOOKING_CLOSED_DATES): minggu ini dilewati, booking tidak
                     // dibuat & kuota tidak dipotong.
-                    if (\App\Support\BookingWindow::isClosed($date) || \App\Support\BookingWindow::closedHoursReason($date, $schedule->start_time, $schedule->end_time) !== null) {
+                    // Jam tutup khusus lapangan ("@Nama Lapangan") hanya melewati lapangan itu.
+                    $clubClosed = \App\Support\BookingWindow::isClosed($date) || \App\Support\BookingWindow::closedHoursReason($date, $schedule->start_time, $schedule->end_time) !== null;
+                    if ($clubClosed || \App\Support\BookingWindow::closedHoursReason($date, $schedule->start_time, $schedule->end_time, $courtId) !== null) {
                         $reason = \App\Support\BookingWindow::closedReason();
+                        $note = $clubClosed
+                            ? 'Club 61 tutup'.($reason ? " ({$reason})" : '')
+                            : ($courts[$courtId]->name ?? 'Lapangan').' tutup';
                         PadelRecurringOccurrence::whereKey($occurrence->id)
                             ->whereIn('status', [PadelRecurringOccurrence::STATUS_PENDING, PadelRecurringOccurrence::STATUS_FAILED])
-                            ->update(['status' => PadelRecurringOccurrence::STATUS_SKIPPED, 'note' => mb_substr('Club 61 tutup'.($reason ? " ({$reason})" : '').' — minggu ini dilewati, kuota jam tidak dipotong', 0, 255)]);
+                            ->update(['status' => PadelRecurringOccurrence::STATUS_SKIPPED, 'note' => mb_substr($note.' — minggu ini dilewati, kuota jam tidak dipotong', 0, 255)]);
 
                         continue;
                     }
@@ -712,6 +717,10 @@ class RecurringScheduleService
                             $byDate[$date->toDateString()]['courts']++;
                         }
 
+                        continue;
+                    }
+                    // Lapangan ini tutup di jam tersebut ("@Nama Lapangan"): minggu ini akan dilewati, tidak butuh kuota.
+                    if (\App\Support\BookingWindow::closedHoursReason($date, $s->start_time, $s->end_time, $courtId) !== null) {
                         continue;
                     }
                     $needs[] = ['date' => $date->copy(), 'schedule' => $s->id, 'hours' => (float) $s->durationHours()];

@@ -262,6 +262,12 @@ class BookingSystem extends Page
             return;
         }
 
+        if ($reason = $this->windowClosedReason($court->id, $h)) {
+            Notification::make()->title('Jam Tidak Bisa Dibooking')->body($reason)->warning()->send();
+
+            return;
+        }
+
         $startFormatted = sprintf('%02d:00', $h);
         $endFormatted = sprintf('%02d:00', $h + 1);
 
@@ -472,7 +478,7 @@ class BookingSystem extends Page
                         'coaching_label' => $matchedBooking->coachingBooking?->coachSummary(),
                         'coaching_title' => $matchedBooking->coachingBooking?->sortedCoaches()->pluck('name')->implode(', '),
                     ];
-                } elseif (! $isOpenForCourt) {
+                } elseif (! $isOpenForCourt || ($closedReason = $this->windowClosedReason($court->id, $h)) !== null) {
                     $courtRow['slots'][$h] = [
                         'type' => 'closed',
                         'court_id' => $court->id,
@@ -480,6 +486,7 @@ class BookingSystem extends Page
                         'is_past' => $opHour['is_past'],
                         'is_prime_time' => false,
                         'price' => 0,
+                        'reason' => $isOpenForCourt ? $closedReason : null,
                     ];
                 } else {
                     $slotRate = app(\App\Services\Padel\PeakHourService::class)->rateFor($court, $targetDate->copy()->setTime((int) $h, 0));
@@ -544,6 +551,19 @@ class BookingSystem extends Page
     }
 
     /** Data tampilan Mingguan / Bulanan (ScheduleOverview) + ringkasan periode & Rekap Pemain. */
+    /**
+     * Alasan slot kosong ini ditutup lewat BOOKING_CLOSED_DATES (tanggal tutup, jam tutup, atau jam tutup khusus
+     * lapangan), atau null. Sama dengan grid POS Walk-In; batas BOOKING_OPEN_UNTIL tidak ditampilkan sebagai tutup.
+     */
+    private function windowClosedReason(string $courtId, int $hour): ?string
+    {
+        if (\App\Support\BookingWindow::isClosed($this->selectedDate)) {
+            return \App\Support\BookingWindow::blockedReason($this->selectedDate);
+        }
+
+        return \App\Support\BookingWindow::closedHoursReason($this->selectedDate, sprintf('%02d:00', $hour), sprintf('%02d:00', ($hour + 1) % 24), $courtId);
+    }
+
     private function overviewData(): array
     {
         $overview = app(ScheduleOverview::class);

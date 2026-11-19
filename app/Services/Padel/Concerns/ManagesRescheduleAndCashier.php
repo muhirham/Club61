@@ -80,7 +80,7 @@ trait ManagesRescheduleAndCashier
             $slotEnd = $slotStart->copy()->addHours($durationHours);
 
             // Jam tutup (BOOKING_CLOSED_DATES dengan jam) tidak ditawarkan.
-            if (\App\Support\BookingWindow::closedHoursReason($dateStr, $slotStart, $slotEnd) !== null) {
+            if (\App\Support\BookingWindow::closedHoursReason($dateStr, $slotStart, $slotEnd, $court->id) !== null) {
                 continue;
             }
 
@@ -489,7 +489,7 @@ trait ManagesRescheduleAndCashier
                 throw new HttpException(422, "Jam {$newStartDt->format('H:i')} sudah lewat. Pilih jam lain.");
             }
             // Jam tutup (BOOKING_CLOSED_DATES dengan jam).
-            \App\Support\BookingWindow::assertHoursOpen($dateStr, $newStartDt, $newEndDt);
+            \App\Support\BookingWindow::assertHoursOpen($dateStr, $newStartDt, $newEndDt, $newCourt->id);
 
             $courtOpen = (int) substr($newCourt->open_time ?: '06:00', 0, 2);
             $courtCloseVal = $newCourt->close_time ?: '23:00';

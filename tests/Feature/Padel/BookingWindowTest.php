@@ -254,6 +254,114 @@ class BookingWindowTest extends TestCase
         $this->assertEquals(98, (float) $balance->fresh()->remaining_quota, 'hanya 2 jam malam yang dipotong');
     }
 
+    public function test_closing_hours_on_one_court_blocks_only_that_court_on_every_path(): void
+    {
+        Club61PermissionMatrix::syncAllPermissions('web');
+        ClubFinanceSetting::getSettings()->update(['is_admin_fee_enabled' => false, 'is_tax_enabled' => false]);
+        Cache::forget(ClubFinanceSetting::CACHE_KEY);
+        config(['booking_window.closed_dates' => '2026-11-04 13:00-17:00 @Court Indosat, 2026-11-26', 'booking_window.closed_reason' => 'Grand Opening']);
+        $indosat = PadelCourt::create(['name' => 'Court Indosat', 'type' => 'INDOOR', 'hourly_rate_regular' => 100000, 'hourly_rate_prime' => 100000, 'is_active' => true]);
+        $bca = PadelCourt::create(['name' => 'Court BCA', 'type' => 'INDOOR', 'hourly_rate_regular' => 100000, 'hourly_rate_prime' => 100000, 'is_active' => true]);
+        $closed = 'Court Indosat tutup pada Rabu, 4 November 2026 pukul 13:00–17:00. Silakan pilih jam atau lapangan lain.';
+
+        // Bukan penutupan semua lapangan; keterangan Grand Opening tidak ikut.
+        $this->assertSame(['2026-11-26'], \App\Support\BookingWindow::closedDates());
+        $this->assertSame([], \App\Support\BookingWindow::closedHours('2026-11-04'));
+        $this->assertSame($closed, \App\Support\BookingWindow::closedHoursReason('2026-11-04', '16:00', '17:00', $indosat->id));
+        $this->assertNull(\App\Support\BookingWindow::closedHoursReason('2026-11-04', '12:00', '13:00', $indosat->id));
+        $this->assertNull(\App\Support\BookingWindow::closedHoursReason('2026-11-04', '17:00', '18:00', $indosat->id));
+        $this->assertNull(\App\Support\BookingWindow::closedHoursReason('2026-11-04', '13:00', '14:00', $bca->id));
+        $this->assertNull(\App\Support\BookingWindow::closedHoursReason('2026-11-04', '13:00', '14:00'), 'tanpa lapangan = hanya penutupan semua lapangan');
+
+        // Jadwal customer: hanya Indosat 13–16 yang Tutup; banner menyebut lapangannya.
+        $day = $this->getJson('/api/v1/padel/schedule?date=2026-11-04')->assertOk();
+        $this->assertStringContainsString('Court Indosat tutup pada Rabu, 4 November 2026 pukul 13:00–17:00. Jam dan lapangan lain tetap bisa dibooking.', $day->json('data.notice'));
+        $status = fn (PadelCourt $court) => collect(collect($day->json('data.courts'))->firstWhere('court_id', $court->id)['slots'])->pluck('status', 'local_start');
+        $this->assertSame(['AVAILABLE', 'CLOSED', 'CLOSED', 'AVAILABLE'], [$status($indosat)['12:00'], $status($indosat)['13:00'], $status($indosat)['16:00'], $status($indosat)['17:00']]);
+        $this->assertSame('AVAILABLE', $status($bca)['13:00']);
+        $this->assertSame('AVAILABLE', $status($this->court)['14:00']);
+
+        // Tahan slot online.
+        $customer = User::factory()->customer()->create();
+        $hold = fn (PadelCourt $court, int $from) => $this->actingAs($customer, 'sanctum')->postJson('/api/v1/padel/hold-slot', [
+            'booking_date' => '2026-11-04', 'slots' => [['court_id' => $court->id, 'start_time' => sprintf('%02d:00', $from), 'end_time' => sprintf('%02d:00', $from + 1)]],
+        ]);
+        $this->assertSame($closed, $hold($indosat, 13)->assertStatus(422)->json('message'));
+        $this->assertSame(0, PadelBooking::count());
+        $hold($bca, 13)->assertStatus(201);
+        $hold($indosat, 17)->assertStatus(201);
+
+        // POS Walk-In: slot Indosat tidak bisa dipilih, lapangan lain bisa.
+        $admin = User::factory()->superAdmin()->create(['is_active' => true]);
+        $this->actingAs($admin);
+        Livewire::test(BookOfflineCourt::class)
+            ->set('bookingDate', '2026-11-04')
+            ->assertSee('Court Indosat tutup pada')
+            ->call('toggleSlot', $indosat->id, 'Court Indosat', '14:00', '15:00', 100000)
+            ->assertNotified('Jam Tidak Bisa Dibooking')
+            ->assertSet('selectedSlots', [])
+            ->call('toggleSlot', $this->court->id, 'Court A', '14:00', '15:00', 100000)
+            ->assertCount('selectedSlots', 1);
+
+        // Kalender admin (Booking System): slot Indosat 13–16 tampil Tutup + alasannya dan tidak bisa diklik untuk booking.
+        $calendar = Livewire::test(\App\Filament\Pages\BookingSystem::class)->call('setDate', '2026-11-04');
+        $row = fn (PadelCourt $court) => collect($calendar->viewData('matrix'))->first(fn ($r) => $r['court']->id === $court->id)['slots'];
+        // (Indosat 17:00 & BCA 13:00 sudah ditahan customer di atas.)
+        $this->assertSame(['available', 'closed', 'closed', 'booked', 'available'], array_map(fn ($h) => $row($indosat)[$h]['type'], [12, 13, 16, 17, 18]));
+        $this->assertSame($closed, $row($indosat)[13]['reason']);
+        $this->assertSame('available', $row($bca)[14]['type']);
+        $calendar->assertSee($closed)
+            ->call('inspectEmptySlot', $indosat->id, '14')
+            ->assertNotified('Jam Tidak Bisa Dibooking')
+            ->assertSet('showInspectorDrawer', false)
+            ->call('inspectEmptySlot', $bca->id, '14')
+            ->assertSet('showInspectorDrawer', true);
+
+        // Reschedule ke Indosat: jam tutup tidak ditawarkan & ditolak bila dipaksa.
+        $booking = PadelBooking::create([
+            'booking_code' => 'BK-RSC02', 'user_id' => $customer->id, 'court_id' => $this->court->id, 'booking_date' => '2026-11-05',
+            'start_time' => '2026-11-05 10:00:00', 'end_time' => '2026-11-05 11:00:00', 'court_fee' => 100000, 'total_amount' => 100000, 'status' => 'PAID',
+        ]);
+        $service = app(PadelBookingService::class);
+        $starts = collect($service->getAvailableRescheduleSlots($booking->id, $indosat->id, '2026-11-04')['slots'])->pluck('start_time');
+        $this->assertTrue($starts->contains('12:00'));
+        $this->assertSame([], $starts->intersect(['13:00', '14:00', '15:00', '16:00'])->values()->all());
+        try {
+            $service->adminRescheduleBooking($booking->id, $indosat->id, '2026-11-04', '14:00', 'Pindah', $admin);
+            $this->fail('Reschedule ke jam tutup Indosat seharusnya ditolak.');
+        } catch (HttpException $e) {
+            $this->assertSame($closed, $e->getMessage());
+        }
+
+        // Jadwal Tetap di dua lapangan: hanya Indosat yang dilewati, BCA tetap dibuat & dipotong kuotanya.
+        $pic = User::factory()->customer()->create();
+        $plan = MembershipPlan::create(['code' => 'CORP-Y', 'name' => 'Corporate 100 Jam', 'ownership_type' => 'ORGANIZATIONAL', 'duration_days' => 365, 'price' => 0, 'is_active' => true]);
+        $membership = UserMembership::create([
+            'membership_code' => 'MBR-Y', 'owner_type' => 'ORGANIZATIONAL', 'user_id' => $pic->id, 'plan_id' => $plan->id,
+            'status' => 'ACTIVE', 'start_date' => '2026-11-01', 'end_date' => '2027-10-31', 'qr_pass_hash' => 'QR-Y',
+        ]);
+        $balance = UserMembershipBalance::create(['user_membership_id' => $membership->id, 'facility' => 'PADEL', 'quota_type' => 'HOURS', 'initial_quota' => 100, 'remaining_quota' => 100]);
+        $schedule = PadelRecurringSchedule::create([
+            'name' => 'Rabu siang', 'user_membership_id' => $membership->id, 'day_of_week' => 3, 'start_time' => '14:00', 'end_time' => '16:00',
+            'court_ids' => [$indosat->id, $bca->id], 'starts_on' => '2026-11-04', 'ends_on' => '2026-11-04', 'weeks_ahead' => 1,
+            'status' => PadelRecurringSchedule::STATUS_ACTIVE, 'created_by_id' => $admin->id,
+        ]);
+        $this->assertSame(1, app(RecurringScheduleService::class)->generate($schedule, $admin)['booked']);
+        $skipped = $schedule->occurrences()->where('court_id', $indosat->id)->sole();
+        $this->assertSame(PadelRecurringOccurrence::STATUS_SKIPPED, $skipped->status);
+        $this->assertStringStartsWith('Court Indosat tutup', $skipped->note);
+        $this->assertSame(PadelRecurringOccurrence::STATUS_BOOKED, $schedule->occurrences()->where('court_id', $bca->id)->sole()->status);
+        $this->assertEquals(98, (float) $balance->fresh()->remaining_quota);
+
+        // Perintah cek: lapangan yang kena tampil; nama yang tidak cocok diperingatkan. "@indosat" (sebagian, huruf kecil) juga cocok.
+        $this->artisan('booking:window')->expectsOutputToContain('Rabu, 4 November 2026 13:00–17:00 (hanya Court Indosat)')->assertSuccessful();
+        config(['booking_window.closed_dates' => '2026-11-04 13:00-17:00 @indosat']);
+        $this->assertSame($closed, \App\Support\BookingWindow::closedHoursReason('2026-11-04', '13:00', '14:00', $indosat->id));
+        config(['booking_window.closed_dates' => '2026-11-04 13:00-17:00 @Court Telkomsel']);
+        $this->assertNull(\App\Support\BookingWindow::closedHoursReason('2026-11-04', '13:00', '14:00', $indosat->id));
+        $this->artisan('booking:window')->expectsOutputToContain('tidak cocok dengan nama lapangan aktif')->assertSuccessful();
+    }
+
     public function test_without_settings_nothing_is_blocked_and_the_check_command_reports_invalid_values(): void
     {
         config(['booking_window.open_until' => null, 'booking_window.closed_dates' => null, 'booking_window.closed_reason' => null]);

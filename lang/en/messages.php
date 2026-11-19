@@ -37,6 +37,8 @@ return [
         'date_not_open' => 'Bookings for play dates after :date are not open yet. Please choose a play date up to :date.',
         'hours_closed' => 'Club 61 is closed on :date from :hours:reason. Please choose another time.',
         'hours_closed_notice' => 'Club 61 is closed on :date from :hours:reason. Other times can still be booked.',
+        'court_hours_closed' => ':court is closed on :date from :hours. Please choose another time or court.',
+        'court_hours_closed_notice' => ':court is closed on :date from :hours. Other times and courts can still be booked.',
     ],
 
     'checkout' => [
