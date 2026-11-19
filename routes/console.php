@@ -19,10 +19,23 @@ Artisan::command('booking:window', function () {
     }
     $this->line('Tanggal tutup sehari penuh         : '.($closed ? implode(', ', array_map(fn ($d) => \App\Support\BookingWindow::label($d), $closed)) : '-'));
     $hours = array_filter(\App\Support\BookingWindow::closures(), fn ($c) => $c['start'] !== null);
-    $this->line('Tutup jam tertentu                 : '.($hours ? implode(', ', array_map(fn ($c) => \App\Support\BookingWindow::label($c['date'])." {$c['start']}–{$c['end']}", $hours)) : '-'));
+    $this->line('Tutup jam tertentu                 : '.($hours ? implode(', ', array_map(function ($c) {
+        $text = \App\Support\BookingWindow::label($c['date'])." {$c['start']}–{$c['end']}";
+        if ($c['court'] === null) {
+            return $text.' (semua lapangan)';
+        }
+        $courts = \App\Support\BookingWindow::courtsMatching($c['court']);
+
+        return $text.' ('.($courts ? 'hanya '.implode(', ', $courts) : "@{$c['court']} TIDAK COCOK dengan lapangan aktif mana pun").')';
+    }, $hours)) : '-'));
+    foreach (array_unique(array_filter(array_map(fn ($c) => $c['court'], $hours))) as $token) {
+        if (! \App\Support\BookingWindow::courtsMatching($token)) {
+            $this->error("\"@{$token}\" tidak cocok dengan nama lapangan aktif mana pun — penutupan itu TIDAK berlaku. Samakan dengan nama di Master Data.");
+        }
+    }
     $entries = array_filter(array_map('trim', explode(',', (string) config('booking_window.closed_dates', ''))));
     if (count($entries) > count(\App\Support\BookingWindow::closures())) {
-        $this->error('Ada isi BOOKING_CLOSED_DATES yang formatnya salah dan DIABAIKAN. Format: 2026-11-26 atau 2026-11-04 06:00-13:00');
+        $this->error('Ada isi BOOKING_CLOSED_DATES yang formatnya salah dan DIABAIKAN. Format: 2026-11-26, 2026-11-04 06:00-13:00, atau 2026-11-20 13:00-17:00 @Nama Lapangan');
     }
     $this->line('Keterangan tutup                   : '.(\App\Support\BookingWindow::closedReason() ?? '-'));
 })->purpose('Tampilkan batas tanggal booking & tanggal tutup yang sedang berlaku');

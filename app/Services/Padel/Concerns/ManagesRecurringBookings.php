@@ -179,7 +179,7 @@ trait ManagesRecurringBookings
                 throw new HttpException(422, 'Jam main tujuan sudah lewat.');
             }
             \App\Support\BookingWindow::assertBookable($date, closedOnly: true);
-            \App\Support\BookingWindow::assertHoursOpen($date, $start, $end);
+            \App\Support\BookingWindow::assertHoursOpen($date, $start, $end, $courtId);
 
             $balance =\App\Models\Membership\UserMembershipBalance::whereKey($b->membership_balance_id)->lockForUpdate()->first();
             $membership = $balance?->membership;

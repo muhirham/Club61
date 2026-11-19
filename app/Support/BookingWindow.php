@@ -19,36 +19,45 @@ final class BookingWindow
         return self::validDate(trim((string) config('booking_window.open_until', '')));
     }
 
+    /** Nama lapangan per id (sekali query per id per proses) untuk mencocokkan entri "@Nama Lapangan". */
+    private static array $courtNames = [];
+
     /**
      * Isi BOOKING_CLOSED_DATES, dipisah koma: "2026-11-26" = tutup sehari penuh, "2026-11-04 06:00-13:00" = tutup
-     * jam itu saja (jam lain tetap bisa dibooking). Entri yang formatnya salah diabaikan.
+     * jam itu saja (jam lain tetap bisa dibooking). Tambahan "@Nama Lapangan" di belakang = hanya lapangan itu yang tutup
+     * (mis. "2026-11-20 13:00-17:00 @Court Indosat"; tanpa jam = lapangan itu tutup seharian). Entri yang formatnya
+     * salah diabaikan.
      *
-     * @return list<array{date: string, start: ?string, end: ?string}>
+     * @return list<array{date: string, start: ?string, end: ?string, court: ?string}>
      */
     public static function closures(): array
     {
         $closures = [];
         foreach (explode(',', (string) config('booking_window.closed_dates', '')) as $entry) {
-            if (! preg_match('/^(\S+)(?:\s+([01]\d|2[0-3]):([0-5]\d)\s*-\s*(?:([01]\d|2[0-3]):([0-5]\d)|(24):(00)))?$/', trim($entry), $m)
+            if (! preg_match('/^(\S+)(?:\s+([01]\d|2[0-3]):([0-5]\d)\s*-\s*(?:([01]\d|2[0-3]):([0-5]\d)|(24):(00)))?(?:\s+@\s*(\S.*))?$/', trim($entry), $m)
                 || ! ($date = self::validDate($m[1]))) {
                 continue;
             }
+            $court = isset($m[8]) && trim($m[8]) !== '' ? preg_replace('/\s+/', ' ', trim($m[8])) : null;
             if (! isset($m[2]) || $m[2] === '') {
-                $closures[] = ['date' => $date, 'start' => null, 'end' => null];
+                // Satu lapangan tutup seharian = jam tutup 00:00–24:00 khusus lapangan itu (lapangan lain tetap buka).
+                $closures[] = $court === null
+                    ? ['date' => $date, 'start' => null, 'end' => null, 'court' => null]
+                    : ['date' => $date, 'start' => '00:00', 'end' => '24:00', 'court' => $court];
 
                 continue;
             }
             $start = "{$m[2]}:{$m[3]}";
             $end = ($m[4] ?? '') !== '' ? "{$m[4]}:{$m[5]}" : '24:00';
             if ($start < $end) {
-                $closures[] = ['date' => $date, 'start' => $start, 'end' => $end];
+                $closures[] = ['date' => $date, 'start' => $start, 'end' => $end, 'court' => $court];
             }
         }
 
         return $closures;
     }
 
-    /** @return list<string> tanggal tutup sehari penuh (Y-m-d) */
+    /** @return list<string> tanggal tutup sehari penuh untuk semua lapangan (Y-m-d) */
     public static function closedDates(): array
     {
         $dates = array_map(fn ($c) => $c['date'], array_filter(self::closures(), fn ($c) => $c['start'] === null));
@@ -56,20 +65,23 @@ final class BookingWindow
         return array_values(array_unique($dates));
     }
 
-    /** @return list<array{start: string, end: string}> jam tutup (bukan sehari penuh) pada tanggal main ini */
-    public static function closedHours(CarbonInterface|string $date): array
+    /**
+     * Jam tutup (bukan sehari penuh) pada tanggal main ini. Tanpa $courtId hanya yang berlaku untuk semua lapangan;
+     * dengan $courtId ditambah jam tutup khusus lapangan itu.
+     *
+     * @return list<array{start: string, end: string}>
+     */
+    public static function closedHours(CarbonInterface|string $date, ?string $courtId = null): array
     {
-        $date = self::dateString($date);
-        $hours = array_filter(self::closures(), fn ($c) => $c['date'] === $date && $c['start'] !== null);
-
-        return array_values(array_map(fn ($c) => ['start' => $c['start'], 'end' => $c['end']], $hours));
+        return array_values(array_map(fn ($c) => ['start' => $c['start'], 'end' => $c['end']], self::hourClosures($date, $courtId)));
     }
 
     /**
      * Alasan jam main ini tidak bisa dibooking karena bentrok jam tutup, atau null bila boleh. $start / $end: "H:i",
-     * "H:i:s", tanggal-jam lengkap, atau Carbon. Tanggal tutup sehari penuh dicek terpisah lewat blockedReason().
+     * "H:i:s", tanggal-jam lengkap, atau Carbon. $courtId: lapangan yang dipesan — jam tutup khusus lapangan
+     * ("@Nama Lapangan") hanya berlaku bila diisi. Tanggal tutup sehari penuh dicek terpisah lewat blockedReason().
      */
-    public static function closedHoursReason(CarbonInterface|string $date, CarbonInterface|string $start, CarbonInterface|string $end): ?string
+    public static function closedHoursReason(CarbonInterface|string $date, CarbonInterface|string $start, CarbonInterface|string $end, ?string $courtId = null): ?string
     {
         $from = self::hourMinute($start);
         $until = self::hourMinute($end);
@@ -77,26 +89,95 @@ final class BookingWindow
             $until = '24:00'; // slot terakhir berakhir tengah malam ("00:00")
         }
 
-        foreach (self::closedHours($date) as $closed) {
+        foreach (self::hourClosures($date, $courtId) as $closed) {
             if ($closed['start'] < $until && $closed['end'] > $from) {
-                return self::hoursMessage('booking.hours_closed', $date);
+                return $closed['court'] === null
+                    ? self::hoursMessage('booking.hours_closed', $date)
+                    : self::courtHoursMessage('booking.court_hours_closed', $date, $closed['court'], self::courtName($courtId));
             }
         }
 
         return null;
     }
 
-    public static function assertHoursOpen(CarbonInterface|string $date, CarbonInterface|string $start, CarbonInterface|string $end): void
+    public static function assertHoursOpen(CarbonInterface|string $date, CarbonInterface|string $start, CarbonInterface|string $end, ?string $courtId = null): void
     {
-        if ($reason = self::closedHoursReason($date, $start, $end)) {
+        if ($reason = self::closedHoursReason($date, $start, $end, $courtId)) {
             throw new HttpException(422, $reason);
         }
     }
 
-    /** Pesan banner jadwal: tanggal tidak bisa dibooking, atau jam tutup di tanggal ini (jam lain tetap bisa). */
+    /**
+     * Pesan banner jadwal: tanggal tidak bisa dibooking, atau jam tutup di tanggal ini (jam lain tetap bisa), termasuk
+     * jam tutup khusus lapangan.
+     */
     public static function dayNotice(CarbonInterface|string $date): ?string
     {
-        return self::blockedReason($date) ?? (self::closedHours($date) ? self::hoursMessage('booking.hours_closed_notice', $date) : null);
+        if ($blocked = self::blockedReason($date)) {
+            return $blocked;
+        }
+
+        $notices = self::closedHours($date) ? [self::hoursMessage('booking.hours_closed_notice', $date)] : [];
+        $tokens = array_unique(array_map(fn ($c) => $c['court'], array_filter(self::closures(), fn ($c) => $c['date'] === self::dateString($date) && $c['court'] !== null)));
+        foreach ($tokens as $token) {
+            $names = self::courtsMatching($token);
+            if ($names) {
+                $notices[] = self::courtHoursMessage('booking.court_hours_closed_notice', $date, $token, implode(', ', $names));
+            }
+        }
+
+        return $notices ? implode(' ', $notices) : null;
+    }
+
+    /**
+     * Nama lapangan aktif yang cocok dengan entri "@...": nama persis atau kata-kata di dalam nama (huruf besar/kecil
+     * diabaikan; "@Indosat" cocok dengan "Court Indosat"), atau id lapangan.
+     *
+     * @return list<string>
+     */
+    public static function courtsMatching(string $token): array
+    {
+        return \App\Models\Padel\PadelCourt::where('is_active', true)->ordered()->get(['id', 'name'])
+            ->filter(fn ($court) => self::tokenMatches($token, (string) $court->id, (string) $court->name))
+            ->pluck('name')->values()->all();
+    }
+
+    /** @return list<array{date: string, start: string, end: string, court: ?string}> */
+    private static function hourClosures(CarbonInterface|string $date, ?string $courtId): array
+    {
+        $date = self::dateString($date);
+
+        return array_values(array_filter(self::closures(), fn ($c) => $c['date'] === $date && $c['start'] !== null
+            && ($c['court'] === null || ($courtId !== null && self::tokenMatches($c['court'], $courtId, self::courtName($courtId))))));
+    }
+
+    private static function tokenMatches(string $token, string $courtId, string $courtName): bool
+    {
+        if ($token === $courtId) {
+            return true;
+        }
+        $name = mb_strtolower(preg_replace('/\s+/', ' ', trim($courtName)));
+        $token = mb_strtolower($token);
+
+        return $name !== '' && ($name === $token || preg_match('/(^|\s)'.preg_quote($token, '/').'($|\s)/u', $name) === 1);
+    }
+
+    private static function courtName(?string $courtId): string
+    {
+        if ($courtId === null || $courtId === '') {
+            return '';
+        }
+
+        return self::$courtNames[$courtId] ??= (string) \App\Models\Padel\PadelCourt::whereKey($courtId)->value('name');
+    }
+
+    private static function courtHoursMessage(string $key, CarbonInterface|string $date, string $token, string $courtLabel): string
+    {
+        $date = self::dateString($date);
+        $hours = array_map(fn ($c) => "{$c['start']}–{$c['end']}", array_filter(self::closures(), fn ($c) => $c['date'] === $date && $c['court'] === $token));
+
+        // Tanpa BOOKING_CLOSED_REASON: keterangan itu untuk penutupan semua lapangan (mis. Grand Opening).
+        return SiteLocale::text($key, ['court' => $courtLabel !== '' ? $courtLabel : $token, 'date' => self::label($date), 'hours' => implode(', ', $hours)]);
     }
 
     public static function closedReason(): ?string

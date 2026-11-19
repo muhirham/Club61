@@ -484,7 +484,7 @@ class BookOfflineCourt extends Page
 
                 return;
             }
-            if ($reason = \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTime, $endTime)) {
+            if ($reason = \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTime, $endTime, $courtId)) {
                 Notification::make()->title('Jam Tidak Bisa Dibooking')->body($reason)->warning()->send();
 
                 return;
@@ -2647,7 +2647,7 @@ class BookOfflineCourt extends Page
                 if (in_array($status, ['AVAILABLE', 'LOCKED'], true) && $this->isPastSlot($startTimeStr)) {
                     $status = 'PAST';
                     $bookingDetail = null;
-                } elseif ($status === 'AVAILABLE' && ($bookingDateBlocked || \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTimeStr, $endTimeStr) !== null)) {
+                } elseif ($status === 'AVAILABLE' && ($bookingDateBlocked || \App\Support\BookingWindow::closedHoursReason($this->bookingDate, $startTimeStr, $endTimeStr, $court->id) !== null)) {
                     $status = 'CLOSED';
                 }
 

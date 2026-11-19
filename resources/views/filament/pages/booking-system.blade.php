@@ -408,7 +408,7 @@
                                             </div>
                                         </div>
                                     @elseif($slot['type'] === 'closed')
-                                        <div class="cmd-slot-box cmd-slot-past" title="Di luar jam operasional lapangan">
+                                        <div class="cmd-slot-box cmd-slot-past" title="{{ $slot['reason'] ?? 'Di luar jam operasional lapangan' }}">
                                             <b>-</b>
                                             <span>TUTUP</span>
                                         </div>
