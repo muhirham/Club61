@@ -44,7 +44,9 @@ class LedgerAnalytics
                 COALESCE(SUM(tax_amount), 0) as tax,
                 COALESCE(SUM(service_amount), 0) as service,
                 COUNT(DISTINCT CASE WHEN entry_type <> 'REFUND' THEN payment_id END) as transactions")
-            ->groupByRaw($expression)
+            // Kelompokkan lewat alias: MySQL (ONLY_FULL_GROUP_BY) tidak selalu menganggap ekspresi CASE QRIS di SELECT sama
+            // dengan salinannya di GROUP BY (error 1055); alias "dim" dipahami MySQL & SQLite.
+            ->groupBy('dim')
             ->orderByDesc('money_net')
             ->get();
 
