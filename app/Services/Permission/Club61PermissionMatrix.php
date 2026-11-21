@@ -390,11 +390,11 @@ class Club61PermissionMatrix
                         ],
                     ],
                     'ledger_book' => [
-                        'label' => 'Buku Transaksi & Antrian Refund',
+                        'label' => 'Riwayat Transaksi & Antrian Refund',
                         'actions' => [
-                            'View:BukuTransaksi' => 'Akses Halaman Buku Transaksi (semua uang masuk & refund)',
-                            'export_ledger' => 'Export Buku Transaksi ke Excel / CSV',
-                            'view_ledger_invoice' => 'Lihat Invoice / Struk Salinan Admin dari Buku Transaksi',
+                            'View:BukuTransaksi' => 'Akses Halaman Riwayat Transaksi (semua uang masuk & refund)',
+                            'export_ledger' => 'Export Riwayat Transaksi ke Excel / CSV',
+                            'view_ledger_invoice' => 'Lihat Invoice / Struk Salinan Admin dari Riwayat Transaksi',
                             'process_refund_queue' => 'Proses / Tolak Refund yang Menunggu (Antrian Refund)',
                             'View:DaftarVoucher' => 'Akses Halaman Daftar Voucher (kode promo & voucher saldo customer)',
                             'View:ImportPenjualan' => 'Akses Halaman Import Penjualan (Excel)',

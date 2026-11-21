@@ -25,7 +25,7 @@
         <div>
             <div class="c61-eyebrow"><span class="dot"></span><span>Keuangan &bull; Data Soft Opening</span></div>
             <div class="c61-hero-title">Import Penjualan</div>
-            <div class="c61-hero-sub">Masukkan transaksi yang terjadi di luar sistem — booking padel walk-in (jadwal, akun customer, pembayaran) dan penjualan F&amp;B — dari file Excel. Semua pembayaran dicatat QRIS dan langsung masuk Buku Transaksi sesuai tanggal bayarnya.</div>
+            <div class="c61-hero-sub">Masukkan transaksi yang terjadi di luar sistem — booking padel walk-in (jadwal, akun customer, pembayaran) dan penjualan F&amp;B — dari file Excel. Semua pembayaran dicatat QRIS dan langsung masuk Riwayat Transaksi sesuai tanggal bayarnya.</div>
         </div>
         <div class="c61-hero-actions">
             <button type="button" wire:click="downloadTemplate" wire:loading.attr="disabled" wire:target="downloadTemplate" class="c61-btn c61-btn-cream c61-btn-lg">Unduh Template Excel</button>
@@ -45,7 +45,7 @@
             {{ $result['padel_transactions'] }} transaksi padel ({{ $result['padel_bookings'] }} booking, Rp {{ number_format($result['padel_total'], 0, ',', '.') }}) dan
             {{ $result['fnb_transactions'] }} transaksi F&amp;B (Rp {{ number_format($result['fnb_total'], 0, ',', '.') }}) sudah masuk.
             @if($result['skipped'] > 0) {{ $result['skipped'] }} transaksi dilewati karena sudah pernah di-import. @endif
-            <a href="{{ \App\Filament\Pages\BukuTransaksi::getUrl() }}" class="c61-link">Buka Buku Transaksi</a>
+            <a href="{{ \App\Filament\Pages\BukuTransaksi::getUrl() }}" class="c61-link">Buka Riwayat Transaksi</a>
         </div>
     @endif
 
@@ -254,7 +254,7 @@
                     @endif
                 </span>
                 <button type="button" @disabled(! $canImport)
-                    x-on:click="$dispatch('club61-confirm', { title: 'Import {{ $s['padel_transactions'] + $s['fnb_transactions'] }} transaksi?', message: @js('Data langsung masuk ke jadwal, akun customer, dan Buku Transaksi sesuai tanggal bayarnya. Kalau ternyata salah, bisa dibatalkan dari Riwayat Import selama belum dipakai (check-in, reschedule, refund).'), confirmLabel: 'Ya, Import', onConfirm: () => $wire.import() })"
+                    x-on:click="$dispatch('club61-confirm', { title: 'Import {{ $s['padel_transactions'] + $s['fnb_transactions'] }} transaksi?', message: @js('Data langsung masuk ke jadwal, akun customer, dan Riwayat Transaksi sesuai tanggal bayarnya. Kalau ternyata salah, bisa dibatalkan dari Riwayat Import selama belum dipakai (check-in, reschedule, refund).'), confirmLabel: 'Ya, Import', onConfirm: () => $wire.import() })"
                     wire:loading.attr="disabled" wire:target="import"
                     class="c61-btn c61-btn-primary c61-btn-lg">
                     <span wire:loading.remove wire:target="import">Import Sekarang</span>
@@ -306,7 +306,7 @@
                                     @endif
                                     @if($batch->status !== \App\Models\Finance\SalesImportBatch::STATUS_CANCELLED)
                                         <button type="button" class="c61-btn c61-btn-danger c61-btn-sm"
-                                            x-on:click="$dispatch('club61-confirm', { title: @js('Batalkan import '.$batch->batch_code.'?'), message: @js($batch->padel_transactions.' transaksi padel ('.$batch->padel_bookings.' booking) dan '.$batch->fnb_transactions.' transaksi F&B dari import ini akan dihapus dari jadwal, akun customer, dan Buku Transaksi. Akun customer baru yang dibuat import ini ikut dihapus kalau belum dipakai.'), confirmLabel: 'Ya, Batalkan Import', tone: 'danger', onConfirm: () => $wire.cancelBatch(@js($batch->id)) })">
+                                            x-on:click="$dispatch('club61-confirm', { title: @js('Batalkan import '.$batch->batch_code.'?'), message: @js($batch->padel_transactions.' transaksi padel ('.$batch->padel_bookings.' booking) dan '.$batch->fnb_transactions.' transaksi F&B dari import ini akan dihapus dari jadwal, akun customer, dan Riwayat Transaksi. Akun customer baru yang dibuat import ini ikut dihapus kalau belum dipakai.'), confirmLabel: 'Ya, Batalkan Import', tone: 'danger', onConfirm: () => $wire.cancelBatch(@js($batch->id)) })">
                                             Batalkan
                                         </button>
                                     @endif

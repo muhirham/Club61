@@ -52,7 +52,12 @@
                     <div style="font-weight:700;">{{ $row['label'] }}@if ($row['mode'] ?? null) ({{ $row['mode'] === SCS::MODE_SETTLE ? 'settle' : 'audit report' }})@endif</div>
                     <div style="{{ $line }}"><span>Sistem</span><span>{{ $rupiah($row['system_amount']) }}</span></div>
                     @if ($typed)
-                        <div style="{{ $line }}"><span>Struk</span><span>{{ ($row['typed_by_cashier'] ?? true) ? $rupiah($row['settled_amount']) : 'tidak diketik' }}</span></div>
+                        @if ($row['corrected'] ?? null)
+                            <div style="{{ $line }}"><span>Diketik kasir</span><span>{{ ($row['typed_by_cashier'] ?? false) ? $rupiah($row['cashier_amount'] ?? 0) : 'tidak diketik' }}</span></div>
+                            <div style="{{ $line }}"><span>Struk (koreksi {{ $row['corrected']['by_name'] ?? '-' }})</span><span>{{ $rupiah($row['settled_amount']) }}</span></div>
+                        @else
+                            <div style="{{ $line }}"><span>Struk</span><span>{{ ($row['typed_by_cashier'] ?? true) ? $rupiah($row['settled_amount']) : 'tidak diketik' }}</span></div>
+                        @endif
                         <div style="{{ $line }} font-weight:900; color:{{ abs($row['difference']) < 0.005 ? '#15803D' : '#BE123C' }};">
                             <span>Selisih</span><span>{{ abs($row['difference']) < 0.005 ? 'COCOK' : ($row['difference'] > 0 ? '+' : '-').$rupiah(abs($row['difference'])) }}</span>
                         </div>

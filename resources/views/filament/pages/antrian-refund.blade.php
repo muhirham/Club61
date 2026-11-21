@@ -9,7 +9,7 @@
                     <div class="c61-card-title" style="font-size: 1.0625rem; margin-bottom: 0.2rem;">Uang customer yang harus dikembalikan</div>
                     Pengajuan pembatalan dari Kelola Pemesanan, kelebihan bayar, pembayaran ganda, dan uang yang masuk setelah booking dibatalkan / hangus.
                     <b style="color: var(--c-brown);">Setujui:</b> kembalikan uangnya dulu (transfer, void EDC, atau refund di Dashboard Midtrans), lalu tekan <b style="color: var(--c-brown);">Proses</b> dan isi nomor referensinya —
-                    refund otomatis tercatat di Buku Transaksi sebagai uang keluar. <b style="color: var(--c-brown);">Tolak:</b> uangnya jadi voucher saldo customer (lihat Daftar Voucher).
+                    refund otomatis tercatat di Riwayat Transaksi sebagai uang keluar. <b style="color: var(--c-brown);">Tolak:</b> uangnya jadi voucher saldo customer (lihat Daftar Voucher).
                 </div>
             </div>
         </div>

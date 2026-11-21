@@ -16,6 +16,7 @@
         "vite": "^5.0"
     },
     "dependencies": {
-        "gridstack": "14.0.0"
+        "gridstack": "14.0.0",
+        "tinypdf": "0.4.1"
     }
 }

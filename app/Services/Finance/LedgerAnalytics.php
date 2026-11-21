@@ -29,8 +29,9 @@ class LedgerAnalytics
         $expression = match ($dimension) {
             'category' => 'category',
             'source' => 'source',
-            // Per penyedia/bank (label snapshot: "QRIS BCA", "EDC Mandiri Debit", "BCA Virtual Account"), bukan cuma kode.
-            'method' => "COALESCE(payment_method_label, payment_method, '-')",
+            // Per penyedia/bank (label snapshot: "EDC Mandiri Debit", "BCA Virtual Account"), bukan cuma kode. QRIS per jenis
+            // (manual / otomatis kasir / online): labelnya bisa sama antar-jenis, dan tautannya harus membuka jenis yang sama.
+            'method' => 'COALESCE('.LedgerReport::qrisVariantSql().", payment_method_label, payment_method, '-')",
         };
 
         $rows = (clone $base)->toBase()
@@ -52,9 +53,9 @@ class LedgerAnalytics
             'label' => match ($dimension) {
                 'category' => LedgerEntry::categoryLabel($r->dim),
                 'source' => LedgerEntry::sourceLabel($r->dim),
-                'method' => (string) $r->dim,
+                'method' => LedgerReport::QRIS_VARIANTS[$r->dim] ?? (string) $r->dim,
             },
-            'method_code' => $r->method_code,
+            'method_code' => array_key_exists((string) $r->dim, LedgerReport::QRIS_VARIANTS) ? (string) $r->dim : $r->method_code,
             'money_in' => (float) $r->money_in,
             'refunds' => (float) $r->refunds,
             'money_net' => (float) $r->money_net,

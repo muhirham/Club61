@@ -697,8 +697,9 @@ class FnbPosCheckoutTest extends TestCase
             ->call('proceedToPayment')
             ->assertSee('KARTU DEBIT')
             ->assertSee('KARTU KREDIT')
-            // Bayar Otomatis = pilihan utama; QRIS manual (RRN) tetap ada sebagai cadangan.
-            ->assertSee('Bayar Otomatis')
+            // QR Online (Bayar Otomatis) = pilihan utama; QRIS Static (RRN) tetap ada sebagai cadangan.
+            ->assertSee('QR Online (Midtrans)')
+            ->assertSee('QRIS Static')
             ->set('qrisMode', 'MANUAL')
             ->assertSee('Retrieval Reference Number')
             ->call('setPaymentMethod', 'DEBIT_CARD')

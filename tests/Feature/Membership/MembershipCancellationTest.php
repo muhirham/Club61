@@ -110,7 +110,7 @@ class MembershipCancellationTest extends TestCase
             ->call('openCancelMembership')
             ->assertSet('showCancelMembership', true)
             ->assertSee('Padel 49 jam, Wellness 4 sesi')
-            ->assertSee('tidak dikembalikan dan tetap tercatat di Buku Transaksi')
+            ->assertSee('tidak dikembalikan dan tetap tercatat di Riwayat Transaksi')
             ->set('cancelReason', 'Harga paket salah input')
             ->call('confirmCancelMembership')
             ->assertSet('showCancelMembership', false)

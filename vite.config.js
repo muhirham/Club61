@@ -4,7 +4,7 @@ import laravel from 'laravel-vite-plugin';
 export default defineConfig({
     plugins: [
         laravel({
-            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/css/signature-editor.css', 'resources/js/signature-editor.js'],
+            input: ['resources/css/app.css', 'resources/js/app.js', 'resources/css/signature-editor.css', 'resources/js/signature-editor.js', 'resources/js/ledger-pdf.js'],
             refresh: true,
         }),
     ],

@@ -46,7 +46,7 @@
             <div class="c61-eyebrow"><span class="dot"></span>Financial Business Intelligence &bull; Club 61 Padel &amp; Wellness</div>
             <div class="c61-hero-title">Laporan Uang Masuk &amp; Analisis Finansial</div>
             <div class="c61-hero-sub">
-                Rekapitulasi uang masuk dari kasir &amp; payment gateway online, refund, dan pendapatan bersih semua lini (padel, add-on, F&amp;B, membership). Angkanya sama dengan Buku Transaksi.
+                Rekapitulasi uang masuk dari kasir &amp; payment gateway online, refund, dan pendapatan bersih semua lini (padel, add-on, F&amp;B, membership). Angkanya sama dengan Riwayat Transaksi.
             </div>
         </div>
     </div>
@@ -86,7 +86,7 @@
                 @if ($s['overpayments'] > 0)
                     <span style="color:#B45309; font-weight:700;">Termasuk lebih bayar {{ $rp($s['overpayments']) }}</span>
                 @else
-                    <span>Sesuai Buku Transaksi</span>
+                    <span>Sesuai Riwayat Transaksi</span>
                 @endif
             </div>
         </div>
@@ -369,7 +369,7 @@
                 <div class="c61-card-title">Riwayat Mutasi Uang Masuk Terkini</div>
                 <div class="c61-card-sub">10 pembayaran &amp; refund terbaru dari semua kasir dan online pada periode ini</div>
             </div>
-            <a href="{{ $this->bukuUrl() }}" class="c61-btn c61-btn-ghost">Buka Buku Transaksi &rarr;</a>
+            <a href="{{ $this->bukuUrl() }}" class="c61-btn c61-btn-ghost">Buka Riwayat Transaksi &rarr;</a>
         </div>
 
         <div class="c61-table-wrap">

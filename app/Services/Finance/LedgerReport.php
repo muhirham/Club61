@@ -124,7 +124,7 @@ class LedgerReport
 
         $query
             ->when($filters['source'] ?? null, fn (Builder $q, $values) => $q->whereIn('source', (array) $values))
-            ->when($filters['method'] ?? null, fn (Builder $q, $values) => $q->whereIn('payment_method', (array) $values))
+            ->when($filters['method'] ?? null, fn (Builder $q, $values) => self::applyMethods($q, (array) $values))
             ->when($filters['cashier_id'] ?? null, fn (Builder $q, $value) => $q->where('cashier_id', $value))
             ->when($filters['pos_shift_id'] ?? null, fn (Builder $q, $value) => $q->where('pos_shift_id', $value));
 
@@ -267,6 +267,34 @@ class LedgerReport
     public static function flushMemo(): void
     {
         self::$refundMemo = [];
+        self::$edcMemo = [];
+    }
+
+    /**
+     * Isi memo refundsFor() untuk banyak pembayaran sekaligus — satu query, bukan dua query per baris (export ribuan
+     * baris dulu menjalankan ribuan query hanya untuk kolom Status).
+     *
+     * @param  array<int, string|null>  $paymentIds
+     */
+    public static function primeRefunds(array $paymentIds): void
+    {
+        $ids = array_values(array_unique(array_filter($paymentIds)));
+        if ($ids === []) {
+            return;
+        }
+
+        foreach ($ids as $id) {
+            self::$refundMemo[$id] = ['processed' => 0.0, 'pending' => 0.0];
+        }
+        Refund::query()->toBase()
+            ->selectRaw('payment_id, status, SUM(refund_amount) as total')
+            ->whereIn('payment_id', $ids)
+            ->whereIn('status', ['PROCESSED', 'PENDING'])
+            ->groupBy('payment_id', 'status')
+            ->get()
+            ->each(function ($row) {
+                self::$refundMemo[$row->payment_id][strtolower($row->status)] = (float) $row->total;
+            });
     }
 
     /**
@@ -292,15 +320,230 @@ class LedgerReport
     }
 
     /** Opsi filter metode bayar (kode → label yang tercatat), di-cache 10 menit. */
+    /**
+     * QRIS manual (QR statis + RRN di kasir), QRIS otomatis dari layar kasir, dan QRIS online customer sama-sama
+     * berkode `QRIS`. Dibedakan dari kolom buku yang sudah ada sejak awal (gateway & shift kasir), jadi baris lama
+     * ikut terpilah tanpa mengubah data. Kode `QRIS` polos tetap berarti semua QRIS (tautan lama).
+     */
+    public const QRIS_MANUAL = 'QRIS-MANUAL';
+
+    public const QRIS_KASIR = 'QRIS-KASIR';
+
+    public const QRIS_ONLINE = 'QRIS-ONLINE';
+
+    public const QRIS_VARIANTS = [
+        self::QRIS_MANUAL => 'QRIS Static',
+        self::QRIS_KASIR => 'QR Online (Kasir)',
+        self::QRIS_ONLINE => 'QRIS (Online Customer)',
+    ];
+
+    /** Gateway pembayaran di loket (bukti diketik kasir); selain ini = payment gateway (DOKU / Midtrans). */
+    private const COUNTER_GATEWAY = 'CASHIER_POS';
+
+    /** Kode metode kartu lewat mesin EDC di kasir. */
+    private const EDC_METHODS = ['DEBIT_CARD', 'CREDIT_CARD', 'DEBIT', 'CREDIT', 'EDC_BCA', 'EDC_MANDIRI', 'EDC_LAINNYA'];
+
+    /** Bank penerbit & jaringan kartu (nilai dropdown form EDC kasir). */
+    private const CARD_ISSUERS = ['BCA' => 'BCA', 'MANDIRI' => 'Mandiri', 'BNI' => 'BNI', 'BRI' => 'BRI', 'CIMB' => 'CIMB Niaga',
+        'PERMATA' => 'Permata', 'DANAMON' => 'Danamon', 'BSI' => 'BSI', 'LAINNYA' => 'Bank lain'];
+
+    private const CARD_NETWORKS = ['GPN' => 'GPN', 'MASTERCARD' => 'Mastercard', 'VISA' => 'Visa', 'JCB' => 'JCB', 'AMEX' => 'Amex', 'LAINNYA' => 'Jaringan lain'];
+
+    /** payment_id => rincian kartu EDC (null = tidak ada); diisi primeEdc() / per baris, dikosongkan flushMemo(). */
+    private static array $edcMemo = [];
+
+    /**
+     * Nama metode bayar yang ditampilkan. Kartu EDC: debit/kredit + mesinnya (dari bukti EDC yang disimpan kasir, jadi
+     * transaksi lama ikut). $qrisNames (tabel Buku Transaksi): QRIS kasir = "QRIS Static" / "QR Online (DOKU|Midtrans)".
+     * Hanya tampilan — label yang tersimpan di buku tidak diubah.
+     */
+    public static function methodLabel(LedgerEntry $row, bool $qrisNames = false): string
+    {
+        $stored = (string) ($row->payment_method_label ?? $row->payment_method ?? '');
+
+        if ($edc = self::edcDetails($row)) {
+            $terminal = $edc['terminal'] ?? (in_array($row->payment_method, ['EDC_BCA', 'EDC_MANDIRI', 'EDC_LAINNYA'], true) ? $row->payment_method : null);
+            $machine = $terminal ? (\App\Models\Pos\PosCashierShift::EDC_TERMINAL_LABELS[$terminal] ?? $terminal) : null;
+
+            return ($edc['card_type'] === 'CREDIT' ? 'Kartu Kredit' : 'Kartu Debit').($machine ? ' — '.$machine : ' (EDC)');
+        }
+
+        if ($qrisNames) {
+            return match (self::qrisVariant($row)) {
+                self::QRIS_MANUAL => 'QRIS Static',
+                self::QRIS_KASIR => 'QR Online ('.self::gatewayName($row->payment_gateway).')',
+                default => $stored,
+            };
+        }
+
+        return $stored;
+    }
+
+    /** Bukti / referensi yang ditampilkan. Kartu EDC: bank · jaringan · 4 digit · APPR · TRACE. */
+    public static function referenceLabel(LedgerEntry $row): ?string
+    {
+        if ($edc = self::edcDetails($row)) {
+            $parts = array_filter([
+                $edc['issuer'] ? (self::CARD_ISSUERS[$edc['issuer']] ?? $edc['issuer']) : null,
+                $edc['network'] ? (self::CARD_NETWORKS[$edc['network']] ?? $edc['network']) : null,
+                $edc['last4'] ? '••••'.$edc['last4'] : null,
+                $edc['approval'] ? 'APPR '.$edc['approval'] : null,
+                $edc['trace'] ? 'TRACE '.$edc['trace'] : null,
+            ]);
+            if ($parts !== []) {
+                return implode(' · ', $parts);
+            }
+        }
+
+        return $row->payment_reference;
+    }
+
+    /** Jenis QRIS satu baris (sama dengan qrisVariantSql), null kalau bukan QRIS. */
+    public static function qrisVariant(LedgerEntry $row): ?string
+    {
+        if ($row->payment_method !== 'QRIS') {
+            return null;
+        }
+        if ($row->payment_gateway === null || $row->payment_gateway === self::COUNTER_GATEWAY) {
+            return self::QRIS_MANUAL;
+        }
+
+        return $row->pos_shift_id !== null ? self::QRIS_KASIR : self::QRIS_ONLINE;
+    }
+
+    /**
+     * Ambil rincian kartu EDC untuk banyak baris sekaligus (satu query) — tabel per halaman & PDF per kelompok.
+     *
+     * @param  iterable<LedgerEntry>  $rows
+     */
+    public static function primeEdc(iterable $rows): void
+    {
+        $ids = [];
+        foreach ($rows as $row) {
+            if ($row instanceof LedgerEntry && $row->payment_id && in_array($row->payment_method, self::EDC_METHODS, true)
+                && ! array_key_exists($row->payment_id, self::$edcMemo)) {
+                $ids[$row->payment_id] = true;
+            }
+        }
+        if ($ids === []) {
+            return;
+        }
+
+        foreach (array_keys($ids) as $id) {
+            self::$edcMemo[$id] = null;
+        }
+        \App\Models\Pos\Payment::query()->whereIn('id', array_keys($ids))->get(['id', 'payload_log'])
+            ->each(function ($payment) {
+                self::$edcMemo[$payment->id] = self::edcFromPayload($payment->payload_log);
+            });
+    }
+
+    /** @return array{terminal: ?string, card_type: string, issuer: ?string, network: ?string, last4: ?string, approval: ?string, trace: ?string}|null */
+    private static function edcDetails(LedgerEntry $row): ?array
+    {
+        if (! $row->payment_id || ! in_array($row->payment_method, self::EDC_METHODS, true)) {
+            return null;
+        }
+        if (! array_key_exists($row->payment_id, self::$edcMemo)) {
+            if (count(self::$edcMemo) > 5000) {
+                self::$edcMemo = []; // export Excel ribuan baris: memo tidak dibiarkan membesar
+            }
+            self::$edcMemo[$row->payment_id] = self::edcFromPayload(\App\Models\Pos\Payment::whereKey($row->payment_id)->first(['id', 'payload_log'])?->payload_log);
+        }
+
+        return self::$edcMemo[$row->payment_id];
+    }
+
+    private static function edcFromPayload(mixed $log): ?array
+    {
+        $log = is_string($log) ? json_decode($log, true) : $log;
+        $edc = is_array($log) && is_array($log['edc_details'] ?? null) ? $log['edc_details'] : null;
+        if (! $edc) {
+            return null;
+        }
+        // Isian kasir (bank / jaringan tidak divalidasi ke daftar) dipotong supaya kolom tetap rapi.
+        $text = fn (string $key) => is_scalar($edc[$key] ?? null) && trim((string) $edc[$key]) !== '' ? mb_substr(trim((string) $edc[$key]), 0, 30) : null;
+
+        return [
+            'terminal' => ($t = $text('terminal')) ? strtoupper($t) : null,
+            'card_type' => strtoupper((string) $text('card_type')) === 'CREDIT' ? 'CREDIT' : 'DEBIT',
+            'issuer' => ($i = $text('card_issuer')) ? strtoupper($i) : null,
+            'network' => ($n = $text('card_network')) ? strtoupper($n) : null,
+            'last4' => $text('card_last_4'),
+            'approval' => $text('approval_code'),
+            'trace' => $text('trace_number'),
+        ];
+    }
+
+    private static function gatewayName(?string $gateway): string
+    {
+        return match (strtoupper((string) $gateway)) {
+            'DOKU' => 'DOKU',
+            'MIDTRANS' => 'Midtrans',
+            default => ucfirst(strtolower((string) $gateway)) ?: '-',
+        };
+    }
+
+    /** Ekspresi SQL jenis QRIS satu baris buku (NULL kalau bukan QRIS) — dipakai rincian Analytics & pilihan filter. */
+    public static function qrisVariantSql(): string
+    {
+        return "CASE WHEN payment_method <> 'QRIS' THEN NULL"
+            ." WHEN payment_gateway IS NULL OR payment_gateway = '".self::COUNTER_GATEWAY."' THEN '".self::QRIS_MANUAL."'"
+            ." WHEN pos_shift_id IS NOT NULL THEN '".self::QRIS_KASIR."'"
+            ." ELSE '".self::QRIS_ONLINE."' END";
+    }
+
+    /** Filter Metode Bayar: kode metode biasa + jenis QRIS (lihat QRIS_VARIANTS). */
+    public static function applyMethods(Builder $query, array $values): Builder
+    {
+        $values = array_values(array_filter(array_map('strval', $values), 'filled'));
+        if ($values === []) {
+            return $query;
+        }
+        $codes = array_values(array_diff($values, array_keys(self::QRIS_VARIANTS)));
+        $variants = array_values(array_intersect($values, array_keys(self::QRIS_VARIANTS)));
+        $counter = fn (Builder $q) => $q->whereNull('payment_gateway')->orWhere('payment_gateway', self::COUNTER_GATEWAY);
+        $gateway = fn (Builder $q) => $q->whereNotNull('payment_gateway')->where('payment_gateway', '<>', self::COUNTER_GATEWAY);
+
+        return $query->where(function (Builder $q) use ($codes, $variants, $counter, $gateway) {
+            if ($codes !== []) {
+                $q->orWhereIn('payment_method', $codes);
+            }
+            foreach ($variants as $variant) {
+                $q->orWhere(fn (Builder $v) => match ($variant) {
+                    self::QRIS_MANUAL => $v->where('payment_method', 'QRIS')->where($counter),
+                    self::QRIS_KASIR => $v->where('payment_method', 'QRIS')->where($gateway)->whereNotNull('pos_shift_id'),
+                    default => $v->where('payment_method', 'QRIS')->where($gateway)->whereNull('pos_shift_id'),
+                });
+            }
+        });
+    }
+
     public static function methodOptions(): array
     {
-        $query = fn () => LedgerEntry::query()->toBase()
-            ->selectRaw('payment_method, MAX(payment_method_label) as label')
-            ->whereNotNull('payment_method')->groupBy('payment_method')->orderBy('payment_method')->limit(100)->get()
-            ->mapWithKeys(fn ($r) => [$r->payment_method => $r->label ? "{$r->label} ({$r->payment_method})" : $r->payment_method])->all();
+        $query = function () {
+            $options = LedgerEntry::query()->toBase()
+                ->selectRaw('payment_method, MAX(payment_method_label) as label')
+                ->whereNotNull('payment_method')->groupBy('payment_method')->orderBy('payment_method')->limit(100)->get()
+                ->mapWithKeys(fn ($r) => [$r->payment_method => $r->label ? "{$r->label} ({$r->payment_method})" : $r->payment_method])->all();
+
+            // QRIS dipecah per jenis (dulu satu pilihan berlabel salah satu jenis saja, mis. "QRIS Otomatis (Kasir)").
+            if (array_key_exists('QRIS', $options)) {
+                $present = LedgerEntry::query()->toBase()->where('payment_method', 'QRIS')
+                    ->selectRaw(self::qrisVariantSql().' as variant')->distinct()->pluck('variant')->all();
+                unset($options['QRIS']);
+                foreach (self::QRIS_VARIANTS as $key => $label) {
+                    if (in_array($key, $present, true)) {
+                        $options[$key] = $label;
+                    }
+                }
+            }
+
+            return $options;
+        };
 
         try {
-            return Cache::remember('ledger:method_options', 600, $query);
+            return Cache::remember('ledger:method_options:v3', 600, $query);
         } catch (Throwable) {
             return $query();
         }

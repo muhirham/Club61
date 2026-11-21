@@ -49,7 +49,7 @@
             </td>
             <td style="width:40%; text-align:right;" class="muted">
                 <div style="font-size:10px; font-weight:bold; color:#1F170D;">{{ $periodLabel }}</div>
-                <div>Pemasukan = penjualan kasir F&amp;B (Buku Transaksi)</div>
+                <div>Pemasukan = penjualan kasir F&amp;B (Riwayat Transaksi)</div>
                 <div>Laba memakai HPP menu pada saat penjualan</div>
             </td>
         </tr>

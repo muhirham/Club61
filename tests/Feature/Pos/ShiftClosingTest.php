@@ -349,6 +349,9 @@ class ShiftClosingTest extends TestCase
         }
         $shift->update(['closed_by_id' => $this->cashier->id]);
 
+        // Struk QRIS ternyata memang Rp a (kasir salah ketik) → reviewer koreksi dulu, baru bisa disetujui.
+        $service->correctTypedAmount($shift->id, $this->admin, 'QRIS_BCA_QRIS', (string) $a, 'Mutasi QRIS sesuai sistem, kasir salah ketik');
+
         $this->actingAs($this->admin);
         Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])
             ->assertSee($shift->shift_number)
@@ -375,6 +378,86 @@ class ShiftClosingTest extends TestCase
         } catch (HttpException $e) {
             $this->assertSame(409, $e->getStatusCode());
         }
+    }
+
+    public function test_reviewer_corrects_a_mistyped_amount_before_approving_and_the_cashier_number_stays_visible(): void
+    {
+        $shift = $this->openShift();
+        $a = (int) $this->pay('QRIS', ['qrisProvider' => 'BCA_QRIS', 'qrisRrn' => '123456789015'])->amount;
+        // Kasir kelebihan satu digit.
+        $this->close(['QRIS_BCA_QRIS' => $a * 10], [])->assertSet('closingMismatch', fn ($m) => $m !== null);
+        $this->close([], [], 'Angka aplikasi QRIS sudah saya ketik sesuai layar')->assertSet('showShiftReportModal', true);
+        $service = app(ShiftClosingService::class);
+        $shift->refresh();
+        $this->assertFalse(ShiftClosingService::fullyMatched($shift));
+
+        // Setujui ditolak selama masih ada selisih — tombolnya mati di halaman detail.
+        try {
+            $service->review($shift->id, $this->admin, true, 'Disetujui saja');
+            $this->fail('Setujui harus menunggu semua baris cocok');
+        } catch (HttpException $e) {
+            $this->assertSame(422, $e->getStatusCode());
+        }
+        $this->actingAs($this->admin);
+        Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])->assertActionDisabled('approve');
+
+        // Kasir tidak bisa mengoreksi; penutup shift (admin) tidak mengoreksi shift-nya sendiri; isian tidak valid ditolak.
+        foreach ([
+            [$this->cashier, 'QRIS_BCA_QRIS', (string) $a, 'salah ketik kasir', 403],
+            [$this->admin, 'QRIS_BCA_QRIS', 'abc', 'salah ketik kasir', 422],
+            [$this->admin, 'QRIS_BCA_QRIS', (string) $a, '', 422],
+            [$this->admin, 'QRIS_BCA_QRIS', (string) ($a * 10), 'angka sama dengan ketikan', 422],
+            [$this->admin, 'BARIS_TIDAK_ADA', (string) $a, 'salah ketik kasir', 422],
+        ] as [$user, $key, $amount, $reason, $code]) {
+            try {
+                $service->correctTypedAmount($shift->id, $user, $key, $amount, $reason);
+                $this->fail("harus ditolak ({$code})");
+            } catch (HttpException $e) {
+                $this->assertSame($code, $e->getStatusCode());
+            }
+        }
+        $shift->update(['closed_by_id' => $this->admin->id]);
+        try {
+            $service->correctTypedAmount($shift->id, $this->admin, 'QRIS_BCA_QRIS', (string) $a, 'salah ketik kasir');
+            $this->fail('penutup shift tidak boleh mengoreksi shift-nya sendiri');
+        } catch (HttpException $e) {
+            $this->assertSame(403, $e->getStatusCode());
+        }
+        $shift->update(['closed_by_id' => $this->cashier->id]);
+
+        // Reviewer koreksi dari halaman detail (tombol Koreksi di baris QRIS).
+        Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])
+            ->callAction('correctTyped', ['amount' => $a, 'reason' => 'Aplikasi QRIS BCA menunjukkan 1 transaksi sesuai sistem'], ['row' => 'QRIS_BCA_QRIS'])
+            ->assertHasNoActionErrors();
+
+        $shift->refresh();
+        $row = collect($shift->settlement_reconciliation)->firstWhere('key', 'QRIS_BCA_QRIS');
+        $this->assertTrue(ShiftClosingService::fullyMatched($shift));
+        $this->assertEquals($a, $row['settled_amount']);
+        $this->assertTrue($row['typed_by_cashier']);
+        $this->assertEquals($a * 10, $row['cashier_amount'], 'ketikan asli kasir tetap tersimpan');
+        $this->assertSame('Admin Rina', $row['corrected']['by_name']);
+        $this->assertEquals($a * 10, $shift->closing_inputs['final']['cashier_inputs']['QRIS_BCA_QRIS']);
+        $this->assertEquals($a * 10, $shift->closing_inputs['first_attempt']['inputs']['QRIS_BCA_QRIS'], 'angka beku cek pertama tidak disentuh');
+        $log = ActivityLog::where('event', 'shift.typed_amount_corrected')->sole();
+        $this->assertSame('CRITICAL', $log->severity);
+
+        Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])
+            ->assertSee('data-typed-correction', false)
+            ->assertSee('diketik kasir')
+            ->assertActionEnabled('approve')
+            ->callAction('approve', ['notes' => 'Angka struk dikoreksi, semua cocok'])
+            ->assertHasNoActionErrors();
+        $this->assertSame(PosCashierShift::REVIEW_APPROVED, $shift->fresh()->review_status);
+
+        // Z-Report cetak ulang memperlihatkan ketikan kasir & koreksinya.
+        Livewire::test(DetailShiftKasir::class, ['shift' => $shift->id])
+            ->mountAction('reprintZ')
+            ->assertMountedActionModalSee(['Diketik kasir', 'Struk (koreksi Admin Rina)', 'DISETUJUI ADMIN']);
+
+        // Shift yang sudah diputuskan tidak bisa dikoreksi lagi.
+        $this->expectException(HttpException::class);
+        $service->correctTypedAmount($shift->id, $this->admin, 'QRIS_BCA_QRIS', '1', 'koreksi setelah final');
     }
 
     public function test_review_pages_are_for_shift_approvers_only(): void

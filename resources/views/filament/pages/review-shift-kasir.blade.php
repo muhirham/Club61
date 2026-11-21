@@ -7,7 +7,8 @@
                 <div class="c61-card-title" style="font-size: 1.0625rem; margin-bottom: 0.2rem;">Shift yang ditutup dengan selisih</div>
                 Kasir mengetik angka struk settlement EDC / aplikasi QRIS tanpa melihat angka sistem. Selisih berapa pun membuat shift
                 <b style="color: var(--c-brown);">Perlu Review</b>. Buka shift-nya: cek penjelasan kasir, koreksi metode bayar yang salah klik
-                (mis. tercatat QRIS padahal kartu debit), lalu <b style="color: var(--c-brown);">Setujui</b> atau <b style="color: var(--c-brown);">Tolak</b>.
+                (mis. tercatat QRIS padahal kartu debit) dan koreksi angka struk yang salah ketik sesuai struk / aplikasi. Setelah semua baris
+                cocok, <b style="color: var(--c-brown);">Setujui</b>. Selisih nyata yang tidak bisa dibetulkan, <b style="color: var(--c-brown);">Tolak</b>.
             </div>
         </div>
 

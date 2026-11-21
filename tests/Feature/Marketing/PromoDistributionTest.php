@@ -323,7 +323,8 @@ class PromoDistributionTest extends TestCase
         $this->actingAs($this->customer, 'web')->get(route('profile.vouchers'))->assertOk()->assertSee('Klaim Diskon 15%')->assertSee('data-voucher-kind="PROMO"', false);
 
         // Kasir: promo klaim customer terpilih muncul untuk dipakai.
-        $pos = Livewire::actingAs($this->admin)->test(BookOfflineCourt::class)->set('selectedCustomerId', $this->customer->id);
+        // Alur kasir sebenarnya: tab Cari Akun → pilih akun (di Walk-In Baru benefit mengikuti pemilik nomor HP yang diketik).
+        $pos = Livewire::actingAs($this->admin)->test(BookOfflineCourt::class)->set('customerMode', 'search')->call('selectCustomer', $this->customer->id);
         $this->assertSame(['KLAIM15'], array_column($pos->instance()->customerClaimedPromos, 'code'));
 
         // Dipakai & lunas → kuota klaim tidak berubah, hilang dari daftar yang bisa dipakai.

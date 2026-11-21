@@ -81,7 +81,7 @@
             <div class="c61-note c61-note-danger">
                 Kartu ini dibatalkan oleh <strong>{{ $cancelInfo['by'] ?? '-' }}</strong>
                 pada {{ $cancelInfo['at']->timezone(\App\Services\Finance\LedgerReport::TIMEZONE)->format('d M Y H:i') }} WIB.
-                Alasan: {{ $cancelInfo['reason'] }}. Sisa kuota dihanguskan; uang pembelian tetap tercatat di Buku Transaksi.
+                Alasan: {{ $cancelInfo['reason'] }}. Sisa kuota dihanguskan; uang pembelian tetap tercatat di Riwayat Transaksi.
             </div>
         @endif
 
@@ -597,7 +597,7 @@
                             <div class="c61-note c61-note-orange">
                                 Kartu tidak dapat digunakan lagi dan pembatalan bersifat permanen.
                                 Sisa kuota dihanguskan{{ $quotaLeft->isNotEmpty() ? ' ('.$quotaLeft->implode(', ').')' : '' }}.
-                                Uang pembelian Rp {{ number_format((float) $m->purchase_price_snapshot, 0, ',', '.') }} tidak dikembalikan dan tetap tercatat di Buku Transaksi.
+                                Uang pembelian Rp {{ number_format((float) $m->purchase_price_snapshot, 0, ',', '.') }} tidak dikembalikan dan tetap tercatat di Riwayat Transaksi.
                             </div>
                             <div class="c61-field">
                                 <label class="c61-label">Alasan (wajib):</label>

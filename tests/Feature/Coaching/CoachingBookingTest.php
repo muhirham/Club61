@@ -185,6 +185,36 @@ class CoachingBookingTest extends TestCase
         $this->assertSame('Sewa Lapangan Coaching', LedgerEntry::categoryLabel('COACHING'));
     }
 
+    public function test_coaching_tab_can_book_for_an_existing_account_found_by_search(): void
+    {
+        $student = User::factory()->customer()->create(['name' => 'Andi Murid', 'phone' => '081277788899', 'is_active' => true]);
+
+        $page = $this->pos($this->slot($this->courtA, '18'))
+            ->call('setCustomerMode', 'coaching')
+            ->assertSeeHtml('data-coaching-customer-mode')
+            ->call('setCoachingCustomerMode', 'search')
+            ->assertSet('customerMode', 'search')
+            ->assertSet('bookingType', 'COACHING')
+            ->set('customerSearch', '6281277788899')
+            ->assertSee('Andi Murid')
+            ->call('selectCustomer', $student->id)
+            ->assertSet('bookingType', 'COACHING')
+            ->set('coachingCoachId', $this->maimun->id);
+
+        $page->call('proceedToPayment')->assertSet('posStep', 'payment');
+        $this->payByEdc($page)->assertSet('posStep', 'receipt');
+
+        $booking = PadelBooking::sole();
+        $this->assertSame($student->id, $booking->user_id);
+        $this->assertNotNull($booking->coaching_booking_id);
+        $this->assertFalse(User::where('phone', '081299887766')->exists(), 'isian Isi Baru yang tertinggal tidak membuat akun baru');
+
+        // Kembali ke Isi Baru tetap di mode coaching.
+        $this->pos($this->slot($this->courtA, '19'))->call('setCustomerMode', 'coaching')
+            ->call('setCoachingCustomerMode', 'search')->call('setCoachingCustomerMode', 'quick_create')
+            ->assertSet('customerMode', 'quick_create')->assertSet('bookingType', 'COACHING');
+    }
+
     public function test_coaching_ignores_membership_and_vouchers(): void
     {
         $this->expectException(HttpException::class);

@@ -5,6 +5,7 @@ namespace Tests\Feature\Finance;
 use App\Filament\Pages\AntrianRefund;
 use App\Filament\Pages\BukuTransaksi;
 use App\Filament\Pages\LogAktivitas;
+use App\Http\Controllers\Admin\LedgerExportController;
 use App\Models\Audit\ActivityLog;
 use App\Models\Finance\LedgerEntry;
 use App\Models\Padel\PadelBooking;
@@ -394,25 +395,85 @@ class BukuTransaksiTest extends TestCase
         $this->assertTrue(ActivityLog::where('event', 'ledger.exported')->exists());
     }
 
-    public function test_pdf_export_downloads_a_report(): void
+    /** Data PDF (format=pdf) — dirakit jadi file PDF di browser oleh resources/js/ledger-pdf.js. */
+    private function pdfData(array $query = []): array
+    {
+        $response = $this->get(route('admin.buku-transaksi.export', ['format' => 'pdf'] + $query), ['Accept' => 'application/json'])->assertOk();
+        $this->assertStringStartsWith('application/json', (string) $response->headers->get('Content-Type'));
+        $this->assertStringContainsString('no-store', (string) $response->headers->get('Cache-Control'));
+
+        return json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
+    }
+
+    public function test_pdf_export_sends_the_report_data_for_the_browser(): void
     {
         $order = $this->paidWalkIn();
         $this->actingAs($this->owner);
 
-        $response = $this->get(route('admin.buku-transaksi.export', ['format' => 'pdf']))->assertOk();
-        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
-        $this->assertStringContainsString('attachment', (string) $response->headers->get('Content-Disposition'));
-        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $data = $this->pdfData(['periode' => 'hari_ini']);
+
+        $this->assertSame(1, $data['total']);
+        $this->assertCount(1, $data['rows']);
+        $this->assertStringStartsWith('riwayat-transaksi-', $data['file_name']);
+        $this->assertStringEndsWith('.pdf', $data['file_name']);
+        $this->assertSame($this->owner->name, $data['printed_by']);
+        $this->assertEquals(355950, $data['summary']['money_net']);
+        $this->assertSame('Sewa Lapangan Padel', $data['categories'][0]['name']);
+
+        // Urutan kolom = tabel di ledger-pdf.js.
+        [$time, $orderNumber, , , , , $method, , , , $total, $status] = $data['rows'][0];
+        $this->assertSame($order->order_number, $orderNumber);
+        $this->assertEquals(355950, $total);
+        $this->assertSame('Lunas', $status);
+        $this->assertMatchesRegularExpression('#^\d{2}/\d{2}/\d{2} \d{2}:\d{2}$#', $time);
+        $this->assertNotSame('', $method);
+
+        // Nomor HP & email customer tidak ikut (PRD §10 no. 5); export tercatat di Log Aktivitas.
+        $this->assertStringNotContainsString('081277001122', json_encode($data));
         $this->assertTrue(ActivityLog::where('event', 'ledger.exported')->where('meta->format', 'pdf')->exists());
 
-        $html = view('exports.buku-transaksi-pdf', [
-            'summary' => LedgerReport::summary(LedgerEntry::query()), 'byCategory' => collect(), 'rows' => LedgerReport::grouped(LedgerEntry::query())->get(),
-            'truncated' => false, 'total' => 1, 'limit' => 1500, 'periodLabel' => 'Periode: Bulan ini', 'printedBy' => 'Owner',
-            'printedAt' => 'sekarang', 'company' => null,
-        ])->render();
-        $this->assertStringContainsString($order->order_number, $html);
-        $this->assertStringContainsString('Rp 355.950', $html);
-        $this->assertStringNotContainsString('081277001122', $html);
+        // Halaman memuat modul perakit PDF hanya saat tombol ditekan (import dinamis), dengan filter aktif.
+        $handler = Livewire::test(BukuTransaksi::class)->instance()->pdfClickHandler();
+        $this->assertStringContainsString('import(', $handler);
+        $this->assertStringContainsString('Club61LedgerPdf.exportLedgerPdf', $handler);
+        $this->assertStringContainsString('format=pdf', $handler);
+    }
+
+    public function test_pdf_data_contains_every_row_in_chunks_with_one_refund_query_per_chunk(): void
+    {
+        $order = $this->paidWalkIn();
+        $template = (array) \Illuminate\Support\Facades\DB::table('ledger_entries')->where('order_id', $order->id)->first();
+        // Dulu PDF dompdf dibatasi 1.500 baris dan tetap jebol di 128 MB. Sekarang semua baris ikut.
+        $count = LedgerExportController::PDF_CHUNK * 2 + 150;
+        $paymentIds = [];
+        foreach (array_chunk(range(1, $count), 500) as $chunk) {
+            \Illuminate\Support\Facades\DB::table('ledger_entries')->insert(array_map(function (int $i) use ($template, &$paymentIds) {
+                $paymentIds[] = $paymentId = (string) Str::ulid();
+
+                return ['id' => (string) Str::ulid(), 'payment_id' => $paymentId, 'dedupe_key' => 'bulk-'.$i, 'order_number' => 'ORD-BULK-'.$i,
+                    'occurred_at' => now()->subMinutes($i)->format('Y-m-d H:i:s')] + $template;
+            }, $chunk));
+        }
+        // Satu refund menunggu → kolom Status baris itu ikut berubah (refund dibaca per kelompok, bukan per baris).
+        // refunds.payment_id ber-FK ke payments → baris itu diberi pembayaran sungguhan.
+        $paymentRow = (array) \Illuminate\Support\Facades\DB::table('payments')->where('order_id', $order->id)->first();
+        \Illuminate\Support\Facades\DB::table('payments')->insert(['id' => $paymentIds[10], 'transaction_id' => 'BULK-PAY-11'] + $paymentRow);
+        Refund::create(['order_id' => $order->id, 'payment_id' => $paymentIds[10], 'refund_amount' => 1000, 'reason' => 'Uji', 'status' => 'PENDING']);
+        $this->actingAs($this->owner);
+
+        \Illuminate\Support\Facades\DB::enableQueryLog();
+        $memoryBefore = memory_get_usage();
+        $data = $this->pdfData(['periode' => 'semua']);
+        $memoryUsed = memory_get_peak_usage() - $memoryBefore;
+        $refundQueries = collect(\Illuminate\Support\Facades\DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'from "refunds"'))->count();
+
+        $this->assertSame($count + 1, $data['total']);
+        $this->assertCount($count + 1, $data['rows'], 'semua transaksi ikut, tidak dipotong');
+        $this->assertSame(1, collect($data['rows'])->pluck(1)->filter(fn ($n) => $n === 'ORD-BULK-11')->count());
+        $this->assertSame('Lunas · refund menunggu', collect($data['rows'])->firstWhere(1, 'ORD-BULK-11')[11]);
+        $this->assertCount($count + 1, array_unique(array_column($data['rows'], 1)), 'tidak ada baris dobel di batas kelompok');
+        $this->assertLessThanOrEqual(5, $refundQueries, '1 query refund per 1.000 baris, bukan 2 query per baris');
+        $this->assertLessThan(64 * 1024 * 1024, $memoryUsed, 'memori server tetap kecil');
     }
     public function test_refund_queue_processes_into_the_ledger_once_and_rejects_with_reason(): void
     {

@@ -29,7 +29,7 @@
             <div>
                 <div class="c61-eyebrow">F&amp;B · Keuangan</div>
                 <div class="c61-hero-title">Pengeluaran F&amp;B</div>
-                <div class="c61-hero-sub">Pencatatan biaya F&amp;B: belanja bahan, gas, listrik, gaji, perlengkapan, dan lainnya. Pembelian Persediaan tercatat otomatis dari Penerimaan Barang. Pemasukan F&amp;B berasal dari penjualan kasir F&amp;B (Buku Transaksi).</div>
+                <div class="c61-hero-sub">Pencatatan biaya F&amp;B: belanja bahan, gas, listrik, gaji, perlengkapan, dan lainnya. Pembelian Persediaan tercatat otomatis dari Penerimaan Barang. Pemasukan F&amp;B berasal dari penjualan kasir F&amp;B (Riwayat Transaksi).</div>
             </div>
             @if ($canManage)
                 <div class="c61-hero-actions">

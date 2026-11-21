@@ -73,10 +73,15 @@ class DetailShiftKasir extends Page implements HasTable
             ->color($approve ? 'success' : 'danger')
             ->visible(fn () => $this->record->review_status === PosCashierShift::REVIEW_NEEDS_REVIEW)
             ->authorize(fn () => auth()->user()?->can('approve_shift_closing') ?? false)
-            ->modalHeading(($approve ? 'Setujui' : 'Tolak').' selisih shift '.$this->record->shift_number)
+            // Setujui hanya setelah semua baris COCOK; selisih nyata = Tolak.
+            ->disabled(fn () => $approve && ! ShiftClosingService::fullyMatched($this->record))
+            ->tooltip(fn () => $approve && ! ShiftClosingService::fullyMatched($this->record)
+                ? 'Masih ada selisih — betulkan dulu lewat Koreksi metode / Koreksi angka struk, atau Tolak.'
+                : null)
+            ->modalHeading(($approve ? 'Setujui' : 'Tolak').' shift '.$this->record->shift_number)
             ->modalDescription($approve
-                ? 'Selisih dinyatakan sudah dijelaskan / dibereskan. Tercatat di Log Aktivitas.'
-                : 'Selisih tidak bisa diterima — jadi bahan tindak lanjut ke kasir. Tercatat di Log Aktivitas (kritis).')
+                ? 'Semua baris sudah COCOK setelah koreksi. Tercatat di Log Aktivitas.'
+                : 'Selisih nyata yang tidak bisa dibetulkan (uang kurang / transaksi tidak tercatat) — jadi bahan tindak lanjut ke kasir. Tercatat di Log Aktivitas (kritis).')
             ->schema([
                 Textarea::make('notes')->label('Catatan keputusan')->required()->minLength(5)->maxLength(2000)->rows(3),
             ])
@@ -116,6 +121,44 @@ class DetailShiftKasir extends Page implements HasTable
         ];
     }
 
+    /**
+     * Koreksi angka struk yang salah diketik kasir — dirender per baris di tabel "Sistem vs yang diketik kasir"
+     * (argumen row = kunci baris). ShiftClosingService::correctTypedAmount yang memvalidasi semuanya.
+     */
+    public function correctTypedAction(): Action
+    {
+        $row = fn (array $arguments) => collect($this->record->settlement_reconciliation ?? [])->firstWhere('key', $arguments['row'] ?? null);
+
+        return Action::make('correctTyped')
+            ->label('Koreksi')
+            ->icon('heroicon-o-pencil-square')
+            ->color('warning')
+            ->link()
+            ->size('xs')
+            ->visible(fn () => $this->record->status === 'CLOSED' && $this->record->review_status === PosCashierShift::REVIEW_NEEDS_REVIEW)
+            ->authorize(fn () => auth()->user()?->can('approve_shift_closing') ?? false)
+            ->modalWidth('md')
+            ->modalHeading(fn (array $arguments) => 'Koreksi angka struk · '.($row($arguments)['label'] ?? '-'))
+            ->modalDescription(function (array $arguments) use ($row) {
+                $r = $row($arguments) ?? [];
+                $typed = ($r['typed_by_cashier'] ?? true) ? BukuTransaksi::rupiah($r['settled_amount'] ?? 0) : 'tidak diketik';
+
+                return 'Sistem: '.BukuTransaksi::rupiah($r['system_amount'] ?? 0).' · tercatat sekarang: '.$typed
+                    .'. Isi angka yang benar dari struk settlement / Audit Report EDC atau aplikasi QRIS. Ketikan asli kasir tetap tersimpan & tampil; tercatat di Log Aktivitas (kritis).';
+            })
+            ->schema([
+                TextInput::make('amount')->label('Angka yang benar di struk / aplikasi (Rp)')->required()->numeric()->minValue(0)->integer(),
+                Textarea::make('reason')->label('Alasan koreksi')->required()->minLength(5)->maxLength(500)->rows(2)
+                    ->placeholder('mis. Struk settlement EDC BCA Rp 5.250.000, kasir salah ketik digit'),
+            ])
+            ->action(fn (array $data, array $arguments) => $this->run(
+                fn () => app(ShiftClosingService::class)->correctTypedAmount(
+                    $this->record->getKey(), auth()->user(), (string) ($arguments['row'] ?? ''), (string) $data['amount'], (string) $data['reason'],
+                ),
+                'Angka struk dikoreksi.',
+            ));
+    }
+
     public function table(Table $table): Table
     {
         $label = fn (Payment $p) => app(LedgerWriter::class)->methodSnapshot($p);
@@ -151,7 +194,7 @@ class DetailShiftKasir extends Page implements HasTable
                     ->visible(fn (Payment $p) => PaymentMethodCorrection::blockedReason($p, $this->record) === null)
                     ->authorize(fn () => auth()->user()?->can('approve_shift_closing') ?? false)
                     ->modalHeading(fn (Payment $p) => 'Koreksi metode bayar '.BukuTransaksi::rupiah($p->amount))
-                    ->modalDescription('Nominal tidak berubah. Isi metode & bukti yang benar sesuai struk / slip. Buku Transaksi tetap satu baris dengan tanda koreksi; tercatat di Log Aktivitas (kritis).')
+                    ->modalDescription('Nominal tidak berubah. Isi metode & bukti yang benar sesuai struk / slip. Riwayat Transaksi tetap satu baris dengan tanda koreksi; tercatat di Log Aktivitas (kritis).')
                     ->schema([
                         Select::make('method')->label('Metode yang benar')->options(PosPaymentProof::activeMethods())->required()->native(false)->live(),
                         Select::make('card_type')->label('Jenis kartu')->options(['DEBIT' => 'Kartu Debit', 'CREDIT' => 'Kartu Kredit'])->default('DEBIT')

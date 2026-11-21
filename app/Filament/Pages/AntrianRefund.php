@@ -111,7 +111,7 @@ class AntrianRefund extends Page implements HasTable
                     ->disabled(fn (Refund $r) => ! RefundQueueService::canDecide($r, auth()->user()))
                     ->tooltip(fn (Refund $r) => RefundQueueService::canDecide($r, auth()->user()) ? null : 'Anda yang mengajukan — harus diputuskan admin lain atau super admin')
                     ->modalHeading(fn (Refund $r) => 'Proses refund '.BukuTransaksi::rupiah($r->refund_amount))
-                    ->modalDescription('Pastikan uang SUDAH dikembalikan ke customer sebelum menyimpan. Tercatat di Buku Transaksi sebagai uang keluar & di Log Aktivitas (kritis).')
+                    ->modalDescription('Pastikan uang SUDAH dikembalikan ke customer sebelum menyimpan. Tercatat di Riwayat Transaksi sebagai uang keluar & di Log Aktivitas (kritis).')
                     ->modalSubmitActionLabel('Uang sudah dikembalikan')
                     ->schema([
                         Select::make('refund_method')->label('Dikembalikan lewat')->options(RefundQueueService::METHODS)->required()->native(false),
@@ -121,7 +121,7 @@ class AntrianRefund extends Page implements HasTable
                     ->action(function (Refund $record, array $data) {
                         $this->runQueueAction(fn () => app(RefundQueueService::class)->process(
                             $record, auth()->user(), $data['refund_method'], $data['refund_reference'], $data['admin_notes'] ?? null
-                        ), 'Refund diproses dan dicatat di Buku Transaksi.');
+                        ), 'Refund diproses dan dicatat di Riwayat Transaksi.');
                     }),
                 Action::make('reject')
                     ->label('Tolak')
@@ -133,7 +133,7 @@ class AntrianRefund extends Page implements HasTable
                     ->disabled(fn (Refund $r) => ! RefundQueueService::canDecide($r, auth()->user()))
                     ->tooltip(fn (Refund $r) => RefundQueueService::canDecide($r, auth()->user()) ? null : 'Anda yang mengajukan — harus diputuskan admin lain atau super admin')
                     ->modalHeading(fn (Refund $r) => 'Tolak refund '.BukuTransaksi::rupiah($r->refund_amount))
-                    ->modalDescription('Tidak ada uang keluar & Buku Transaksi tidak berubah. Booking tetap batal. Uangnya dijadikan voucher saldo atas nama customer (bisa dipakai untuk booking berikutnya). Alasan wajib diisi dan tercatat di Log Aktivitas (kritis).')
+                    ->modalDescription('Tidak ada uang keluar & Riwayat Transaksi tidak berubah. Booking tetap batal. Uangnya dijadikan voucher saldo atas nama customer (bisa dipakai untuk booking berikutnya). Alasan wajib diisi dan tercatat di Log Aktivitas (kritis).')
                     ->modalSubmitActionLabel('Tolak refund')
                     ->schema([
                         Textarea::make('reason')->label('Alasan penolakan')->required()->minLength(5)->maxLength(1000)->rows(3),

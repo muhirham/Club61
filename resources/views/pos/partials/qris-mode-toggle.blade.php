@@ -5,8 +5,10 @@
 @php($posMethods = app(\App\Services\Payment\OnlinePaymentMethodService::class)->forPos(isset($grandTotal) ? (float) $grandTotal : null))
 @if($posMethods !== [])
     @php($activeAuto = \App\Services\Pos\PosMidtransQrisService::resolveMethod($posOnlineMethod, isset($grandTotal) ? (float) $grandTotal : null))
+    {{-- Nama gateway mengikuti pengaturan "QR di kasir" di menu Metode Pembayaran Online (DOKU / Midtrans). --}}
+    @php($qrGatewayLabel = \App\Services\Payment\OnlineGatewayRouter::label(app(\App\Services\Payment\OnlineGatewayRouter::class)->posQrisGateway()))
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.85rem;">
-        @foreach(['MIDTRANS' => ['Bayar Otomatis', 'QR / VA tampil di layar, lunas terkonfirmasi otomatis'], 'MANUAL' => ['QRIS Manual', 'Cadangan: QRIS statis + input RRN']] as $mode => [$modeLabel, $modeHint])
+        @foreach(['MIDTRANS' => ["QR Online ({$qrGatewayLabel})", 'QR tampil di layar, lunas otomatis'], 'MANUAL' => ['QRIS Static', 'QRIS statis + input RRN']] as $mode => [$modeLabel, $modeHint])
             <button type="button" wire:click="$set('qrisMode', '{{ $mode }}')"
                 style="text-align:left; padding:0.6rem 0.75rem; border-radius:10px; cursor:pointer; border:1.5px solid {{ $qrisMode === $mode ? '#662721' : '#E6DAC0' }}; background:{{ $qrisMode === $mode ? '#EFE6D2' : '#FFFFFF' }};">
                 <div style="font-size:0.8125rem; font-weight:900; color:#4F2F2A;">{{ $modeLabel }}</div>

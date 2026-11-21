@@ -608,6 +608,69 @@ class BookOfflineCourt extends Page
         }
     }
 
+    /** Tab Coaching: pemesan diisi baru (nama + HP) atau dipilih dari akun terdaftar — tetap di mode coaching. */
+    public function setCoachingCustomerMode(string $mode): void
+    {
+        if (! $this->isCoaching || $this->posStep !== 'selection') {
+            return;
+        }
+
+        $this->customerMode = $mode === 'search' ? 'search' : 'quick_create';
+        $this->saveDraft();
+    }
+
+    /**
+     * Walk-In Baru / Coaching "Isi Baru": nama yang diketik sudah dipakai akun lain → kasir ditanya dulu apakah customer
+     * yang sama, supaya tidak terbentuk akun ganda. Nama boleh sama (orang berbeda bisa bernama sama); penanda akun tetap
+     * nomor HP. Nomor HP yang sudah terdaftar → transaksi otomatis masuk ke akun pemiliknya (walkInPhoneOwner), jadi
+     * peringatan ini tidak ditampilkan.
+     *
+     * @return array<int, array{id: string, name: string, phone: string}>
+     */
+    public function getSameNameAccountsProperty(): array
+    {
+        if ($this->customerMode === 'search' || $this->settleBill || $this->posStep !== 'selection') {
+            return [];
+        }
+
+        $name = trim((string) preg_replace('/\s+/u', ' ', (string) $this->walkInName));
+        if (mb_strlen($name) < 3 || $this->walkInPhoneOwner) {
+            return [];
+        }
+
+        return User::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+            ->latest()
+            ->limit(3)
+            ->get(['id', 'name', 'phone'])
+            ->map(fn (User $u) => ['id' => (string) $u->id, 'name' => (string) $u->name, 'phone' => self::maskPhone($u->phone)])
+            ->all();
+    }
+
+    /** "Pakai akun ini" dari peringatan nama sama → pindah ke Cari Akun dengan akun itu terpilih (mode coaching tetap). */
+    public function useSameNameAccount(string $userId): void
+    {
+        if ($this->settleBill || $this->posStep !== 'selection' || ! User::whereKey($userId)->exists()) {
+            return;
+        }
+
+        $this->customerMode = 'search';
+        $this->selectCustomer($userId);
+    }
+
+    /** 08567858968 → 0856***8968: cukup untuk dicocokkan dengan customer di depan kasir. */
+    private static function maskPhone(?string $phone): string
+    {
+        $phone = (string) $phone;
+        if ($phone === '') {
+            return 'tanpa nomor HP';
+        }
+        if (strlen($phone) <= 8) {
+            return substr($phone, 0, 2).str_repeat('*', max(0, strlen($phone) - 4)).substr($phone, -2);
+        }
+
+        return substr($phone, 0, 4).str_repeat('*', strlen($phone) - 8).substr($phone, -4);
+    }
+
     public function toggleMembershipBenefit(): void
     {
         $this->useMembershipBenefit = ! $this->useMembershipBenefit;
@@ -748,17 +811,44 @@ class BookOfflineCourt extends Page
     {
         $term = trim($this->customerSearch);
 
-        if (strlen($term) < 2) {
+        if (mb_strlen($term) < 2) {
             $this->searchResults = [];
             return;
         }
 
-        $this->searchResults = User::where(function ($q) use ($term) {
-            $q->where('name', 'like', "%{$term}%")
-                ->orWhere('phone', 'like', "%{$term}%")
-                ->orWhere('email', 'like', "%{$term}%");
-        })
-            ->limit(5)
+        $this->searchResults = self::searchCustomers($term);
+    }
+
+    /**
+     * Cari Akun: nama / email / nomor HP. Nama yang persis sama tampil paling atas, lalu yang diawali kata itu, lalu yang
+     * mengandungnya. Dulu 5 hasil tanpa urutan, jadi "Andi" bisa tergeser Randi / Pandi / Andika. Nomor HP diketik
+     * 08… / 62… / +62… sama-sama ketemu (users.phone disimpan 08…, lihat PhoneNumber::normalize).
+     *
+     * @return array<int, User>
+     */
+    public static function searchCustomers(string $term, int $limit = 10): array
+    {
+        $lower = mb_strtolower($term);
+        $digits = (string) preg_replace('/\D/', '', $term);
+        $phoneNeedle = strlen($digits) >= 4 ? (str_starts_with($digits, '62') ? '0'.substr($digits, 2) : $digits) : null;
+        $exactPhone = \App\Support\PhoneNumber::normalize($term);
+
+        $rank = 'CASE'.($exactPhone !== null ? ' WHEN phone = ? THEN 0' : '')
+            .' WHEN LOWER(name) = ? THEN 0 WHEN LOWER(name) LIKE ? THEN 1 WHEN LOWER(name) LIKE ? THEN 2 ELSE 3 END';
+        $bindings = array_merge($exactPhone !== null ? [$exactPhone] : [], [$lower, $lower.'%', '% '.$lower.'%']);
+
+        return User::query()
+            ->where(function ($q) use ($term, $phoneNeedle) {
+                $q->where('name', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%")
+                    ->orWhere('email', 'like', "%{$term}%");
+                if ($phoneNeedle !== null) {
+                    $q->orWhere('phone', 'like', "%{$phoneNeedle}%");
+                }
+            })
+            ->orderByRaw($rank, $bindings)
+            ->orderBy('name')
+            ->limit($limit)
             ->get()
             ->all();
     }
@@ -1069,9 +1159,11 @@ class BookOfflineCourt extends Page
             return $this->voucherResultCache = ['voucher' => null, 'discount' => 0.0, 'error' => null];
         }
 
-        $customer = $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
+        // Akun terpilih (Cari Akun) atau — di Walk-In Baru — akun pemilik nomor HP yang diketik: server memakai akun yang
+        // sama saat checkout (findOrCreateWalkInCustomer), jadi voucher saldo miliknya bisa langsung dipakai.
+        $customer = $this->benefitCustomer();
 
-        $courtAfterBenefits = max(0, $this->courtTotal - $this->membershipDiscountAmount - $this->sponsorDiscountAmount);
+        $courtAfterBenefits =max(0, $this->courtTotal - $this->membershipDiscountAmount - $this->sponsorDiscountAmount);
         $result = app(\App\Services\Finance\VoucherService::class)
             ->resolve($this->appliedVoucherCode, $customer, $courtAfterBenefits + $this->equipmentTotal, context: [
                 'channel' => \App\Models\Pos\Voucher::CHANNEL_POS,
@@ -1092,10 +1184,10 @@ class BookOfflineCourt extends Page
         return (float) $this->voucherResult['discount'];
     }
 
-    /** Voucher saldo milik customer terpilih yang masih bisa dipakai. */
+    /** Voucher saldo milik customer (terpilih / pemilik nomor HP Walk-In Baru) yang masih bisa dipakai. */
     public function getCustomerCreditVouchersProperty(): \Illuminate\Support\Collection
     {
-        $customer = $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
+        $customer = $this->benefitCustomer();
 
         return $customer ? app(\App\Services\Finance\VoucherService::class)->walletFor($customer) : collect();
     }
@@ -1103,7 +1195,7 @@ class BookOfflineCourt extends Page
     /** Promo hasil klaim (cara sebar C) milik customer terpilih yang bisa dipakai sekarang — aturan tetap dicek resolve(). */
     public function getCustomerClaimedPromosProperty(): array
     {
-        $customer = $this->selectedCustomerId ? User::find($this->selectedCustomerId) : null;
+        $customer = $this->benefitCustomer();
 
         return $customer ? app(\App\Services\Finance\VoucherClaimService::class)->usableForApi($customer) : [];
     }

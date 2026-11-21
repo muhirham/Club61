@@ -48,7 +48,7 @@
             </td>
             <td style="width:40%; text-align:right;" class="muted">
                 <div style="font-size:10px; font-weight:bold; color:#1F170D;">{{ $periodLabel }}</div>
-                <div>Penjualan = Buku Transaksi kategori Merchandise</div>
+                <div>Penjualan = Riwayat Transaksi kategori Merchandise</div>
                 <div>Laba memakai HPP produk pada saat penjualan</div>
             </td>
         </tr>

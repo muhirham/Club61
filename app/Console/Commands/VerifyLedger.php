@@ -55,7 +55,7 @@ class VerifyLedger extends Command
             ActivityLogger::record(
                 module: 'FINANCE',
                 event: 'ledger.verify_mismatch',
-                description: "SELISIH Buku Transaksi tanggal {$m['date']}: pembayaran ".ActivityLogger::rupiah($m['payments'])
+                description: "SELISIH Riwayat Transaksi tanggal {$m['date']}: pembayaran ".ActivityLogger::rupiah($m['payments'])
                     .' vs buku '.ActivityLogger::rupiah($m['ledger_in']).', refund '.ActivityLogger::rupiah($m['refunds'])
                     .' vs buku '.ActivityLogger::rupiah($m['ledger_out']),
                 meta: [
@@ -77,7 +77,7 @@ class VerifyLedger extends Command
             return self::FAILURE;
         }
 
-        $this->info('Buku Transaksi cocok dengan pembayaran & refund.');
+        $this->info('Riwayat Transaksi cocok dengan pembayaran & refund.');
 
         return self::SUCCESS;
     }

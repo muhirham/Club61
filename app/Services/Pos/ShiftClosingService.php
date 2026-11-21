@@ -363,10 +363,123 @@ class ShiftClosingService
             $final['rows'] ?? ($shift->settlement_reconciliation ?? []),
         );
 
+        // Angka struk yang dikoreksi reviewer: ketikan asli kasir tetap terlihat di detail shift & Z-Report.
+        if (is_array($final['cashier_inputs'] ?? null)) {
+            $cashier = $final['cashier_inputs'];
+            $last = collect($final['input_corrections'] ?? [])->keyBy('key');
+            foreach ($result['rows'] as &$row) {
+                if (! in_array($row['type'], [self::TYPE_EDC, self::TYPE_MANUAL], true)) {
+                    continue;
+                }
+                $row['typed_by_cashier'] = array_key_exists($row['key'], $cashier);
+                $row['cashier_amount'] = $row['typed_by_cashier'] ? (float) $cashier[$row['key']] : null;
+                if ($correction = $last->get($row['key'])) {
+                    $row['corrected'] = array_intersect_key($correction, array_flip(['by_name', 'at', 'reason']));
+                }
+            }
+            unset($row);
+        }
+
         $shift->update([
             'settlement_reconciliation' => $result['rows'],
             'settlement_difference' => $result['difference'],
         ]);
+    }
+
+    /**
+     * Reviewer membetulkan angka struk yang salah diketik kasir (mis. kelebihan satu digit) sesuai struk settlement /
+     * aplikasi QRIS. Hanya shift NEEDS_REVIEW, izin approve_shift_closing, bukan penutup shift-nya sendiri (kecuali
+     * super_admin). Ketikan asli kasir disimpan (closing_inputs.final.cashier_inputs) & riwayat koreksi
+     * (input_corrections); Log Aktivitas KRITIS. Angka sistem tidak disentuh.
+     */
+    public function correctTypedAmount(string $shiftId, User $by, string $rowKey, int|float|string $amount, string $reason): PosCashierShift
+    {
+        if (! $by->can('approve_shift_closing')) {
+            throw new HttpException(403, 'Akses ditolak: koreksi angka struk hanya untuk pemegang izin [approve_shift_closing].');
+        }
+        $reason = trim($reason);
+        if (mb_strlen($reason) < 5) {
+            throw new HttpException(422, 'Alasan koreksi wajib diisi (minimal 5 karakter).');
+        }
+        $normalized = str_replace(['.', ',', ' ', 'Rp', 'rp'], '', trim((string) $amount));
+        if ($normalized === '' || ! ctype_digit($normalized)) {
+            throw new HttpException(422, 'Angka struk harus berupa nominal rupiah (angka bulat, minimal 0).');
+        }
+        $amount = (int) $normalized;
+
+        return DB::transaction(function () use ($shiftId, $by, $rowKey, $amount, $reason) {
+            $shift = PosCashierShift::whereKey($shiftId)->lockForUpdate()->firstOrFail();
+            if ($shift->status !== 'CLOSED' || $shift->review_status !== PosCashierShift::REVIEW_NEEDS_REVIEW) {
+                throw new HttpException(409, 'Angka struk hanya bisa dikoreksi saat shift menunggu review. Muat ulang halaman.');
+            }
+            if ($shift->closed_by_id === $by->getKey() && ! $by->hasRole('super_admin')) {
+                throw new HttpException(403, 'Shift ini Anda tutup sendiri — harus dikoreksi admin lain atau super admin.');
+            }
+
+            $closingInputs = $shift->closing_inputs ?? [];
+            $final = $closingInputs['final'] ?? null;
+            $row = collect($shift->settlement_reconciliation ?? [])->firstWhere('key', $rowKey);
+            if (! is_array($final) || ! $row || ! in_array($row['type'] ?? null, [self::TYPE_EDC, self::TYPE_MANUAL], true)) {
+                throw new HttpException(422, 'Baris ini tidak diketik dari struk / aplikasi — tidak bisa dikoreksi.');
+            }
+
+            $inputs = $final['inputs'] ?? [];
+            $previous = array_key_exists($rowKey, $inputs) ? (float) $inputs[$rowKey] : null;
+            if ($previous !== null && abs($previous - $amount) < 0.005) {
+                throw new HttpException(422, 'Angka yang diisi sama dengan yang tercatat — tidak ada yang dikoreksi.');
+            }
+
+            $final['cashier_inputs'] ??= $inputs;
+            $final['inputs'] = array_merge($inputs, [$rowKey => $amount]);
+            // Baris "tidak diketik" yang kini diisi reviewer tetap dihitung walau transaksinya nanti dipindah lagi.
+            if (! collect($final['rows'] ?? [])->contains('key', $rowKey)) {
+                $final['rows'] = array_merge($final['rows'] ?? [], self::stripAmounts([$row]));
+            }
+            $final['input_corrections'] = array_values(array_merge($final['input_corrections'] ?? [], [[
+                'key' => $rowKey,
+                'label' => $row['label'] ?? $rowKey,
+                'from' => $previous,
+                'to' => $amount,
+                'at' => now()->toIso8601String(),
+                'by_id' => $by->getKey(),
+                'by_name' => $by->name,
+                'reason' => mb_substr($reason, 0, 500),
+            ]]));
+            $closingInputs['final'] = $final;
+            $shift->update(['closing_inputs' => $closingInputs]);
+
+            $before = (float) $shift->settlement_difference;
+            $this->recompute($shift);
+
+            $rupiah = fn (?float $v) => $v === null ? 'tidak diketik' : ActivityLogger::rupiah($v);
+            ActivityLogger::record(
+                module: 'POS',
+                event: 'shift.typed_amount_corrected',
+                description: 'Mengoreksi angka struk '.($row['label'] ?? $rowKey).' shift '.$shift->shift_number.': '
+                    .$rupiah($previous).' → '.$rupiah((float) $amount).' ('.$reason.')',
+                subject: $shift,
+                meta: [
+                    'loket' => $shift->counter,
+                    'baris' => $row['label'] ?? $rowKey,
+                    'diketik_kasir' => array_key_exists($rowKey, $final['cashier_inputs']) ? (float) $final['cashier_inputs'][$rowKey] : null,
+                    'dari' => $previous,
+                    'menjadi' => $amount,
+                    'selisih_sebelum' => $before,
+                    'selisih_sesudah' => (float) $shift->settlement_difference,
+                    'alasan' => $reason,
+                ],
+                severity: ActivityLogger::CRITICAL,
+            );
+
+            return $shift;
+        });
+    }
+
+    /** Semua baris rekonsiliasi cocok (Rp0) — syarat Setujui. */
+    public static function fullyMatched(PosCashierShift $shift): bool
+    {
+        return abs((float) $shift->settlement_difference) < 0.005
+            && collect($shift->settlement_reconciliation ?? [])->every(fn ($row) => abs((float) ($row['difference'] ?? 0)) < 0.005);
     }
 
     /**
@@ -401,7 +514,11 @@ class ShiftClosingService
 
     // ── Review ───────────────────────────────────────────────────────────────────────────────────────────────────
 
-    /** Setujui / tolak shift NEEDS_REVIEW. Penutup shift tidak memutuskan shift-nya sendiri (kecuali super_admin). */
+    /**
+     * Setujui / tolak shift NEEDS_REVIEW. Penutup shift tidak memutuskan shift-nya sendiri (kecuali super_admin).
+     * Setujui = selisih sudah dibereskan: semua baris harus cocok dulu (koreksi metode / koreksi angka struk). Selisih
+     * nyata yang tidak bisa dibetulkan = Tolak.
+     */
     public function review(string $shiftId, User $by, bool $approve, string $notes): PosCashierShift
     {
         if (! $by->can('approve_shift_closing')) {
@@ -419,6 +536,9 @@ class ShiftClosingService
             }
             if ($shift->closed_by_id === $by->getKey() && ! $by->hasRole('super_admin')) {
                 throw new HttpException(403, 'Shift ini Anda tutup sendiri — harus diputuskan admin lain atau super admin.');
+            }
+            if ($approve && ! self::fullyMatched($shift)) {
+                throw new HttpException(422, 'Masih ada selisih — betulkan dulu lewat Koreksi metode / Koreksi angka struk sampai semua baris COCOK, atau Tolak.');
             }
 
             $shift->update([

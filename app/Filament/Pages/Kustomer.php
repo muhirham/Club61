@@ -153,7 +153,7 @@ class Kustomer extends Page
             // Kartu & daftar member tersimpan sementara selama request ini — dibaca ulang supaya status batal langsung tampil.
             unset($this->selectedMembership, $this->members);
             Notification::make()->title('Membership Dibatalkan')
-                ->body("Kartu {$m->membership_code} tidak dapat digunakan lagi. Uang pembelian tetap tercatat di Buku Transaksi.")
+                ->body("Kartu {$m->membership_code} tidak dapat digunakan lagi. Uang pembelian tetap tercatat di Riwayat Transaksi.")
                 ->success()->send();
             $this->showCancelMembership = false;
         } catch (HttpException $e) {

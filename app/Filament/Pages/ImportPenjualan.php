@@ -124,7 +124,7 @@ class ImportPenjualan extends Page
 
         Notification::make()
             ->title('Import berhasil')
-            ->body("{$result['summary']['padel_transactions']} transaksi padel & {$result['summary']['fnb_transactions']} transaksi F&B masuk ke Buku Transaksi.")
+            ->body("{$result['summary']['padel_transactions']} transaksi padel & {$result['summary']['fnb_transactions']} transaksi F&B masuk ke Riwayat Transaksi.")
             ->success()
             ->send();
     }

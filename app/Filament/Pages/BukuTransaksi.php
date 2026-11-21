@@ -33,19 +33,30 @@ use UnitEnum;
 class BukuTransaksi extends Page implements HasTable
 {
     use HasPageShield;
-    use InteractsWithTable;
+    use InteractsWithTable {
+        getTableRecords as private baseTableRecords;
+    }
 
     protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-book-open';
 
-    protected static ?string $navigationLabel = 'Buku Transaksi';
+    protected static ?string $navigationLabel = 'Riwayat Transaksi';
 
     protected static string|UnitEnum|null $navigationGroup = 'Keuangan';
 
     protected static ?int $navigationSort = 2;
 
-    protected static ?string $title = 'Buku Transaksi Terpadu';
+    protected static ?string $title = 'Riwayat Transaksi';
 
     protected string $view = 'filament.pages.buku-transaksi';
+
+    /** Rincian kartu EDC untuk satu halaman tabel diambil sekaligus (bukan satu query per baris). */
+    public function getTableRecords(): \Illuminate\Support\Collection|\Illuminate\Contracts\Pagination\Paginator|\Illuminate\Contracts\Pagination\CursorPaginator
+    {
+        $records = $this->baseTableRecords();
+        LedgerReport::primeEdc($records instanceof \Illuminate\Support\Collection ? $records : $records->items());
+
+        return $records;
+    }
 
     /**
      * Tautan dari Analytics & Keuangan (rincian per kategori / sumber / metode) membuka tabel yang sudah tersaring:
@@ -116,12 +127,19 @@ class BukuTransaksi extends Page implements HasTable
                 TextColumn::make('payment_method_label')
                     ->label('Metode Bayar')
                     ->placeholder('-')
-                    ->limit(30)
-                    ->description(fn (LedgerEntry $row) => $row->method_corrected_at
-                        // Koreksi metode bayar oleh admin: baris tetap satu, ditandai siapa / kapan & metode asalnya.
-                        ? 'Dikoreksi '.($row->method_corrected_by_name ?? '-').' '.\Illuminate\Support\Carbon::parse($row->method_corrected_at)->setTimezone(LedgerReport::TIMEZONE)->format('d M H:i')
-                            .' (asal: '.\Illuminate\Support\Str::limit((string) $row->original_payment_method_label, 24).')'
-                        : ($row->payment_reference ? \Illuminate\Support\Str::limit($row->payment_reference, 34) : null)),
+                    // Tampilan saja: QRIS kasir = QRIS Static / QR Online (gateway); kartu EDC = debit/kredit + mesin.
+                    ->getStateUsing(fn (LedgerEntry $row) => LedgerReport::methodLabel($row, qrisNames: true) ?: null)
+                    ->limit(34)
+                    ->description(function (LedgerEntry $row) {
+                        if ($row->method_corrected_at) {
+                            // Koreksi metode bayar oleh admin: baris tetap satu, ditandai siapa / kapan & metode asalnya.
+                            return 'Dikoreksi '.($row->method_corrected_by_name ?? '-').' '.\Illuminate\Support\Carbon::parse($row->method_corrected_at)->setTimezone(LedgerReport::TIMEZONE)->format('d M H:i')
+                                .' (asal: '.\Illuminate\Support\Str::limit((string) $row->original_payment_method_label, 24).')';
+                        }
+                        $reference = LedgerReport::referenceLabel($row);
+
+                        return $reference ? \Illuminate\Support\Str::limit($reference, 60) : null;
+                    }),
                 TextColumn::make('net_amount')
                     ->label('Penjualan Bersih')
                     ->alignEnd()
@@ -174,7 +192,9 @@ class BukuTransaksi extends Page implements HasTable
                     ->options(LedgerEntry::CATEGORIES)
                     ->multiple()
                     ->query(fn (Builder $query, array $data) => LedgerReport::applyCategories($query, $data['values'] ?? [])),
-                SelectFilter::make('payment_method')->label('Metode Bayar')->options(fn () => LedgerReport::methodOptions())->multiple()->searchable(),
+                SelectFilter::make('payment_method')->label('Metode Bayar')->options(fn () => LedgerReport::methodOptions())->multiple()->searchable()
+                    // QRIS dipilah manual / otomatis kasir / online (semua berkode QRIS) — lihat LedgerReport::QRIS_VARIANTS.
+                    ->query(fn (Builder $query, array $data) => LedgerReport::applyMethods($query, $data['values'] ?? [])),
                 SelectFilter::make('cashier_id')->label('Kasir')->options(fn () => LedgerReport::cashierOptions())->searchable(),
                 SelectFilter::make('pos_shift_id')
                     ->label('Shift Kasir')
@@ -224,10 +244,11 @@ class BukuTransaksi extends Page implements HasTable
                         // Route GET biasa (LedgerExportController), BUKAN aksi Livewire — respons aksi Livewire di-buffer
                         // penuh di memori + base64 dalam JSON. URL-nya dikecualikan dari mode SPA (AdminPanelProvider).
                         ->url(fn () => $this->exportUrl('xlsx')),
+                    // PDF dirakit di browser (resources/js/ledger-pdf.js, tinypdf); server hanya mengirim datanya.
                     Action::make('exportPdf')
                         ->label('PDF')
                         ->icon('heroicon-o-document-arrow-down')
-                        ->url(fn () => $this->exportUrl('pdf')),
+                        ->alpineClickHandler(fn () => $this->pdfClickHandler()),
                 ])
                     ->label('Export')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -266,6 +287,18 @@ class BukuTransaksi extends Page implements HasTable
         return route('admin.buku-transaksi.export', ['format' => $format] + $this->currentFilters());
     }
 
+    /**
+     * Tombol Export → PDF: modul perakit PDF dimuat saat ditekan saja (import dinamis), lalu mengambil data sesuai
+     * filter aktif dari LedgerExportController dan mengunduh file PDF-nya.
+     */
+    public function pdfClickHandler(): string
+    {
+        $module = \Illuminate\Support\Js::from(\Illuminate\Support\Facades\Vite::asset('resources/js/ledger-pdf.js'));
+        $url = \Illuminate\Support\Js::from($this->exportUrl('pdf'));
+
+        return "import({$module}).then(() => window.Club61LedgerPdf.exportLedgerPdf({$url})).catch(() => window.alert('Modul PDF gagal dimuat. Muat ulang halaman lalu coba lagi.'))";
+    }
+
     /** Angka kartu ringkasan untuk filter yang sedang aktif. */
     public function summary(): array
     {
@@ -283,7 +316,7 @@ class BukuTransaksi extends Page implements HasTable
         ActivityLogger::record(
             module: 'FINANCE',
             event: 'ledger.invoice_viewed',
-            description: "Membuka salinan invoice {$record->order_number} dari Buku Transaksi",
+            description: "Membuka salinan invoice {$record->order_number} dari Riwayat Transaksi",
             subject: $record->order,
             meta: array_filter([
                 'no_order' => $record->order_number,

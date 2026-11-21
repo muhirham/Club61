@@ -78,7 +78,7 @@
              style="background:#FFFFFF; border:2px solid #662721; border-radius:20px; width:100%; max-width:440px; max-height:94vh; overflow-y:auto; padding:1rem; box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:0.75rem;">
                 <div style="min-width:0;">
-                    <div style="font-size:0.6875rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em;">Bayar Otomatis &bull; {{ $pendingQris['method'] === 'QRIS' ? 'QRIS' : $pendingQris['method_label'] }}</div>
+                    <div style="font-size:0.6875rem; font-weight:900; color:#662721; text-transform:uppercase; letter-spacing:0.06em;">{{ $pendingQris['method'] === 'QRIS' ? 'QR Online (Midtrans)' : 'Bayar Otomatis' }} &bull; {{ $pendingQris['method'] === 'QRIS' ? 'QRIS' : $pendingQris['method_label'] }}</div>
                     <div style="font-size:0.75rem; color:#7A5A52; margin-top:0.15rem;">{{ $pendingQris['order_number'] }}</div>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">

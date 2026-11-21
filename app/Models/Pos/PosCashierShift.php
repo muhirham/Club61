@@ -76,7 +76,7 @@ class PosCashierShift extends Model
         ];
     }
 
-    private const EDC_TERMINAL_LABELS = [
+    public const EDC_TERMINAL_LABELS = [
         'EDC_BCA' => 'Mesin EDC BCA',
         'EDC_MANDIRI' => 'Mesin EDC Mandiri',
         'EDC_LAINNYA' => 'Mesin EDC Lainnya',

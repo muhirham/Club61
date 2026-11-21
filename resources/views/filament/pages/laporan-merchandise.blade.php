@@ -23,7 +23,7 @@
             <div>
                 <div class="c61-eyebrow">Merchandise · Laporan</div>
                 <div class="c61-hero-title">Laporan Merchandise</div>
-                <div class="c61-hero-sub">Penjualan diambil dari Buku Transaksi kategori Merchandise. Laba dihitung menggunakan HPP produk pada saat penjualan; pembelian barang hanya informasi arus kas karena biayanya telah diperhitungkan melalui HPP.</div>
+                <div class="c61-hero-sub">Penjualan diambil dari Riwayat Transaksi kategori Merchandise. Laba dihitung menggunakan HPP produk pada saat penjualan; pembelian barang hanya informasi arus kas karena biayanya telah diperhitungkan melalui HPP.</div>
             </div>
             <div class="c61-hero-actions">
                 <select wire:model.live="preset" class="c61-select" style="width: auto; background: #FFFFFF;">

@@ -59,6 +59,8 @@ class AnalyticsLedgerTest extends TestCase
             'customer_name' => 'Budi',
             'payment_method' => $extra['method'] ?? 'QRIS',
             'payment_method_label' => $extra['label'] ?? 'QRIS BCA',
+            'payment_gateway' => $extra['gateway'] ?? null,
+            'pos_shift_id' => $extra['pos_shift_id'] ?? null,
             'gross_amount' => $net,
             'net_amount' => $net,
             'tax_amount' => $tax,
@@ -251,6 +253,119 @@ class AnalyticsLedgerTest extends TestCase
             ->assertSet('tableFilters.category.values', ['FNB'])
             ->assertSet('tableFilters.payment_method.values', ['QRIS'])
             ->assertSee('ORD-FNB-001');
+    }
+
+    /**
+     * QRIS manual (QR statis + RRN), QRIS otomatis kasir, dan QRIS online semuanya berkode QRIS. Dulu filter Metode
+     * Bayar cuma punya satu pilihan "QRIS Otomatis (Kasir) (QRIS)" yang ternyata memuat ketiganya — QRIS manual seolah
+     * tidak ada. Sekarang dipilah dari gateway & shift kasir yang sudah tersimpan di baris buku (data lama ikut).
+     */
+    public function test_qris_is_split_into_manual_cashier_auto_and_online_in_filter_and_analytics(): void
+    {
+        $shift = (string) Str::ulid();
+        $this->row('2026-10-05 10:00', 'SEWA_LAPANGAN', 'POS_WALKIN_PADEL', 100000, ['order_number' => 'ORD-QR-MANUAL', 'gateway' => 'CASHIER_POS', 'pos_shift_id' => $shift, 'label' => 'QRIS Instan (GoPay/OVO/BCA)']);
+        $this->row('2026-10-05 11:00', 'FNB', 'POS_FNB', 20000, ['order_number' => 'ORD-QR-LAMA', 'label' => 'QRIS Kasir Frontdesk']); // baris lama tanpa gateway = kasir
+        $this->row('2026-10-05 12:00', 'SEWA_LAPANGAN', 'POS_WALKIN_PADEL', 200000, ['order_number' => 'ORD-QR-KASIR', 'gateway' => 'DOKU', 'pos_shift_id' => $shift, 'label' => 'QRIS Otomatis (Kasir)']);
+        $this->row('2026-10-05 13:00', 'SEWA_LAPANGAN', 'ONLINE_PADEL', 300000, ['order_number' => 'ORD-QR-ONLINE', 'gateway' => 'DOKU', 'label' => 'QRIS Instan (GoPay/OVO/BCA)']);
+        $this->row('2026-10-05 14:00', 'SEWA_LAPANGAN', 'ONLINE_PADEL', 400000, ['order_number' => 'ORD-QR-MIDTRANS', 'gateway' => 'MIDTRANS', 'label' => 'QRIS Instan (GoPay/OVO/BCA)']);
+        $this->row('2026-10-05 15:00', 'SEWA_LAPANGAN', 'POS_WALKIN_PADEL', 50000, ['order_number' => 'ORD-EDC', 'gateway' => 'CASHIER_POS', 'method' => 'EDC_BCA', 'label' => 'Debit/Kartu EDC BCA']);
+        $this->actingAs($this->owner);
+
+        // Pilihan filter: QRIS polos diganti tiga jenis; metode lain tetap.
+        $options = LedgerReport::methodOptions();
+        $this->assertArrayNotHasKey('QRIS', $options);
+        $this->assertSame(array_keys(LedgerReport::QRIS_VARIANTS), array_values(array_intersect(array_keys($options), array_keys(LedgerReport::QRIS_VARIANTS))));
+        $this->assertArrayHasKey('EDC_BCA', $options);
+
+        $orders = fn (array $methods) => LedgerReport::applyFilters(LedgerEntry::query(), ['periode' => 'semua', 'method' => $methods])
+            ->orderBy('order_number')->pluck('order_number')->all();
+        $this->assertSame(['ORD-QR-LAMA', 'ORD-QR-MANUAL'], $orders([LedgerReport::QRIS_MANUAL]));
+        $this->assertSame(['ORD-QR-KASIR'], $orders([LedgerReport::QRIS_KASIR]));
+        $this->assertSame(['ORD-QR-MIDTRANS', 'ORD-QR-ONLINE'], $orders([LedgerReport::QRIS_ONLINE]));
+        $this->assertEqualsCanonicalizing(['ORD-EDC', 'ORD-QR-LAMA', 'ORD-QR-MANUAL'], $orders([LedgerReport::QRIS_MANUAL, 'EDC_BCA']));
+        $this->assertCount(5, $orders(['QRIS']), 'kode QRIS polos (tautan lama) tetap = semua QRIS');
+
+        // Tabel Buku Transaksi memakai filter yang sama (bukan whereIn payment_method).
+        Livewire::withQueryParams(['periode' => 'semua', 'metode' => [LedgerReport::QRIS_MANUAL]])
+            ->test(BukuTransaksi::class)
+            ->assertSet('tableFilters.payment_method.values', [LedgerReport::QRIS_MANUAL])
+            ->assertSee('ORD-QR-MANUAL')
+            ->assertSee('ORD-QR-LAMA')
+            ->assertDontSee('ORD-QR-KASIR')
+            ->assertDontSee('ORD-QR-ONLINE');
+
+        // Analytics: satu baris per jenis QRIS, tautannya membuka jenis yang sama; total tetap = ringkasan.
+        $base = LedgerReport::applyDateRange(LedgerEntry::query(), '2026-10-01', '2026-10-20');
+        $method = collect(LedgerAnalytics::breakdown($base, 'method'))->keyBy('method_code');
+        $this->assertSame(120000.0, $method[LedgerReport::QRIS_MANUAL]['money_net']);
+        $this->assertSame(200000.0, $method[LedgerReport::QRIS_KASIR]['money_net']);
+        $this->assertSame(700000.0, $method[LedgerReport::QRIS_ONLINE]['money_net']);
+        $this->assertSame(LedgerReport::QRIS_VARIANTS[LedgerReport::QRIS_MANUAL], $method[LedgerReport::QRIS_MANUAL]['label']);
+        $this->assertSame(50000.0, $method['EDC_BCA']['money_net']);
+        $this->assertSame(LedgerReport::summary(clone $base)['money_net'], collect(LedgerAnalytics::breakdown($base, 'method'))->sum('money_net'));
+
+        Livewire::test(Analytics::class)->call('setPreset', 'semua')
+            ->assertSee(LedgerReport::QRIS_VARIANTS[LedgerReport::QRIS_MANUAL])
+            ->assertSee('metode%5B0%5D='.LedgerReport::QRIS_MANUAL, false);
+
+        // Nama di tabel (tampilan saja): QRIS kasir = QRIS Static / QR Online (gateway); QRIS online customer tetap.
+        $this->assertSame(['QRIS Static', 'QR Online (Kasir)', 'QRIS (Online Customer)'], array_values(LedgerReport::QRIS_VARIANTS));
+        $label = fn (string $order) => LedgerReport::methodLabel(LedgerReport::grouped(LedgerEntry::query())->where('order_number', $order)->first(), qrisNames: true);
+        $this->assertSame(['QRIS Static', 'QRIS Static', 'QR Online (DOKU)', 'QRIS Instan (GoPay/OVO/BCA)'], array_map($label, ['ORD-QR-MANUAL', 'ORD-QR-LAMA', 'ORD-QR-KASIR', 'ORD-QR-ONLINE']));
+        Livewire::withQueryParams(['periode' => 'semua'])->test(BukuTransaksi::class)
+            ->assertSee('QRIS Static')->assertSee('QR Online (DOKU)');
+        // Label yang tersimpan & export tidak berubah.
+        $this->assertSame('QRIS Otomatis (Kasir)', LedgerEntry::where('order_number', 'ORD-QR-KASIR')->value('payment_method_label'));
+        $this->assertSame('QRIS Otomatis (Kasir)', LedgerReport::methodLabel(LedgerEntry::where('order_number', 'ORD-QR-KASIR')->first()));
+    }
+
+    /**
+     * Kartu debit / kredit EDC: Buku Transaksi (tabel, Excel, PDF) menampilkan mesin + bank penerbit, jaringan kartu & 4 digit
+     * dari bukti EDC yang disimpan kasir — transaksi lama ikut tanpa mengubah data buku.
+     */
+    public function test_edc_card_details_are_shown_in_table_excel_and_pdf_without_changing_the_ledger(): void
+    {
+        $order = Order::create(['order_number' => 'ORD-PXDL-1', 'order_type' => 'WALK_IN', 'subtotal' => 600000, 'grand_total' => 600000, 'payment_status' => 'PAID']);
+        $payment = Payment::create([
+            'order_id' => $order->id, 'payment_gateway' => 'CASHIER_POS', 'transaction_id' => 'EDC-1', 'amount' => 600000, 'payment_method' => 'DEBIT_CARD', 'status' => 'SUCCESS',
+            'payload_log' => ['edc_details' => ['terminal' => 'EDC_BCA', 'card_type' => 'DEBIT', 'card_network' => 'GPN', 'card_issuer' => 'BCA',
+                'card_last_4' => '8842', 'approval_code' => '535698', 'trace_number' => '000103']],
+        ]);
+        $credit = Payment::create([
+            'order_id' => $order->id, 'payment_gateway' => 'CASHIER_POS', 'transaction_id' => 'EDC-2', 'amount' => 100000, 'payment_method' => 'CREDIT_CARD', 'status' => 'SUCCESS',
+            'payload_log' => ['edc_details' => ['terminal' => 'EDC_MANDIRI', 'card_type' => 'CREDIT', 'card_last_4' => '1111', 'approval_code' => 'A1B2C3', 'trace_number' => '000200']],
+        ]);
+        $this->row('2026-10-05 16:39', 'SEWA_LAPANGAN', 'POS_WALKIN_PADEL', 600000, ['order_number' => 'ORD-PXDL-1', 'payment_id' => $payment->id, 'gateway' => 'CASHIER_POS',
+            'method' => 'DEBIT_CARD', 'label' => 'Kartu Debit (EDC)']);
+        $this->row('2026-10-05 16:40', 'FNB', 'POS_FNB', 100000, ['order_number' => 'ORD-PXDL-2', 'payment_id' => $credit->id, 'gateway' => 'CASHIER_POS',
+            'method' => 'CREDIT_CARD', 'label' => 'Kartu Kredit (EDC)']);
+        $this->row('2026-10-05 16:41', 'FNB', 'POS_FNB', 50000, ['order_number' => 'ORD-EDC-NOPROOF', 'method' => 'DEBIT_CARD', 'label' => 'Kartu Debit (EDC)']); // tanpa bukti: label buku
+        LedgerEntry::where('order_number', 'ORD-PXDL-1')->update(['payment_reference' => 'APPR 535698 · TRACE 000103']);
+        $this->actingAs($this->owner);
+
+        $row = fn (string $order) => LedgerReport::grouped(LedgerEntry::query())->where('order_number', $order)->first();
+        $this->assertSame('Kartu Debit — Mesin EDC BCA', LedgerReport::methodLabel($row('ORD-PXDL-1')));
+        $this->assertSame('BCA · GPN · ••••8842 · APPR 535698 · TRACE 000103', LedgerReport::referenceLabel($row('ORD-PXDL-1')));
+        $this->assertSame('Kartu Kredit — Mesin EDC Mandiri', LedgerReport::methodLabel($row('ORD-PXDL-2')));
+        $this->assertSame('••••1111 · APPR A1B2C3 · TRACE 000200', LedgerReport::referenceLabel($row('ORD-PXDL-2')), 'yang tidak diisi kasir dilewati');
+        $this->assertSame('Kartu Debit (EDC)', LedgerReport::methodLabel($row('ORD-EDC-NOPROOF')));
+
+        // Tabel.
+        Livewire::withQueryParams(['periode' => 'semua'])->test(BukuTransaksi::class)
+            ->assertSee('Kartu Debit — Mesin EDC BCA')
+            ->assertSee('BCA · GPN · ••••8842 · APPR 535698 · TRACE 000103');
+
+        // Excel (lembar Transaksi & Rincian Kategori) dan PDF memakai tampilan yang sama.
+        $excel = \App\Http\Controllers\Admin\LedgerExportController::transactionRow($row('ORD-PXDL-1'));
+        $this->assertSame(['Kartu Debit — Mesin EDC BCA', 'BCA · GPN · ••••8842 · APPR 535698 · TRACE 000103'], [$excel[7], $excel[8]]);
+        $this->assertSame('Kartu Debit — Mesin EDC BCA', \App\Http\Controllers\Admin\LedgerExportController::detailRow(LedgerEntry::where('order_number', 'ORD-PXDL-1')->first())[7]);
+        LedgerReport::flushMemo();
+        LedgerReport::primeEdc([$row('ORD-PXDL-2')]);
+        $this->assertSame('Kartu Kredit — Mesin EDC Mandiri', \App\Http\Controllers\Admin\LedgerExportController::pdfRow($row('ORD-PXDL-2'))[6]);
+
+        // Data buku tidak berubah.
+        $this->assertSame('Kartu Debit (EDC)', LedgerEntry::where('order_number', 'ORD-PXDL-1')->value('payment_method_label'));
+        $this->assertSame('APPR 535698 · TRACE 000103', LedgerEntry::where('order_number', 'ORD-PXDL-1')->value('payment_reference'));
     }
 
     public function test_occupancy_uses_active_courts_operating_hours(): void

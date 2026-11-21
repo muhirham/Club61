@@ -517,11 +517,25 @@
                     @if ($this->isCoaching)
                         {{-- Coaching (Modul 24 Opsi B): pemesan + coach dalam satu kotak; harga = tarif setoran coaching. --}}
                         <div data-coaching-box style="display:flex; flex-direction:column; gap:0.4rem;">
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.4rem;">
-                                <input type="text" wire:model="walkInName" placeholder="Atas nama *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                                <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                            </div>
-                            @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
+                            {{-- Pemesan: isi baru (nama + HP) atau pilih akun yang sudah terdaftar. --}}
+                            @if ($posStep === 'selection')
+                                <div class="pos-tab-group" data-coaching-customer-mode style="align-self:flex-start;">
+                                    <button type="button" wire:click="setCoachingCustomerMode('quick_create')"
+                                        class="pos-tab {{ $customerMode !== 'search' ? 'active' : '' }}">Isi Baru</button>
+                                    <button type="button" wire:click="setCoachingCustomerMode('search')"
+                                        class="pos-tab {{ $customerMode === 'search' ? 'active' : '' }}">Cari Akun</button>
+                                </div>
+                            @endif
+                            @if ($customerMode === 'search')
+                                @include('filament.partials.pos-customer-search', ['benefitQuote' => null, 'notFoundHint' => 'Tidak ditemukan — pakai Isi Baru.'])
+                            @else
+                                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:0.4rem;">
+                                    <input type="text" wire:model.blur="walkInName" placeholder="Atas nama *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                                    <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *" class="pos-input" autocomplete="off" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
+                                </div>
+                                @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
+                                @include('filament.partials.pos-same-name-accounts', ['accounts' => $this->sameNameAccounts])
+                            @endif
                             <select wire:model.live="coachingCoachId" class="pos-input" style="background:#FFFFFF;" {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                                 <option value="">Pilih coach utama *</option>
                                 @foreach ($this->coachOptions as $coachId => $coachLabel)
@@ -568,13 +582,14 @@
                         </div>
                     @elseif ($customerMode === 'quick_create')
                         <div style="display:flex; flex-direction:column; gap:0.4rem;">
-                            <input type="text" wire:model="walkInName" placeholder="Nama Lengkap *"
+                            <input type="text" wire:model.blur="walkInName" placeholder="Nama Lengkap *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                             <input type="tel" wire:model.blur="walkInPhone" placeholder="No. WhatsApp / Telp *"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
                             @include('filament.partials.pos-walkin-phone-owner', ['owner' => $this->walkInPhoneOwner])
+                            @include('filament.partials.pos-same-name-accounts', ['accounts' => $this->sameNameAccounts])
                             <input type="email" wire:model="walkInEmail" placeholder="Email (opsional)"
                                 class="pos-input" autocomplete="off"
                                 {{ $posStep !== 'selection' ? 'disabled' : '' }}>
@@ -584,56 +599,7 @@
                             @include('filament.partials.walkin-benefit-badges', ['benefitQuote' => $this->benefitQuote])
                         </div>
                     @else
-                        @if ($selectedCustomerId)
-                            <div
-                                style="background:#FFFFFF; border:1.5px solid #662721; border-radius:8px; padding:0.5rem 0.65rem; display:flex; justify-content:space-between; align-items:center;">
-                                <div>
-                                    <div style="font-weight:900; color:#4F2F2A; font-size:0.8125rem;">
-                                        {{ $selectedCustomerName }}</div>
-                                    <div style="font-size:0.6875rem; color:#662721;">
-                                        {{ $selectedCustomerPhone ?? '-' }}</div>
-                                    @include('filament.partials.walkin-benefit-badges', ['benefitQuote' => $this->benefitQuote])
-                                </div>
-                                @if ($posStep === 'selection')
-                                    <button type="button" wire:click="clearSelectedCustomer" class="pos-touch"
-                                        style="background:#FEF2F2; border:1px solid #FECACA; color:#DC2626; font-size:0.625rem; font-weight:800; padding:0.2rem 0.45rem; border-radius:5px; cursor:pointer;">
-                                        Ganti
-                                    </button>
-                                @endif
-                            </div>
-                            @include('filament.partials.pos-add-customer-phone')
-                        @else
-                            <div style="position:relative;">
-                                <input type="text" wire:model.live.debounce.300ms="customerSearch"
-                                    placeholder="Cari nama, nomor HP, atau email..." class="pos-input" autocomplete="off"
-                                    {{ $posStep !== 'selection' ? 'disabled' : '' }}>
-                                @if (count($searchResults) > 0)
-                                    <div
-                                        style="position:absolute; top:100%; left:0; right:0; z-index:50; background:#FFFFFF; border:1.5px solid #E6DAC0; border-radius:8px; box-shadow:0 8px 20px rgba(0,0,0,0.1); margin-top:0.2rem; max-height:140px; overflow-y:auto;">
-                                        @foreach ($searchResults as $res)
-                                            <button type="button" wire:key="search-result-{{ $res->id }}"
-                                                wire:click="selectCustomer('{{ $res->id }}')" class="pos-touch"
-                                                style="width:100%; text-align:left; padding:0.4rem 0.65rem; border:none; border-bottom:1px solid #EFE6D2; background:#FFFFFF; cursor:pointer; font-size:0.75rem;"
-                                                onmouseover="this.style.background='#FCF8EE'"
-                                                onmouseout="this.style.background='#FFFFFF'">
-                                                <div style="font-weight:800; color:#4F2F2A;">{{ $res->name }}
-                                                </div>
-                                                <div style="font-size:0.625rem; color:#662721;">
-                                                    {{ $res->phone ?: 'Belum ada nomor HP' }}
-                                                    @unless (\App\Support\PlaceholderEmail::is($res->email))
-                                                        · {{ $res->email }}
-                                                    @endunless
-                                                </div>
-                                            </button>
-                                        @endforeach
-                                    </div>
-                                @elseif(strlen(trim($customerSearch)) >= 2)
-                                    <div
-                                        style="font-size:0.625rem; color:#9CA3AF; margin-top:0.25rem; font-style:italic;">
-                                        Tidak ditemukan — pakai tab Walk-In Baru.</div>
-                                @endif
-                            </div>
-                        @endif
+                        @include('filament.partials.pos-customer-search', ['benefitQuote' => $this->benefitQuote, 'notFoundHint' => 'Tidak ditemukan — pakai tab Walk-In Baru.'])
                     @endif
                 </div>
                 </div>{{-- end pos-col-cust --}}
