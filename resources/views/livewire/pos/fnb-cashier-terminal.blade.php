@@ -2,24 +2,22 @@
     <style>
         .fnbpos-pill { padding: 0.55rem 1rem; border-radius: 12px; font-size: 0.7rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; cursor: pointer; transition: all 0.15s ease; border: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.9); color: #4F2F2A; }
         .fnbpos-pill.active { background: #662721; border-color: #662721; color: #F7F0DB; box-shadow: 0 4px 12px rgba(102,39,33,0.22); }
-        /* Kartu tinggi seragam — semua kotak sama besar & rapi, isi (foto/teks) menyesuaikan kotak */
-        .fnbpos-card { height: 19rem; padding: 0.85rem; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 8px 20px -8px rgba(79,47,42,0.10); border: 1.5px solid #E6DAC0; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; }
+        /* Kartu persegi (tinggi = lebar) di semua ukuran layar. Urutan: nama menu (atas) → foto → harga → deskripsi.
+           Foto mengisi sisa ruang (flex), harga + deskripsi tingginya tetap, jadi harga sejajar di satu baris kartu
+           walau nama menunya 1 atau 2 baris. Seluruh kartu bisa diketuk untuk menambah ke keranjang. */
+        .fnbpos-card { aspect-ratio: 1 / 1; min-height: 0; padding: 0.75rem; border-radius: 16px; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 8px 20px -8px rgba(79,47,42,0.10); border: 1.5px solid #E6DAC0; background: #FFFFFF; display: flex; flex-direction: column; overflow: hidden; }
         .fnbpos-card:hover { transform: scale(1.02); }
-        .fnbpos-card-photo { position: relative; width: 100%; height: 8.5rem; border-radius: 10px; overflow: hidden; margin-bottom: 0.6rem; background: #F7F0DB; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+        .fnbpos-card-name { font-size: 0.9375rem; font-weight: 800; line-height: 1.25; color: #4F2F2A; margin-bottom: 0.5rem; flex-shrink: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+        .fnbpos-card-price-row { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.5rem; flex-shrink: 0; }
+        .fnbpos-card-price { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 0.875rem; font-weight: 800; color: #662721; white-space: nowrap; }
+        .fnbpos-card-desc { font-size: 0.6875rem; line-height: 1.3; color: #7A5A52; margin-top: 0.2rem; min-height: 2.6em; flex-shrink: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+        .fnbpos-card-photo { position: relative; width: 100%; flex: 1 1 0; min-height: 3.5rem; border-radius: 10px; overflow: hidden; background: #F7F0DB; display: flex; align-items: center; justify-content: center; }
         /* Foto apa pun ukurannya / orientasinya (portrait, landscape, kecil, besar) dipasang UTUH di dalam bingkai yang
            ukurannya sama di semua kartu: gambar diposisikan absolut supaya ukuran aslinya tidak ikut membesarkan bingkai
            (dulu foto portrait mendorong nama & deskripsi menu ke bawah sampai terpotong), contain = tidak ada yang terpotong. */
         .fnbpos-card-photo.has-photo { background: #FFFFFF; border: 1px solid #EFE6D2; }
         .fnbpos-card-photo img { position: absolute; inset: 0; width: 100% !important; height: 100% !important; max-width: none !important; object-fit: contain; display: block; }
         .fnbpos-card-photo .fnbpos-photo-initial { font-family: 'Cheltenham Classic', 'Source Serif 4', Georgia, serif; font-size: 2rem; font-weight: 900; color: #662721; opacity: 0.55; }
-        /* Desktop lebar: 1 halaman = 2 baris x 4 kolom yang dibagi rata mengisi tinggi layar,
-           supaya tidak ada ruang kosong di bawah grid. Foto ikut membesar mengisi kotak. */
-        @media (min-width: 1280px) {
-            .fnbpos-grid { grid-template-rows: repeat(2, minmax(0, 1fr)); overflow-y: hidden; }
-            .fnbpos-grid .fnbpos-card { height: 100%; min-height: 0; }
-            /* flex-basis 0: tinggi bingkai = sisa ruang kartu, bukan tinggi asli fotonya. */
-            .fnbpos-grid .fnbpos-card-photo { height: auto; flex: 1 1 0; min-height: 5rem; }
-        }
         .fnbpos-page-btn { padding: 0.5rem 1rem; border-radius: 10px; font-size: 0.75rem; font-weight: 800; border: 1.5px solid #E6DAC0; background: rgba(255,255,255,0.95); color: #4F2F2A; cursor: pointer; }
         .fnbpos-page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .fnbpos-cart-item { padding: 0.75rem; border-radius: 12px; background: rgba(255,255,255,0.95); border: 1.5px solid #E6DAC0; }
@@ -107,13 +105,10 @@
             <div class="fnbpos-grid flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3.5 content-start">
                 @forelse($menus as $menu)
                     <div wire:click="addToCart('{{ $menu->id }}')" wire:key="menu-{{ $menu->id }}" class="fnbpos-card">
-                        <div class="flex items-center justify-between text-[10px] font-bold mb-1.5 shrink-0">
-                            <span class="text-[#7A5A52] truncate pr-2">{{ $menu->category?->name }}</span>
-                            <span class="px-1.5 py-0.5 rounded-md font-mono shrink-0" style="background: #F7F0DB; border: 1px solid #E6DAC0; color: #7A5A52;">{{ $menu->station?->name ?? 'Kasir' }}</span>
-                        </div>
+                        {{-- Nama menu di atas (kategori sudah terlihat di tombol filter; stasiun tidak perlu di kartu). --}}
+                        <div class="fnbpos-card-name" title="{{ $menu->name }}">{{ $menu->name }}</div>
 
-                        {{-- Kotak foto ukurannya SAMA di semua kartu; menu tanpa foto tetap dapat kotak
-                             placeholder supaya grid tetap rapi & sejajar. --}}
+                        {{-- Kotak foto: menu tanpa foto tetap dapat kotak placeholder supaya grid tetap rapi & sejajar. --}}
                         <div class="fnbpos-card-photo {{ $menu->image_url ? 'has-photo' : '' }}">
                             @if($menu->image_url)
                                 <img src="{{ '/storage/'.$menu->image_url }}" alt="{{ $menu->name }}" loading="lazy">
@@ -122,19 +117,17 @@
                             @endif
                         </div>
 
-                        <div class="font-bold text-sm text-[#4F2F2A] line-clamp-1">{{ $menu->name }}</div>
-                        {{-- Modul 29: info stok saja, penjualan tidak pernah diblok (stok boleh minus). --}}
-                        @if (in_array($menu->stockStatus(), ['LOW', 'EMPTY', 'MINUS'], true))
-                            <span data-stock-badge style="align-self: flex-start; margin-top: 2px; padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 800; {{ $menu->stock_qty > 0 ? 'background:#FEF3C7; color:#92400E;' : 'background:#FEE2E2; color:#B42318;' }}">
-                                {{ $menu->stock_qty < 0 ? 'Stok minus ('.$menu->stock_qty.')' : 'Sisa '.$menu->stock_qty }}
-                            </span>
-                        @endif
-                        <div class="text-[11px] text-[#7A5A52] mt-0.5 line-clamp-2">{{ $menu->description }}</div>
-
-                        <div class="mt-auto pt-2 border-t border-[#E6DAC0]/50 flex items-center justify-between font-mono">
-                            <span class="text-xs font-black text-[#662721]">Rp {{ number_format($menu->base_price, 0, ',', '.') }}</span>
-                            <span class="w-6 h-6 rounded-lg flex items-center justify-center font-bold text-sm" style="background: #662721; color: #F7F0DB;">+</span>
+                        <div class="fnbpos-card-price-row">
+                            <span class="fnbpos-card-price">Rp {{ number_format($menu->base_price, 0, ',', '.') }}</span>
+                            {{-- Modul 29: info stok saja, penjualan tidak pernah diblok (stok boleh minus). --}}
+                            @if (in_array($menu->stockStatus(), ['LOW', 'EMPTY', 'MINUS'], true))
+                                <span data-stock-badge style="padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 800; white-space: nowrap; {{ $menu->stock_qty > 0 ? 'background:#FEF3C7; color:#92400E;' : 'background:#FEE2E2; color:#B42318;' }}">
+                                    {{ $menu->stock_qty < 0 ? 'Stok minus ('.$menu->stock_qty.')' : 'Sisa '.$menu->stock_qty }}
+                                </span>
+                            @endif
                         </div>
+                        {{-- Tinggi 2 baris tetap disediakan walau tanpa deskripsi, supaya harga sejajar antar kartu. --}}
+                        <div class="fnbpos-card-desc">{{ $menu->description }}</div>
                     </div>
                 @empty
                     <div class="col-span-full text-center py-16 text-[#6B7280] text-sm">Belum ada menu tersedia. Isi lewat panel admin &quot;Menu F&amp;B&quot;.</div>
