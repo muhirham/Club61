@@ -512,7 +512,10 @@
             var card = el('div', 'court ' + c.status);
             var top = el('div', 'court-top');
             top.appendChild(el('div', 'court-name', c.name));
-            top.appendChild(el('div', 'badge ' + c.status, c.status === 'PLAYING' ? 'Playing' : (c.status === 'WAITING' ? 'Awaiting check-in' : 'Available')));
+            // Lapangan kosong tanpa badge — kata "Available" sudah tampil besar di tengah kartu.
+            if (c.status === 'PLAYING' || c.status === 'WAITING') {
+                top.appendChild(el('div', 'badge ' + c.status, c.status === 'PLAYING' ? 'Playing' : 'Awaiting check-in'));
+            }
             card.appendChild(top);
             var mid = el('div', 'court-mid');
             if (c.current) {
@@ -523,8 +526,8 @@
                 cd._remaining = c.current.remaining_seconds;
                 mid.appendChild(cd);
             } else {
-                mid.appendChild(el('div', 'free-big', 'Free'));
-                mid.appendChild(el('div', 'free-cta', c.next ? 'Free until ' + c.next.start : 'Book now at the front desk'));
+                mid.appendChild(el('div', 'free-big', 'Available'));
+                mid.appendChild(el('div', 'free-cta', c.next ? 'Until ' + c.next.start : 'Book now at the front desk'));
             }
             card.appendChild(mid);
             var next = el('div', 'next', c.next ? 'Next ' + c.next.start + ' – ' + c.next.end : 'Next');
