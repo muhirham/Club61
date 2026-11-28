@@ -2,6 +2,7 @@
 
 namespace App\Services\Signature;
 
+use App\Models\Coaching\CoachingAcademy;
 use App\Models\Padel\PadelBooking;
 use App\Models\Padel\PadelCourt;
 use App\Models\Signature\SignatureContent;
@@ -640,9 +641,14 @@ class SignatureService
         $autoText = fn (string $kind) => $texts->firstWhere('kind', $kind)['text'] ?? null;
 
         $courts = PadelCourt::where('is_active', true)->ordered()->get();
+        // Sesi coaching "Tagihan Berkala" (Modul 31) tetap PENDING_PAYMENT sampai akademi melunasi tagihannya, tetapi
+        // lapangannya terpakai — aturan yang sama dengan jadwal POS (BookOfflineCourt). Booking online yang belum dibayar
+        // tetap tidak tampil.
         $bookings = PadelBooking::with('user:id,name')
             ->whereDate('booking_date', $today)
-            ->whereIn('status', ['PAID', 'CHECKED_IN', 'COMPLETED'])
+            ->where(fn ($q) => $q->whereIn('status', ['PAID', 'CHECKED_IN', 'COMPLETED'])
+                ->orWhere(fn ($tab) => $tab->where('status', 'PENDING_PAYMENT')
+                    ->whereHas('coachingBooking', fn ($c) => $c->where('billing', CoachingAcademy::BILLING_TAB))))
             ->orderBy('start_time')
             ->get()
             ->groupBy('court_id');

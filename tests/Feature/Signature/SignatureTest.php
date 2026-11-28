@@ -156,6 +156,35 @@ class SignatureTest extends TestCase
         $this->assertNull($this->getJson("/signature/{$screen->token}/live")->json('courts.0.current.name'));
     }
 
+    public function test_coaching_tab_session_shows_on_tv_but_unpaid_online_booking_does_not(): void
+    {
+        $screen = $this->service()->ensureDefaults();
+        $coach = \App\Models\Coaching\Coach::create(['name' => 'Maimun', 'title' => 'HEAD_COACH', 'is_active' => true]);
+        $tab = \App\Models\Coaching\CoachingBooking::create([
+            'head_coach_id' => $coach->id, 'academy_name' => 'Akademi Padel', 'billing' => \App\Models\Coaching\CoachingAcademy::BILLING_TAB,
+        ]);
+        $payNow = \App\Models\Coaching\CoachingBooking::create([
+            'head_coach_id' => $coach->id, 'academy_name' => 'Akademi Lain', 'billing' => \App\Models\Coaching\CoachingAcademy::BILLING_PER_BOOKING,
+        ]);
+
+        // Sesi coaching Tagihan Berkala sedang berjalan (belum dilunasi akademi = PENDING_PAYMENT) → lapangan terpakai.
+        $this->booking('19:00', '21:00', 'PENDING_PAYMENT', ['coaching_booking_id' => $tab->id], User::factory()->customer()->create(['name' => 'Zuelfan']));
+        // Booking online yang belum dibayar & sesi coaching bukan tagihan berkala yang belum dibayar → tidak tampil.
+        $this->booking('21:00', '22:00', 'PENDING_PAYMENT', [], User::factory()->customer()->create(['name' => 'Belum Bayar']));
+        $this->booking('22:00', '23:00', 'PENDING_PAYMENT', ['coaching_booking_id' => $payNow->id], User::factory()->customer()->create(['name' => 'Coaching Belum Bayar']));
+        $this->service()->publish($screen, $this->admin);
+
+        $response = $this->getJson("/signature/{$screen->token}/live")->assertOk();
+        $court = $response->json('courts.0');
+        $this->assertSame('WAITING', $court['status']);
+        $this->assertSame(['Zuelfan', '19:00', '21:00'], [$court['current']['name'], $court['current']['start'], $court['current']['end']]);
+        $this->assertNull($court['next']);
+        $this->assertSame(['Zuelfan'], collect($response->json('schedule.0.bookings'))->pluck('name')->all());
+        $this->assertStringNotContainsString('Belum Bayar', $response->getContent());
+        // Slot sesi coaching tidak diiklankan sebagai slot kosong di teks berjalan.
+        $this->assertFalse(collect($response->json('ticker'))->contains(fn ($t) => str_contains($t, 'Court BCA 20:00')));
+    }
+
     public function test_tv_closes_outside_operating_hours_when_enabled(): void
     {
         $screen = $this->service()->ensureDefaults();
