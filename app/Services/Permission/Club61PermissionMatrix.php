@@ -57,6 +57,8 @@ class Club61PermissionMatrix
         // Import penjualan soft opening: menulis order, booking, akun customer & Buku Transaksi langsung tanpa kasir.
         'View:ImportPenjualan',
         'import_sales_data',
+        // Monitoring Sistem (Laravel Pulse): kondisi server, error aplikasi beserta lokasi kodenya, query & pembayaran.
+        'view_server_health',
     ];
 
     /**
@@ -447,6 +449,12 @@ class Club61PermissionMatrix
                         'actions' => [
                             'View:LogAktivitas' => 'Akses Menu Log Aktivitas (Read-only)',
                             'export_activity_logs' => 'Export Log Aktivitas ke CSV',
+                        ],
+                    ],
+                    'server_health' => [
+                        'label' => 'Monitoring Sistem',
+                        'actions' => [
+                            'view_server_health' => 'Akses Dashboard Monitoring Sistem (storage, error aplikasi, API & pembayaran)',
                         ],
                     ],
                     'pricing_equipment' => [

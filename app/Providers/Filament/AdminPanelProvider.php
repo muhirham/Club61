@@ -123,6 +123,16 @@ class AdminPanelProvider extends PanelProvider
                 'panels::body.end',
                 fn () => view('filament.realtime-script')
             )
+            // Dashboard Monitoring Sistem = Laravel Pulse (/pulse, tampilan sendiri, dibuka di tab baru). Akses dijaga Gate
+            // viewPulse di server; menu ini hanya disembunyikan dari yang tidak punya izin.
+            ->navigationItems([
+                NavigationItem::make('Monitoring Sistem')
+                    ->url(fn (): string => url((string) config('pulse.path', 'pulse')), shouldOpenInNewTab: true)
+                    ->icon('heroicon-o-heart')
+                    ->group('Karyawan & Akses')
+                    ->sort(90)
+                    ->visible(fn (): bool => (bool) auth()->user()?->can('view_server_health')),
+            ])
             ->pages([
                 \App\Filament\Pages\Dashboard::class,
                 \App\Filament\Pages\Analytics::class,

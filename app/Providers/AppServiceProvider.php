@@ -66,6 +66,17 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(\Spatie\Permission\Models\Role::class, \App\Policies\RolePolicy::class);
         Gate::policy(\App\Models\Sponsor\SponsorOrganization::class, \App\Policies\Sponsor\SponsorOrganizationPolicy::class);
 
+        // Dashboard Monitoring Sistem (Laravel Pulse, /pulse): hanya pemegang izin view_server_health (bawaan super_admin).
+        // Tamu ditolak otomatis (parameter User tidak nullable) → 403.
+        Gate::define('viewPulse', fn (\App\Models\User $user) => $user->can('view_server_health'));
+
+        // Peringatan "[ALERT]" yang selama ini hanya tertulis di file log ikut tercatat di Pulse (kartu Pembayaran Club 61).
+        \Illuminate\Support\Facades\Event::listen(\Illuminate\Log\Events\MessageLogged::class, [\App\Support\Monitoring\LogAlertRecorder::class, 'handle']);
+
+        // Kartu Usage: hanya aktivitas orang (request otomatis dibuang); akun ditampilkan dengan nama + role.
+        \Laravel\Pulse\Facades\Pulse::filter(new \App\Support\Monitoring\UsageRequestFilter);
+        \Laravel\Pulse\Facades\Pulse::user(fn ($user) => \App\Support\Monitoring\PulseUserLabel::fields($user));
+
         $this->registerActivityLog();
         $this->registerRealtime();
 

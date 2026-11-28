@@ -1,0 +1,52 @@
+/*
+ * Kartu Club 61 di dashboard Monitoring Sistem (Laravel Pulse). Disisipkan Pulse lewat Card::css() — TIDAK ikut build
+ * Vite. Pulse memakai CSS bawaannya sendiri, jadi kartu ini memakai kelas ber-awalan c61m- (mode terang & gelap).
+ */
+.c61m { font-size: 0.8125rem; color: #374151; display: flex; flex-direction: column; gap: 0.9rem; }
+.dark .c61m { color: #d1d5db; }
+
+.c61m-row { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.c61m-stat { flex: 1 1 8rem; border: 1px solid #e5e7eb; border-radius: 0.6rem; padding: 0.55rem 0.7rem; background: #f9fafb; }
+.dark .c61m-stat { border-color: #1f2937; background: #111827; }
+.c61m-stat-label { font-size: 0.6875rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+.c61m-stat-value { font-size: 1.05rem; font-weight: 700; color: #111827; margin-top: 0.1rem; font-variant-numeric: tabular-nums; }
+.dark .c61m-stat-value { color: #f3f4f6; }
+.c61m-stat-sub { font-size: 0.6875rem; color: #6b7280; margin-top: 0.1rem; }
+
+.c61m-section-title { font-size: 0.75rem; font-weight: 700; color: #4b5563; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.35rem; }
+.dark .c61m-section-title { color: #9ca3af; }
+
+.c61m-bar { height: 0.5rem; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
+.dark .c61m-bar { background: #1f2937; }
+.c61m-bar > span { display: block; height: 100%; border-radius: 999px; background: #16a34a; }
+.c61m-bar.is-warn > span { background: #d97706; }
+.c61m-bar.is-bad > span { background: #dc2626; }
+
+.c61m-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+.c61m-table th { text-align: left; font-weight: 600; color: #6b7280; padding: 0.25rem 0.4rem; border-bottom: 1px solid #e5e7eb; }
+.c61m-table td { padding: 0.3rem 0.4rem; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+.dark .c61m-table th { border-color: #1f2937; }
+.dark .c61m-table td { border-color: #111827; }
+.c61m-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c61m-table th.c61m-num { text-align: right; }
+.c61m-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.6875rem; word-break: break-all; }
+
+.c61m-badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 700; white-space: nowrap; }
+.c61m-ok { background: #dcfce7; color: #166534; }
+.c61m-warn { background: #fef3c7; color: #92400e; }
+.c61m-bad { background: #fee2e2; color: #991b1b; }
+.c61m-muted { background: #f3f4f6; color: #4b5563; }
+.dark .c61m-ok { background: #052e16; color: #86efac; }
+.dark .c61m-warn { background: #451a03; color: #fcd34d; }
+.dark .c61m-bad { background: #450a0a; color: #fca5a5; }
+.dark .c61m-muted { background: #1f2937; color: #9ca3af; }
+
+.c61m-alert { border-radius: 0.6rem; padding: 0.55rem 0.7rem; font-size: 0.75rem; line-height: 1.45; }
+.c61m-alert.c61m-bad { border: 1px solid #fca5a5; }
+.c61m-alert.c61m-warn { border: 1px solid #fcd34d; }
+
+.c61m-list { display: flex; flex-direction: column; gap: 0.3rem; }
+.c61m-line { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
+.c61m-hint { font-size: 0.6875rem; color: #6b7280; }
+.c61m a { color: #b45309; text-decoration: underline; }
+.dark .c61m a { color: #fbbf24; }

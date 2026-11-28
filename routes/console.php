@@ -62,3 +62,5 @@ Artisan::command('booking:window', function () {
 \Illuminate\Support\Facades\Schedule::command('ledger:verify')->dailyAt('01:15')->withoutOverlapping();
 // Jadwal Tetap Mingguan: booking rutin (corporate / member) dibuat otomatis sampai N minggu ke depan, dipotong kuota jam.
 \Illuminate\Support\Facades\Schedule::command('padel:generate-recurring')->dailyAt('00:20')->withoutOverlapping(30);
+// Dashboard Monitoring Sistem (Pulse): data kartu Storage / Layanan / Pembayaran Club 61. Waktu snapshot = tanda scheduler hidup.
+\Illuminate\Support\Facades\Schedule::command('monitoring:snapshot')->everyFiveMinutes()->withoutOverlapping(10)->runInBackground();
